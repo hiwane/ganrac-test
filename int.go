@@ -20,6 +20,17 @@ func NewInt(n int64) *Int {
 	return v
 }
 
+func ParseInt(s string, base int) *Int {
+	v := newInt()
+	_, ok := v.n.SetString(s, base)
+	if ok {
+		return v
+	} else {
+		return nil
+	}
+	return v
+}
+
 func (x *Int) Equals(y Coef) bool {
 	if y.Tag() != TAG_INT {
 		return false

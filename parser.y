@@ -7,17 +7,17 @@ package ganrac
 	num int
 }
 
-%token call list
+%token call list initvar
 %token name ident number f_true f_false
 %token all ex and or not abs
 %token plus minus comma mult div pow
 %token ltop gtop leop geop neop eqop assign
 %token eol lb rb lp rp lc rc
 
-%type <num> seq_mobj list_mobj
+%type <num> seq_mobj list_mobj seq_ident
 %type <node> f_true f_false
-%type <node> fof atom mobj lb
-%type <node> number poly rational name ident
+%type <node> fof atom mobj lb initvar
+%type <node> number poly name ident
 %type <node> plus minus mult div pow and or
 %type <node> ltop gtop leop geop neop eqop assign lb
 
@@ -32,14 +32,15 @@ package ganrac
 %%
 
 expr
-	: mobj eol
+	: mobj eol {{ yyytrace("gege") }}
 	| name assign mobj eol  { yyytrace("assign"); stack.Push($2); }
 	;
 
 mobj
 	: fof
-	| poly
-	| ident lp seq_mobj rp { yyytrace("call"); stack.Push($1); stack.Push(newPNode("_call", call, $3, $1.pos)) }
+	| poly {{ yyytrace("mobj: poly:" + string(stack.Len())) }}
+	| ident lp seq_ident rp { yyytrace("call"); stack.Push(newPNode($1.str, call, $3, $1.pos)) }
+	| initvar lp seq_mobj rp { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
 	| list_mobj {}
 	;
 
@@ -62,6 +63,11 @@ seq_mobj
 	| seq_mobj comma mobj { $$ = $1 + 1 }
 	;
 
+seq_ident
+	: ident	{ $$ = 1 }
+	| seq_ident comma ident { $$ = $1 + 1 }
+	;
+
 atom
 	: f_true  { yyytrace("true");  stack.Push($1)}
 	| f_false { yyytrace("false"); stack.Push($1)}
@@ -73,8 +79,9 @@ atom
 	| poly neop poly { yyytrace("!="); stack.Push($2)}
 	;
 
+/*
 rational
-	: number	{ yyytrace("num: " + $1.str); stack.Push($1) }
+	: number	{ yyytrace("rat.num: " + $1.str); stack.Push($1) }
 	| lp rational rp	{ $$ = $2 }
 	| rational plus rational	{ yyytrace("+"); stack.Push($2)}
 	| rational minus rational	{ yyytrace("-"); stack.Push($2)}
@@ -83,17 +90,17 @@ rational
 	| minus rational %prec unaryminus	{ yyytrace("-"); newPNode("-.", unaryminus, 0, $1.pos) }
 	| plus rational %prec unaryplus	{ yyytrace("+"); newPNode("+.", unaryplus, 0, $1.pos) }
 	;
+*/
 
 poly
 	: lp poly rp { $$ = $2; }
-	| rational
-	| name		{ yyytrace("name: " + $1.str ); stack.Push($1) }
+	| number	{ yyytrace("poly.num: " + $1.str); stack.Push($1) }
 	| ident		{ yyytrace("ident: " + $1.str ); stack.Push($1) }
 	| poly plus poly	{ yyytrace("+"); stack.Push($2)}
 	| poly minus poly	{ yyytrace("-"); stack.Push($2)}
 	| poly mult poly	{ yyytrace("*"); stack.Push($2)}
-	| poly div poly	{ yyytrace("/"); stack.Push($2)}
-	| poly pow rational { yyytrace("^"); stack.Push($2)}
+	| poly div poly		{ yyytrace("/"); stack.Push($2)}
+	| poly pow poly		{ yyytrace("^"); stack.Push($2)}
 	| minus poly %prec unaryminus	{ yyytrace("-"); stack.Push(newPNode("-.", unaryminus, 0, $1.pos)) }
 	| plus poly %prec unaryplus	{ yyytrace("+"); stack.Push(newPNode("+.", unaryplus, 0, $1.pos)) }
 	;

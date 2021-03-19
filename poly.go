@@ -27,10 +27,10 @@ func NewPolyInts(lv uint, coeffs ...int64) *Poly {
 }
 
 func (z *Poly) Equals(x Coef) bool {
-	if x.IsNumeric() {
+	p, ok := x.(*Poly)
+	if !ok {
 		return false
 	}
-	p, _ := x.(*Poly)
 	if p.lv != z.lv || len(p.c) != len(z.c) {
 		return false
 	}
@@ -127,57 +127,39 @@ func (z *Poly) Set(x Coef) Coef {
 	return z
 }
 
+func (z *Poly) Copy() Coef {
+	return z.copy()
+}
+
+func (z *Poly) copy() *Poly {
+	u := NewPoly(z.lv)
+	for _, c := range z.c {
+		u.c = append(u.c, c)
+	}
+	return u
+}
+
+
 func (z *Poly) Neg() Coef {
 	return z
 }
 
 func (x *Poly) Add(y Coef) Coef {
 	if y.IsNumeric() {
-		z := NewPoly(x.lv)
-		copy(z.c, x.c)
+		z := x.copy()
 		z.c[0] = z.c[0].Add(y)
 		return z
 	}
 	p, _ := y.(*Poly)
 	if p.lv > x.lv {
-		z := NewPoly(x.lv)
-		copy(z.c, x.c)
+		z := x.copy()
 		z.c[0] = p.Add(z.c[0])
 		return z
 	} else if p.lv < x.lv {
-		z := NewPoly(p.lv)
-		copy(z.c, p.c)
+		z := p.copy()
 		z.c[0] = x.Add(z.c[0])
 		return z
 	}
-
-	// if x.IsNumeric() {
-	// 	if y.IsNumeric() {
-	// 	} else {
-	// 	}
-	// }
-	//
-	// if x.lv == y.lv {
-	// 	z.lv = 0
-	// 	var n, m int
-	// 	var u []Coef
-	// 	if len(x.c) < len(y.c) {
-	// 		m = len(y.c)
-	// 		n = len(x.c)
-	// 		u = y.c
-	// 	} else {
-	// 		m = len(x.c)
-	// 		n = len(y.c)
-	// 		u = x.c
-	// 	}
-	// 	z.c = make([]Coef, m)
-	// 	for i := 0; i <= n; i++ {
-	// 		z.c[i].Add(x.c[i], y.c[i])
-	// 	}
-	// 	for i := n + 1; i < m; i++ {
-	// 		z.c[i].Set(u[i])
-	// 	}
-	// }
 	return x
 }
 

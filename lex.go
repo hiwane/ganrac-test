@@ -10,6 +10,7 @@ import (
 ///////////////////////////////////////////////////////////////
 // NODE
 ///////////////////////////////////////////////////////////////
+var debug_print_trace = false
 
 type pNode struct {
 	cmd   int
@@ -63,7 +64,7 @@ func (s *pStack) Empty() bool {
 	return len(s.v) == 0
 }
 
-func (s *pStack) Length() int {
+func (s *pStack) Len() int {
 	return len(s.v)
 }
 
@@ -90,6 +91,7 @@ type pLexer struct {
 	s      string
 	err    error
 	varmap map[string]string
+	print_trace	bool
 }
 
 type token struct {
@@ -129,6 +131,7 @@ var sfuns = []token{
 	// {"not", not},
 	// {"all", all},
 	// {"ex", ex},
+	{"init", initvar},
 	{"true", f_true},
 	{"false", f_false},
 }
@@ -235,5 +238,15 @@ func (l *pLexer) Error(s string) {
 }
 
 func yyytrace(s string) {
-	//	fmt.Printf(s + "\n")
+	if debug_print_trace {
+		fmt.Printf(s + "\n")
+	}
 }
+
+func yyyToken2Str(t int) string {
+	if call <= t && t <= unaryplus {
+		return yyToknames[t-call+3]
+	}
+	return fmt.Sprintf("unknown(%d)", t)
+}
+

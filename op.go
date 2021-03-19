@@ -1,13 +1,45 @@
 package ganrac
 
+import (
+	"fmt"
+)
+
 var varlist = []string{
 	"x", "y", "z", "w", "a", "b", "c", "e", "f", "g", "h",
 }
 
+func var2lv(v string) (uint, error) {
+	for i, x := range varlist {
+		if x == v {
+			return uint(i), nil
+		}
+	}
+	return 0, fmt.Errorf("undefined %s", v)
+}
+
+func InitVar(vlist []string) error {
+	varlist = vlist
+	return nil
+}
+
 func Add(x, y Coef) Coef {
+	fmt.Printf("Add(%s, %s)\n", x, y)
 	if x.Tag() >= y.Tag() {
 		return x.Add(y)
 	} else {
 		return y.Add(x)
+	}
+}
+
+func Sub(x, y Coef) Coef {
+	return Add(x, y.Neg())
+}
+
+func Mul(x, y Coef) Coef {
+	fmt.Printf("Add(%s, %s)\n", x, y)
+	if x.Tag() >= y.Tag() {
+		return x.Mul(y)
+	} else {
+		return y.Mul(x)
 	}
 }
