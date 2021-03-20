@@ -22,8 +22,7 @@ func InitVar(vlist []string) error {
 	return nil
 }
 
-func Add(x, y Coef) Coef {
-	fmt.Printf("Add(%s, %s)\n", x, y)
+func Add(x, y RObj) RObj {
 	if x.Tag() >= y.Tag() {
 		return x.Add(y)
 	} else {
@@ -31,15 +30,18 @@ func Add(x, y Coef) Coef {
 	}
 }
 
-func Sub(x, y Coef) Coef {
+func Sub(x, y RObj) RObj {
 	return Add(x, y.Neg())
 }
 
-func Mul(x, y Coef) Coef {
-	fmt.Printf("Add(%s, %s)\n", x, y)
+func Mul(x, y RObj) RObj {
 	if x.Tag() >= y.Tag() {
 		return x.Mul(y)
 	} else {
 		return y.Mul(x)
 	}
+}
+
+func Pow(x RObj, y *Int) RObj {
+	return x
 }

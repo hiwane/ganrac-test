@@ -6,27 +6,28 @@ import (
 	"strings"
 )
 
+// poly in K[x_lv,...,x_n]
 type Poly struct { // recursive expression
 	lv uint
-	c  []Coef
+	c  []RObj
 }
 
-func NewPoly(lv uint) *Poly {
+func NewPoly(lv uint, deg_1 int) *Poly {
 	p := new(Poly)
-	p.c = make([]Coef, 0)
+	p.c = make([]RObj, deg_1)
 	p.lv = lv
 	return p
 }
 
 func NewPolyInts(lv uint, coeffs ...int64) *Poly {
-	p := NewPoly(lv)
-	for _, c := range coeffs {
-		p.c = append(p.c, NewInt(c))
+	p := NewPoly(lv, len(coeffs))
+	for i, c := range coeffs {
+		p.c[i] = NewInt(c)
 	}
 	return p
 }
 
-func (z *Poly) Equals(x Coef) bool {
+func (z *Poly) Equals(x RObj) bool {
 	p, ok := x.(*Poly)
 	if !ok {
 		return false
@@ -42,12 +43,17 @@ func (z *Poly) Equals(x Coef) bool {
 	return true
 }
 
+func (z *Poly) Deg() int {
+	return len(z.c) - 1
+}
+
 func (z *Poly) Tag() uint {
 	return TAG_POLY
 }
 
 func (z *Poly) Sign() int {
-	return 1
+	// sign of leading coeff.
+	return z.c[len(z.c)-1].Sign()
 }
 
 func (z *Poly) String() string {
@@ -57,7 +63,6 @@ func (z *Poly) String() string {
 }
 
 func (z *Poly) stringFV(b io.Writer, vs []string) {
-
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if s := z.c[i].Sign(); s == 0 {
 			continue
@@ -117,34 +122,37 @@ func (z *Poly) IsNumeric() bool {
 	return false
 }
 
-func (z *Poly) New() Coef {
+func (z *Poly) New() RObj {
 	v := new(Poly)
 	v.lv = z.lv
 	return v
 }
 
-func (z *Poly) Set(x Coef) Coef {
+func (z *Poly) Set(x RObj) RObj {
 	return z
 }
 
-func (z *Poly) Copy() Coef {
+func (z *Poly) Copy() RObj {
 	return z.copy()
 }
 
 func (z *Poly) copy() *Poly {
-	u := NewPoly(z.lv)
-	for _, c := range z.c {
-		u.c = append(u.c, c)
+	u := NewPoly(z.lv, len(z.c))
+	for i, c := range z.c {
+		u.c[i] = c
 	}
 	return u
 }
 
-
-func (z *Poly) Neg() Coef {
-	return z
+func (z *Poly) Neg() RObj {
+	x := z.copy()
+	for i := 0; i < len(x.c); i++ {
+		x.c[i] = x.c[i].Neg()
+	}
+	return x
 }
 
-func (x *Poly) Add(y Coef) Coef {
+func (x *Poly) Add(y RObj) RObj {
 	if y.IsNumeric() {
 		z := x.copy()
 		z.c[0] = z.c[0].Add(y)
@@ -159,16 +167,114 @@ func (x *Poly) Add(y Coef) Coef {
 		z := p.copy()
 		z.c[0] = x.Add(z.c[0])
 		return z
+	} else {
+		var dmin int
+		var q *Poly
+		if len(p.c) < len(x.c) {
+			dmin = len(p.c)
+			q = x
+		} else {
+			dmin = len(x.c)
+			q = p
+		}
+		z := NewPoly(p.lv, len(q.c))
+		for i := 0; i < dmin; i++ {
+			z.c[i] = Add(x.c[i], p.c[i])
+		}
+		for i := dmin; i < len(q.c); i++ {
+			z.c[i] = q.c[i]
+		}
+		for i := len(q.c) - 1; i > 0; i-- {
+			if !z.c[i].IsZero() {
+				z.c = z.c[:i+1]
+				return z
+			}
+		}
+		return z.c[0]
 	}
-	return x
 }
 
-func (z *Poly) Sub(y Coef) Coef {
+func (z *Poly) Sub(y RObj) RObj {
 	// とりまサボり.
 	yn := y.Neg()
 	return z.Add(yn)
 }
 
-func (z *Poly) Mul(y Coef) Coef {
+func (x *Poly) Mul(yy RObj) RObj {
+	// @TODO とりあえず素朴版 -> Karatsuba へ
+	if yy.IsNumeric() {
+		if yy.IsZero() {
+			return yy
+		}
+		z := NewPoly(x.lv, len(x.c))
+		for i := 0; i < len(x.c); i++ {
+			z.c[i] = x.c[i].Mul(yy)
+		}
+		return z
+	}
+	y, _ := yy.(*Poly)
+	if y.lv > x.lv {
+		z := NewPoly(x.lv, len(x.c))
+		for i := 0; i < len(x.c); i++ {
+			z.c[i] = y.Mul(x.c[i])
+		}
+		return z
+	} else if y.lv < x.lv {
+		z := NewPoly(y.lv, len(y.c))
+		for i := 0; i < len(y.c); i++ {
+			z.c[i] = x.Mul(y.c[i])
+		}
+		return z
+	}
+	zero := NewInt(0)
+	z := NewPoly(x.lv, len(y.c)+len(x.c)-1)
+	for i := 0; i < len(z.c); i++ {
+		z.c[i] = zero
+	}
+	for i := 0; i < len(x.c); i++ {
+		if x.c[i].IsZero() {
+			continue
+		}
+		xiyy := y.Mul(x.c[i])
+		xiy, _ := xiyy.(*Poly)
+		for j := len(xiy.c) - 1; j >= 0; j-- {
+			z.c[i+j] = Add(z.c[i+j], xiy.c[j])
+		}
+	}
+
 	return z
+}
+
+func (x *Poly) Pow(y *Int) RObj {
+	// return x^y
+	// int版と同じ手法. 通常 x^m 以外では使わないから放置
+	// @TODO 2項定理使ったほうが効率的
+	if y.Sign() < 0 {
+		return nil // unsupported.
+	}
+	m := y.n.BitLen() - 1
+	if m < 0 {
+		return NewInt(1)
+	}
+
+	t := x
+	var z *Poly
+	for i := 0; i < m; i++ {
+		if y.n.Bit(i) != 0 {
+			if z == nil {
+				z = t
+			} else {
+				zz := z.Mul(t)
+				z, _ = zz.(*Poly)
+			}
+		}
+
+		tt := t.Mul(t)
+		t, _ = tt.(*Poly)
+	}
+	if z == nil {
+		return t
+	}
+
+	return z.Mul(t)
 }

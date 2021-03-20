@@ -6,7 +6,6 @@ import (
 )
 
 func Eval(r io.Reader) (interface{}, error) {
-
 	lexer := new(pLexer)
 	lexer.Init(r)
 
@@ -24,8 +23,10 @@ func evalStack(stack *pStack) (interface{}, error) {
 	switch s.cmd {
 	case initvar:
 		return evalInitVar(stack, s.extra)
-	case plus, minus, mult:
-		return evalStackCoef2(stack, s)
+	case plus, minus, mult, pow:
+		return evalStackRObj2(stack, s)
+	case unaryminus:
+		return evalStackRObj1(stack, s)
 	case number:
 		bi := ParseInt(s.str, 10)
 		if bi != nil {
@@ -59,12 +60,12 @@ func evalInitVar(stack *pStack, num int) (interface{}, error) {
 	return NewInt(0), nil
 }
 
-func evalStackCoef2(stack *pStack, node pNode) (interface{}, error) {
+func evalStackRObj2(stack *pStack, node pNode) (interface{}, error) {
 	right, err := evalStack(stack)
 	if err != nil {
 		return nil, err
 	}
-	r, ok := right.(Coef)
+	r, ok := right.(RObj)
 	if !ok {
 		return nil, fmt.Errorf("%s is not supported", node.str)
 	}
@@ -72,12 +73,10 @@ func evalStackCoef2(stack *pStack, node pNode) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	l, ok := left.(Coef)
+	l, ok := left.(RObj)
 	if !ok {
 		return nil, fmt.Errorf("%s is not supported", node.str)
 	}
-	fmt.Printf("left=%s\n", left)
-	fmt.Printf("right=%s\n", right)
 	switch node.cmd {
 	case plus:
 		return Add(l, r), nil
@@ -85,6 +84,28 @@ func evalStackCoef2(stack *pStack, node pNode) (interface{}, error) {
 		return Sub(l, r), nil
 	case mult:
 		return Mul(l, r), nil
+	case pow:
+		c, ok := r.(*Int)
+		if !ok || c.Sign() < 0 {
+			return nil, fmt.Errorf("%s is not supported", node.str)
+		}
+		return l.Pow(c), nil
+	}
+	return nil, fmt.Errorf("%s is not supported", node.str)
+}
+
+func evalStackRObj1(stack *pStack, node pNode) (interface{}, error) {
+	right, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := right.(RObj)
+	if !ok {
+		return nil, fmt.Errorf("%s is not supported", node.str)
+	}
+	switch node.cmd {
+	case unaryminus:
+		return r.Neg(), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
 }

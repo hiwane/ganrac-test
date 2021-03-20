@@ -1,18 +1,17 @@
 package ganrac
 
 import (
+	"fmt"
 	"strings"
 	"testing"
-	"fmt"
 )
-
 
 func TestEval(t *testing.T) {
 
 	for i, s := range []struct {
-		input string
-		expect Coef
-	} {
+		input  string
+		expect RObj
+	}{
 		{"1+x;", NewPolyInts(0, 1, 1)},
 		{"2+x;", NewPolyInts(0, 2, 1)},
 		{"0;", NewInt(0)},
@@ -28,16 +27,25 @@ func TestEval(t *testing.T) {
 		{"x+1;", NewPolyInts(0, 1, 1)},
 		{"y+1;", NewPolyInts(1, 1, 1)},
 		{"y+2*3;", NewPolyInts(1, 6, 1)},
+		{"(x+1)+(x+3);", NewPolyInts(0, 4, 2)},
+		{"(x+1)+(3-x);", NewInt(4)},
+		{"(x+1)-(+x+1);", NewInt(0)},
+		{"(x+1)+(-x-1);", NewInt(0)},
+		{"(x^2+3*x+1)+(x+5);", NewPolyInts(0, 6, 4, 1)},
+		{"(x^2+3*x+1)+(-3*x+5);", NewPolyInts(0, 6, 0, 1)},
+		{"(x^2+3*x+1)+(-x^2+5*x+8);", NewPolyInts(0, 9, 8)},
+		{"(x^2+3*x+1)+(-x^2-3*x+8);", NewInt(9)},
+		{"(x^2+3*x+1)+(-x^2-3*x-1);", NewInt(0)},
 	} {
 		fmt.Printf("input=%s\n", s.input)
 		u, err := Eval(strings.NewReader(s.input))
-		fmt.Printf("output=%s\n", u)
+		fmt.Printf("output=%v, err=%v\n", u, err)
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
 		}
 
-		c, ok := u.(Coef)
+		c, ok := u.(RObj)
 		if ok {
 			if !c.Equals(s.expect) {
 				t.Errorf("%d: input=%s: expect=%v, actual(%d)=%v", i, s.input, s.expect, c.Tag(), c)
@@ -49,4 +57,3 @@ func TestEval(t *testing.T) {
 		}
 	}
 }
-

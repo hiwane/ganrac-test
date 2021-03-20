@@ -88,10 +88,10 @@ var stack *pStack
 
 type pLexer struct {
 	scanner.Scanner
-	s      string
-	err    error
-	varmap map[string]string
-	print_trace	bool
+	s           string
+	err         error
+	varmap      map[string]string
+	print_trace bool
 }
 
 type token struct {
@@ -249,4 +249,3 @@ func yyyToken2Str(t int) string {
 	}
 	return fmt.Sprintf("unknown(%d)", t)
 }
-

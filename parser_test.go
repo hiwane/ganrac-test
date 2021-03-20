@@ -14,7 +14,6 @@ func test_parse(str string) (*pStack, error) {
 	return stack, nil
 }
 
-
 func TestToken2Str(t *testing.T) {
 	if yyyToken2Str(call) != "call" {
 		t.Errorf("invalid call")
@@ -41,10 +40,10 @@ func TestParseValid(t *testing.T) {
 		{"1+2*3;", []int{plus, mult, number, number, number}},
 		{"(1+2)*3;", []int{mult, number, plus, number, number}},
 		{"1 > 2;", []int{gtop, number, number}},
+		{"init(x,t,z);", []int{initvar, ident, ident, ident}},
 		{"A;", []int{name}},
 		{"a;", []int{ident}},
 		{"-x+y*3 > 0;", []int{gtop, number, plus, mult, number, ident, unaryminus, ident}},
-		{"[];", []int{list}},
 		{"AAA = [];", []int{assign, list, name}},
 		{"all([x], 3 > x);", []int{call, gtop, ident, number, list, ident}},
 	} {
@@ -64,5 +63,5 @@ func TestParseValid(t *testing.T) {
 			t.Errorf("[%d]invalid input=\"%s\", stack is not empty", k, s.str)
 		}
 	}
-	_next:
+_next:
 }
