@@ -9,7 +9,7 @@ const (
 )
 
 // ganrac object
-type Gobj interface {
+type GObj interface {
 	String() string
 	Tag() uint
 }

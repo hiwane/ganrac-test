@@ -32,8 +32,9 @@ package ganrac
 %%
 
 expr
-	: mobj eol {{ yyytrace("gege") }}
-	| name assign mobj eol  { yyytrace("assign"); stack.Push($2); }
+	: mobj eol { yyytrace("gege") }
+	| name assign mobj eol  { yyytrace("assign"); stack.Push(newPNode($1.str, assign, 0, $1.pos)) }
+	| initvar lp seq_ident rp eol { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
 	;
 
 mobj
@@ -46,7 +47,6 @@ mobj
 	| mobj or mobj  { yyytrace("or");  stack.Push($2)}
 	| lp mobj rp { $$ = $2 }
 	| ident lp seq_mobj rp { yyytrace("call"); stack.Push(newPNode($1.str, call, $3, $1.pos)) }
-	| initvar lp seq_ident rp { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
 	| mobj plus mobj	{ yyytrace("+"); stack.Push($2)}
 	| mobj minus mobj	{ yyytrace("-"); stack.Push($2)}
 	| mobj mult mobj	{ yyytrace("*"); stack.Push($2)}

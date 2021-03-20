@@ -6,20 +6,22 @@ import (
 	"strings"
 )
 
+type Level uint
+
 // poly in K[x_lv,...,x_n]
 type Poly struct { // recursive expression
-	lv uint
+	lv Level
 	c  []RObj
 }
 
-func NewPoly(lv uint, deg_1 int) *Poly {
+func NewPoly(lv Level, deg_1 int) *Poly {
 	p := new(Poly)
 	p.c = make([]RObj, deg_1)
 	p.lv = lv
 	return p
 }
 
-func NewPolyInts(lv uint, coeffs ...int64) *Poly {
+func NewPolyInts(lv Level, coeffs ...int64) *Poly {
 	p := NewPoly(lv, len(coeffs))
 	for i, c := range coeffs {
 		p.c[i] = NewInt(c)
@@ -49,6 +51,21 @@ func (z *Poly) Deg() int {
 
 func (z *Poly) Tag() uint {
 	return TAG_POLY
+}
+
+func (z *Poly) hasVar(lv Level) bool {
+	if z.lv > lv {
+		return false
+	} else if z.lv == lv {
+		return true
+	}
+	for _, c := range z.c {
+		cc, ok := c.(*Poly)
+		if ok && cc.hasVar(lv) {
+			return true
+		}
+	}
+	return false
 }
 
 func (z *Poly) Sign() int {

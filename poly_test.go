@@ -66,7 +66,7 @@ func TestPolyString(t *testing.T) {
 }
 
 func TestPolyAdd(t *testing.T) {
-	lv := uint(0)
+	lv := Level(0)
 	for _, s := range []struct {
 		a, b   []int64
 		expect RObj
@@ -117,7 +117,7 @@ func TestPolyAddLv(t *testing.T) {
 }
 
 func TestPolyMul(t *testing.T) {
-	lv := uint(0)
+	lv := Level(0)
 	for _, s := range []struct {
 		a, b, expect []int64
 	}{
@@ -176,7 +176,7 @@ func TestPolyMulLv(t *testing.T) {
 }
 
 func TestPolyPow(t *testing.T) {
-	lv := uint(0)
+	lv := Level(0)
 	zero := NewInt(0)
 	one := NewInt(1)
 	for _, s := range []struct {

@@ -19,6 +19,16 @@ func TestInts(t *testing.T) {
 	if v.Sign() >= 0 || v.String() != "-1" || v.IsOne() || !v.IsMinusOne() || v.IsZero() {
 		t.Errorf("invalid int v=%v, sign=%d, str=%s\n", v, v.Sign(), v.String())
 	}
+
+	var g GObj
+	g = v
+	var r RObj
+	r, _ = g.(RObj)
+	_, ok := r.(*Int)
+	if !ok {
+		t.Errorf("invalid\n")
+	}
+
 }
 
 func TestIntPow(t *testing.T) {

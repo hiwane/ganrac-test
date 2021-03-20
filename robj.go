@@ -3,7 +3,7 @@ package ganrac
 // ring ring
 // in R[x], in R
 type RObj interface {
-	Gobj
+	GObj
 	Add(x RObj) RObj // z+x
 	Sub(x RObj) RObj // z-x
 	Mul(x RObj) RObj

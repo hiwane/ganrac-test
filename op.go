@@ -8,13 +8,13 @@ var varlist = []string{
 	"x", "y", "z", "w", "a", "b", "c", "e", "f", "g", "h",
 }
 
-func var2lv(v string) (uint, error) {
+func var2lv(v string) (Level, error) {
 	for i, x := range varlist {
 		if x == v {
-			return uint(i), nil
+			return Level(i), nil
 		}
 	}
-	return 0, fmt.Errorf("undefined %s", v)
+	return 0, fmt.Errorf("undefined variable `%s`.", v)
 }
 
 func InitVar(vlist []string) error {

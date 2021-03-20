@@ -1,12 +1,11 @@
 package ganrac
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
 
-func TestEval(t *testing.T) {
+func TestEvalRobj(t *testing.T) {
 
 	for i, s := range []struct {
 		input  string
@@ -37,9 +36,7 @@ func TestEval(t *testing.T) {
 		{"(x^2+3*x+1)+(-x^2-3*x+8);", NewInt(9)},
 		{"(x^2+3*x+1)+(-x^2-3*x-1);", NewInt(0)},
 	} {
-		fmt.Printf("input=%s\n", s.input)
 		u, err := Eval(strings.NewReader(s.input))
-		fmt.Printf("output=%v, err=%v\n", u, err)
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
@@ -53,6 +50,45 @@ func TestEval(t *testing.T) {
 			}
 		} else {
 			t.Errorf("%d: input=%s: I dont know!", i, s.input)
+			break
+		}
+	}
+}
+
+func TestEvalFof(t *testing.T) {
+	x_gt := NewAtom(NewPolyInts(0, 0, 1), GT)
+	for i, s := range []struct {
+		input  string
+		expect Fof
+	}{
+		{"x >= 0;", NewAtom(NewPolyInts(0, 0, 1), GE)},
+		{"x < 1;", NewAtom(NewPolyInts(0, -1, 1), LT)},
+		{"not(x == 1);", NewAtom(NewPolyInts(0, -1, 1), NE)},
+		{"not(2 == 1);", NewBool(true)},
+		{"all([x], y > 0);", NewAtom(NewPolyInts(1, 0, 1), GT)},
+		{"all([x], x > 0);", NewQuantifier(true, []Level{0}, x_gt)},
+		{"all([x, x, y, x, y], x > 0);", NewQuantifier(true, []Level{0}, x_gt)},
+	} {
+		u, err := Eval(strings.NewReader(s.input))
+		if err != nil && s.expect != nil {
+			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
+			break
+		}
+
+		g, ok := u.(GObj)
+		if !ok {
+			t.Errorf("%d: input=%s: I dont know! not gobj: %v", i, s.input, g)
+			break
+		}
+
+		c, ok := u.(Fof)
+		if !ok {
+			t.Errorf("%d: input=%s: I dont know! %d:%v", i, s.input, g.Tag(), u)
+			break
+		}
+
+		if !c.Equals(s.expect) {
+			t.Errorf("%d: input=%s: expect=%v, actual(%d)=%v", i, s.input, s.expect, c.Tag(), c)
 			break
 		}
 	}

@@ -9,9 +9,7 @@ func test_parse(str string) (*pStack, error) {
 	l := new(pLexer)
 	l.Init(strings.NewReader(str))
 	l.varmap = make(map[string]string)
-	stack = new(pStack)
-	yyParse(l)
-	return stack, nil
+	return parse(l)
 }
 
 func TestToken2Str(t *testing.T) {
@@ -44,23 +42,25 @@ func TestParseValid(t *testing.T) {
 		{"A;", []int{name}},
 		{"a;", []int{ident}},
 		{"-x+y*3 > 0;", []int{gtop, number, plus, mult, number, ident, unaryminus, ident}},
-		{"AAA = [];", []int{assign, list, name}},
+		{"AAA = [];", []int{assign, list}},
 		{"all([x], 3 > x);", []int{call, gtop, ident, number, list, ident}},
+		{"A = 0;", []int{assign, number}},
 	} {
 		stack, err := test_parse(s.str)
 		if err != nil {
 			t.Errorf("[%d]invalid input=\"%s\", err=%s", k, s.str, err.Error())
 			continue
 		}
+		m := stack.Len()
 		for i := 0; !stack.Empty() && i < len(s.stack); i++ {
 			v, _ := stack.Pop()
 			if v.cmd != s.stack[i] {
-				t.Errorf("[%d]invalid input=\"%s\", expect[%d]=%s, actual=%s", k, s.str, i, yyyToken2Str(s.stack[i]), yyyToken2Str(v.cmd))
+				t.Errorf("[%d,%d]invalid input=\"%s\", expect[%d]=%s, actual=%s", k, m, s.str, i, yyyToken2Str(s.stack[i]), yyyToken2Str(v.cmd))
 				goto _next
 			}
 		}
 		if !stack.Empty() {
-			t.Errorf("[%d]invalid input=\"%s\", stack is not empty", k, s.str)
+			t.Errorf("[%d,%d]invalid input=\"%s\", stack is not empty", k, m, s.str)
 		}
 	}
 _next:
