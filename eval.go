@@ -76,6 +76,8 @@ func evalStack(stack *pStack) (interface{}, error) {
 		} else {
 			return nil, fmt.Errorf("invalid number: %s", s.str)
 		}
+	case help:
+		return funcHelp(s.str)
 	case ident:
 		lv, err := var2lv(s.str)
 		if err != nil {

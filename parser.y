@@ -7,7 +7,7 @@ package ganrac
 	num int
 }
 
-%token call list initvar
+%token call list initvar help
 %token name ident number f_true f_false
 %token all ex and or not abs
 %token plus minus comma mult div pow
@@ -19,7 +19,7 @@ package ganrac
 %type <node> mobj lb initvar
 %type <node> number name ident
 %type <node> plus minus mult div pow and or
-%type <node> ltop gtop leop geop neop eqop assign lb
+%type <node> ltop gtop leop geop neop eqop assign lb lp
 
 %left or
 %left and
@@ -35,6 +35,8 @@ expr
 	: mobj eol { yyytrace("gege") }
 	| name assign mobj eol  { yyytrace("assign"); stack.Push(newPNode($1.str, assign, 0, $1.pos)) }
 	| initvar lp seq_ident rp eol { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
+	| help lp ident rp eol { yyytrace("help(" + $3.str + ")"); stack.Push(newPNode($3.str, help, 0, $2.pos)) }
+	| help lp rp eol { yyytrace("help(@)"); stack.Push(newPNode("@", help, 0, $2.pos)) }
 	;
 
 mobj

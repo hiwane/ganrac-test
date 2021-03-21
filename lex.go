@@ -132,6 +132,7 @@ var sfuns = []token{
 	// {"all", all},
 	// {"ex", ex},
 	{"init", initvar},
+	{"help", help},
 	{"true", f_true},
 	{"false", f_false},
 }
@@ -238,7 +239,7 @@ func (l *pLexer) Error(s string) {
 }
 
 func yyytrace(s string) {
-	if debug_print_trace {
+	if true || debug_print_trace {
 		fmt.Printf(s + "\n")
 	}
 }

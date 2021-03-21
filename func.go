@@ -10,19 +10,59 @@ var builtin_func_table = []struct {
 	name     string
 	min, max int
 	f        func(args []interface{}) (interface{}, error)
+	descript string
 	help     string
 }{
 	// sorted by name
-	{"all", 2, 2, funcForAll, ""},
-	{"and", 2, 2, funcAnd, ""},
-	{"coef", 3, 3, funcCoef, ""}, // coef(F, x, 2)
-	{"deg", 2, 2, funcDeg, ""},   // deg(F, x)
-	{"ex", 2, 2, funcExists, ""},
-	{"help", 0, 1, funcHelp, ""},
-	{"init", 0, 0, funcHelp, ""},
-	{"not", 1, 1, funcNot, ""},
-	{"or", 2, 2, funcOr, ""},
-	{"subst", 1, 101, funcSubst, ""},
+	{"all", 2, 2, funcForAll, "([x], FOF): universal quantifier.", ""},
+	{"and", 2, 2, funcAnd, "", ""},
+	{"coef", 3, 3, funcCoef, "(poly, var, deg): ", ""}, // coef(F, x, 2)
+	{"deg", 2, 2, funcDeg, "(poly|FOF, var): degree of a polynomial with respect to var", `
+Args
+========
+  poly: a polynomial
+  FOF : a first-order formula
+  var : a variable
+
+Returns
+========
+  degree of a polynomial w.r.t a variable
+
+Examples
+========
+  > deg(x^2+3*y+1, x)
+  2
+  > deg(x^2+3*y+1, y)
+  1
+  > deg(x^2+3*y+1>0 && x^3+y^3==0, y)
+  3
+`}, // deg(F, x)
+	{"ex", 2, 2, funcExists, "(vars, FOF): existential quantifier.", `
+Args
+========
+  vars: list of variables
+  FOF : a first-order formula
+
+Examples
+========
+  > ex([x], a*x^2+b*x+c == 0)
+`},
+	{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
+	{"not", 1, 1, funcNot, "(FOF)", `
+Args
+========
+  FOF : a first-order formula
+
+Examples
+========
+  > not(x > 0)
+  x <= 0
+  > not(ex([x], a*x^2+b*x+c==0))
+  all([x], a*x^2+b*x+c != 0)
+`},
+	{"or", 2, 2, funcOr, "", ""},
+	{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", ""},
+	{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
 }
 
 func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
@@ -223,6 +263,28 @@ func funcCoef(args []interface{}) (interface{}, error) {
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
 }
 
-func funcHelp(args []interface{}) (interface{}, error) {
+func funcRootBound(args []interface{}) (interface{}, error) {
 	return zero, nil
+}
+
+func funcHelp(name string) (interface{}, error) {
+	if name == "@" {
+		fmt.Printf("help: GANRAC\n")
+		fmt.Printf("==============\n")
+		for _, fv := range builtin_func_table {
+			fmt.Printf("%s%s\n", fv.name, fv.descript)
+		}
+		return zero, nil
+	}
+	for _, fv := range builtin_func_table {
+		if fv.name == name {
+			fmt.Printf("%s%s\n", fv.name, fv.descript)
+			if fv.help != "" {
+				fmt.Printf("%s\n", fv.help)
+			}
+			return zero, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unknown function `%s()`\n", name)
 }
