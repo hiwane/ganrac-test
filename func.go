@@ -10,14 +10,19 @@ var builtin_func_table = []struct {
 	name     string
 	min, max int
 	f        func(args []interface{}) (interface{}, error)
+	help     string
 }{
 	// sorted by name
-	{"not", 1, 1, funcNot},
-	{"and", 2, 2, funcAnd},
-	{"or", 2, 2, funcOr},
-	{"ex", 2, 2, funcExists},
-	{"all", 2, 2, funcForAll},
-	{"subst", 1, 101, funcSubst},
+	{"all", 2, 2, funcForAll, ""},
+	{"and", 2, 2, funcAnd, ""},
+	{"coef", 3, 3, funcCoef, ""}, // coef(F, x, 2)
+	{"deg", 2, 2, funcDeg, ""},   // deg(F, x)
+	{"ex", 2, 2, funcExists, ""},
+	{"help", 0, 1, funcHelp, ""},
+	{"init", 0, 0, funcHelp, ""},
+	{"not", 1, 1, funcNot, ""},
+	{"or", 2, 2, funcOr, ""},
+	{"subst", 1, 101, funcSubst, ""},
 }
 
 func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
@@ -160,4 +165,64 @@ func funcSubst(args []interface{}) (interface{}, error) {
 
 	return nil, fmt.Errorf("subst() invalid 1st arg")
 
+}
+
+func funcDeg(args []interface{}) (interface{}, error) {
+	// FoF にも適用可能にする.
+	name := "deg"
+	_, ok := args[0].(RObj)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected poly: %v", name, args[0])
+	}
+
+	d, ok := args[1].(*Poly)
+	if !ok || !d.isVar() {
+		return nil, fmt.Errorf("%s(2st arg): expected var: %v", name, args[1])
+	}
+
+	p, ok := args[0].(*Poly)
+	if !ok {
+		return zero, nil
+	}
+
+	return NewInt(int64(p.Deg(d.lv))), nil
+}
+
+func funcCoef(args []interface{}) (interface{}, error) {
+	name := "coef"
+	_, ok := args[0].(RObj)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected RObj: %v", name, args[0])
+	}
+
+	c, ok := args[1].(*Poly)
+	if !ok || !c.isVar() {
+		return nil, fmt.Errorf("%s(2st arg): expected var: %v", name, args[1])
+	}
+
+	d, ok := args[2].(*Int)
+	if !ok {
+		return nil, fmt.Errorf("%s(3rd arg): expected int: %v", name, args[2])
+	}
+
+	if d.Sign() < 0 {
+		return zero, nil
+	}
+	rr, ok := args[0].(*Poly)
+	if !ok {
+		if d.Sign() == 0 {
+			return args[0], nil
+		} else {
+			return zero, nil
+		}
+	}
+	if !d.n.IsUint64() {
+		return zero, nil
+	}
+
+	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
+}
+
+func funcHelp(args []interface{}) (interface{}, error) {
+	return zero, nil
 }

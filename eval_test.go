@@ -77,6 +77,22 @@ func TestEvalCallRObj(t *testing.T) {
 		{"subst(5*x+7*y+11*z+3,y,7,z,11);", NewPolyInts(0, 5*0+7*7+11*11+3, 5)},
 		{"subst(5*x+7*y+11*z+3,z,11,y,7);", NewPolyInts(0, 5*0+7*7+11*11+3, 5)},
 		{"subst(5*x+7*y+11*z+3,z,11,y,7,z,3);", NewPolyInts(0, 5*0+7*7+11*11+3, 5)},
+		{"deg(1,y);", NewInt(0)},
+		{"deg(x^2+x+1,x);", NewInt(2)},
+		{"deg(x^2+x+1,y);", NewInt(0)},
+		{"deg(x^2+x+x*y+y^3+1,y);", NewInt(3)},
+		{"deg(x^2+x+x*y+y^3+1,z);", NewInt(0)},
+		{"deg(x^2+x+x*z+z^3+1,y);", NewInt(0)},
+		{"deg(x^2+x+x*z^5+z^3+1,z);", NewInt(5)},
+		{"deg(x^2+x+x*y+y^3+1+y^3*z^3+x^2*z^4+5,z);", NewInt(4)},
+		{"coef(3,y,1);", NewInt(0)},
+		{"coef(3,y,0);", NewInt(3)},
+		{"coef((x^2+z^2+x*z^3*3)*y^2+((8*z+3)*x^2+4*x+6*z+7),y,1);", NewInt(0)},
+		{"coef((x^2+z^2+x*z^3*3)*y^2+((8*z+3)*x^2+(4)*x+(6*z+7)),y,0);",
+			NewPolyCoef(0, NewPolyInts(2, 7, 6), NewInt(4), NewPolyInts(2, 3, 8))},
+		{"coef((x^2+z^2+x*z^3*3)*y^2+((8*z+3)*x^2+(4)*x+(6*z+7)),y,1);", NewInt(0)},
+		{"coef((x^2+z^2+x*z^3*3)*y^2+((8*z+3)*x^2+(4)*x+(6*z+7)),y,2);",
+			NewPolyCoef(0, NewPolyInts(2, 0, 0, 1), NewPolyInts(2, 0, 0, 0, 3), NewInt(1))},
 	} {
 		u, err := Eval(strings.NewReader(s.input))
 		if err != nil && s.expect != nil {

@@ -38,6 +38,14 @@ func NewPolyCoef(lv Level, coeffs ...RObj) *Poly {
 }
 
 func (z *Poly) valid() bool {
+	if z.c == nil {
+		return false
+	}
+	for _, c := range z.c {
+		if c == nil {
+			return false
+		}
+	}
 	return len(z.c) >= 2 && !z.c[len(z.c)-1].IsZero()
 }
 
@@ -57,8 +65,56 @@ func (z *Poly) Equals(x RObj) bool {
 	return true
 }
 
-func (z *Poly) Deg() int {
-	return len(z.c) - 1
+func (z *Poly) Deg(lv Level) int {
+	if lv == z.lv {
+		return len(z.c) - 1
+	} else if lv < z.lv {
+		return 0
+	}
+	m := 0
+	for _, c := range z.c {
+		p, ok := c.(*Poly)
+		if !ok {
+			continue
+		}
+		d := p.Deg(lv)
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+func (z *Poly) Coef(lv Level, d uint) RObj {
+	if lv == z.lv {
+		if d >= uint(len(z.c)) {
+			return zero
+		} else {
+			return z.c[d]
+		}
+	} else if lv < z.lv {
+		return zero
+	}
+	r := NewPoly(z.lv, len(z.c))
+	for i, c := range z.c {
+		p, ok := c.(*Poly)
+		if ok {
+			r.c[i] = p.Coef(lv, d)
+		} else {
+			if d == 0 {
+				r.c[i] = c
+			} else {
+				r.c[i] = zero
+			}
+		}
+	}
+	for i := len(z.c) - 1; i > 0; i-- {
+		if !r.c[i].IsZero() {
+			r.c = r.c[:i+1]
+			return r
+		}
+	}
+	return r.c[0]
 }
 
 func (z *Poly) Tag() uint {

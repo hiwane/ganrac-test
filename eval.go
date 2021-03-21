@@ -25,6 +25,9 @@ func Eval(r io.Reader) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if pp == nil {
+		return nil, fmt.Errorf("system error. returnd nil")
+	}
 	switch p := pp.(type) {
 	case Fof:
 		if !p.valid() {
