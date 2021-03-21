@@ -8,6 +8,7 @@ type RObj interface {
 	Sub(x RObj) RObj // z-x
 	Mul(x RObj) RObj
 	Pow(x *Int) RObj
+	Subst(x []RObj, lv []Level, n int) RObj
 	Neg() RObj
 	//	Set(x RObj) RObj
 	Sign() int
@@ -83,4 +84,8 @@ func (z *RObjSample) Pow(x *Int) RObj {
 
 func (z *RObjSample) Equals(x RObj) bool {
 	return false
+}
+
+func (z *RObjSample) Subst(x []RObj, lv []Level, idx int) RObj {
+	return z
 }

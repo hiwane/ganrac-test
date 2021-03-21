@@ -21,7 +21,21 @@ func Eval(r io.Reader) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return evalStack(stack)
+	pp, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	switch p := pp.(type) {
+	case Fof:
+		if !p.valid() {
+			return nil, fmt.Errorf("system error. invalid fof `%v`", p)
+		}
+	case *Poly:
+		if !p.valid() {
+			return nil, fmt.Errorf("system error. invalid poly `%v`", p)
+		}
+	}
+	return pp, nil
 }
 
 func evalStack(stack *pStack) (interface{}, error) {
@@ -34,6 +48,8 @@ func evalStack(stack *pStack) (interface{}, error) {
 		return evalInitVar(stack, s.extra)
 	case plus, minus, mult, pow:
 		return evalStackRObj2(stack, s)
+	case and, or:
+		return evalStackFof2(stack, s)
 	case unaryminus:
 		return evalStackRObj1(stack, s)
 	case geop:
@@ -102,6 +118,32 @@ func evalInitVar(stack *pStack, num int) (interface{}, error) {
 		return nil, err
 	}
 	return NewInt(0), nil
+}
+
+func evalStackFof2(stack *pStack, node pNode) (interface{}, error) {
+	right, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := right.(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s: expected FOF", node.str)
+	}
+	left, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	l, ok := left.(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s: expected FOF", node.str)
+	}
+	switch node.cmd {
+	case and:
+		return NewFmlAnd(l, r), nil
+	case or:
+		return NewFmlOr(l, r), nil
+	}
+	return nil, fmt.Errorf("%s is not supported", node.str)
 }
 
 func evalStackRObj2(stack *pStack, node pNode) (interface{}, error) {

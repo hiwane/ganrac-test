@@ -204,3 +204,26 @@ func TestPolyPow(t *testing.T) {
 		}
 	}
 }
+
+func TestPolySubst(t *testing.T) {
+	lv := Level(0)
+	for _, s := range []struct {
+		a      []int64
+		b      int64
+		expect int64
+	}{
+		{[]int64{1, 2}, 3, 7},
+		{[]int64{1, 2}, 0, 1},
+		{[]int64{1, 2}, 1, 3},
+		{[]int64{1, 2, 5}, 1, 8},
+		{[]int64{1, 2, 5}, 3, 52},
+	} {
+		a := NewPolyInts(lv, s.a...)
+		b := NewInt(s.b)
+		ep := NewInt(s.expect)
+		c := a.Subst([]RObj{b}, []Level{lv}, 0)
+		if !c.Equals(ep) {
+			t.Errorf("invalid poly.subst a=%v, b=%v, exp=%v, actual=%v", a, b, ep, c)
+		}
+	}
+}

@@ -29,6 +29,18 @@ func NewPolyInts(lv Level, coeffs ...int64) *Poly {
 	return p
 }
 
+func NewPolyCoef(lv Level, coeffs ...RObj) *Poly {
+	p := NewPoly(lv, len(coeffs))
+	for i, c := range coeffs {
+		p.c[i] = c
+	}
+	return p
+}
+
+func (z *Poly) valid() bool {
+	return len(z.c) >= 2 && !z.c[len(z.c)-1].IsZero()
+}
+
 func (z *Poly) Equals(x RObj) bool {
 	p, ok := x.(*Poly)
 	if !ok {
@@ -121,6 +133,10 @@ func (z *Poly) stringFV(b io.Writer, vs []string) {
 			}
 		}
 	}
+}
+
+func (z *Poly) isVar() bool {
+	return len(z.c) == 2 && z.c[0].IsZero() && z.c[1].IsOne()
 }
 
 func (z *Poly) IsZero() bool {
@@ -294,4 +310,33 @@ func (x *Poly) Pow(y *Int) RObj {
 	}
 
 	return z.Mul(t)
+}
+
+func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
+	// lvs: sorted
+
+	for ; idx < len(xs) && z.lv > lvs[idx]; idx++ {
+	}
+	if idx == len(xs) {
+		return z
+	}
+	if z.lv < lvs[idx] {
+		p := NewPoly(z.lv, len(z.c))
+		for i := 0; i < len(z.c); i++ {
+			p.c[i] = z.c[i].Subst(xs, lvs, idx)
+		}
+		for i := len(z.c) - 1; i > 0; i-- {
+			if !p.c[i].IsZero() {
+				p.c = p.c[:i+1]
+				return p
+			}
+		}
+		return p.c[0]
+	}
+	x := xs[idx]
+	p := z.c[len(z.c)-1].Subst(xs, lvs, idx+1)
+	for i := len(z.c) - 2; i >= 0; i-- {
+		p = Add(Mul(p, x), z.c[i].Subst(xs, lvs, idx+1))
+	}
+	return p
 }

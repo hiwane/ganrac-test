@@ -11,6 +11,8 @@ type Fof interface {
 	Not() Fof
 	Equals(f Fof) bool // 等化まではやらない. 形として同じもの
 	hasFreeVar(lv Level) bool
+	Subst(xs []RObj, lvs []Level) Fof
+	valid() bool // for DEBUG
 }
 
 type OP uint8
@@ -24,7 +26,7 @@ const (
 	NE OP = GT | LT
 )
 
-var op2str = []string{"", "<", "=", "<=", ">", "!=", ">=", "true"}
+var op2str = []string{"false", "<", "=", "<=", ">", "!=", ">=", "true"}
 
 var trueObj = new(AtomT)
 var falseObj = new(AtomF)
@@ -165,6 +167,83 @@ func (p *ForAll) Tag() uint {
 
 func (p *Exists) Tag() uint {
 	return TAG_FOF
+}
+
+func (p *Atom) valid() bool {
+	return p.p.valid() && 1 <= p.op && p.op <= 7
+}
+
+func (p *AtomT) valid() bool {
+	return true
+}
+func (p *AtomF) valid() bool {
+	return true
+}
+
+func (p *FmlAnd) valid() bool {
+	if len(p.fml) < 2 {
+		return false
+	}
+	for _, f := range p.fml {
+		switch f.(type) {
+		case *AtomT, *AtomF, *FmlAnd:
+			return false
+		}
+		if !f.valid() {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *FmlOr) valid() bool {
+	if len(p.fml) < 2 {
+		return false
+	}
+	for _, f := range p.fml {
+		switch f.(type) {
+		case *AtomT, *AtomF, *FmlOr:
+			return false
+		}
+		if !f.valid() {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *ForAll) valid() bool {
+	if len(p.q) == 0 {
+		return false
+	}
+	for _, lv := range p.q {
+		if !p.fml.hasFreeVar(lv) {
+			return false
+		}
+	}
+	fml := p.fml
+	switch fml.(type) {
+	case *AtomT, *AtomF, *ForAll:
+		return false
+	}
+	return p.fml.valid()
+}
+
+func (p *Exists) valid() bool {
+	if len(p.q) == 0 {
+		return false
+	}
+	for _, lv := range p.q {
+		if !p.fml.hasFreeVar(lv) {
+			return false
+		}
+	}
+	fml := p.fml
+	switch fml.(type) {
+	case *AtomT, *AtomF, *Exists:
+		return false
+	}
+	return p.fml.valid()
 }
 
 func (p *Atom) Equals(qq Fof) bool {
@@ -346,6 +425,89 @@ func (p *Exists) Not() Fof {
 	q.q = p.q
 	q.fml = p.fml.Not()
 	return q
+}
+
+func (p *AtomT) Subst(xs []RObj, lvs []Level) Fof {
+	return p
+}
+
+func (p *AtomF) Subst(xs []RObj, lvs []Level) Fof {
+	return p
+}
+
+func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
+	return NewAtom(p.p.Subst(xs, lvs, 0), p.op)
+}
+
+func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
+	q := new(FmlAnd)
+	q.fml = make([]Fof, 0, len(p.fml))
+	for i := 0; i < len(p.fml); i++ {
+		fml := p.fml[i].Subst(xs, lvs)
+		fmt.Printf("and.subst %d: %v -> %v\n", i, p.fml[i], fml)
+		switch fml.(type) {
+		case *AtomT:
+			break
+		case *AtomF:
+			return fml
+		default:
+			q.fml = append(q.fml, fml)
+		}
+	}
+	if len(q.fml) == 0 {
+		return NewBool(true)
+	} else if len(q.fml) == 1 {
+		return q.fml[0]
+	}
+	return q
+}
+
+func (p *FmlOr) Subst(xs []RObj, lvs []Level) Fof {
+	q := new(FmlOr)
+	q.fml = make([]Fof, 0, len(p.fml))
+	for i := 0; i < len(p.fml); i++ {
+		fml := p.fml[i].Subst(xs, lvs)
+		switch fml.(type) {
+		case *AtomF:
+			break
+		case *AtomT:
+			return fml
+		default:
+			q.fml = append(q.fml, fml)
+		}
+	}
+	if len(q.fml) == 0 {
+		return NewBool(true)
+	} else if len(q.fml) == 1 {
+		return q.fml[0]
+	}
+	return q
+}
+
+func substQuantifier(forex bool, fml Fof, qorg []Level, lvs []Level) Fof {
+	qq := make([]Level, 0, len(qorg))
+	for _, v := range qorg {
+		found := false
+		for _, u := range lvs {
+			if u == v {
+				found = true
+			}
+		}
+		if !found {
+			qq = append(qq, v)
+		}
+	}
+	return NewQuantifier(forex, qq, fml)
+}
+
+func (p *ForAll) Subst(xs []RObj, lvs []Level) Fof {
+	fml := p.fml.Subst(xs, lvs)
+	return substQuantifier(true, fml, p.q, lvs)
+}
+
+func (p *Exists) Subst(xs []RObj, lvs []Level) Fof {
+	fml := p.fml.Subst(xs, lvs)
+	return substQuantifier(false, fml, p.q, lvs)
 }
 
 func NewBool(b bool) Fof {

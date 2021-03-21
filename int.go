@@ -8,6 +8,8 @@ type Int struct {
 	n *big.Int
 }
 
+var zero = newInt()
+
 func newInt() *Int {
 	v := new(Int)
 	v.n = new(big.Int)
@@ -15,6 +17,9 @@ func newInt() *Int {
 }
 
 func NewInt(n int64) *Int {
+	if n == 0 {
+		return zero
+	}
 	v := new(Int)
 	v.n = big.NewInt(n)
 	return v
@@ -28,7 +33,6 @@ func ParseInt(s string, base int) *Int {
 	} else {
 		return nil
 	}
-	return v
 }
 
 func (x *Int) Equals(y RObj) bool {
@@ -151,4 +155,8 @@ func (x *Int) IsMinusOne() bool {
 
 func (x *Int) IsNumeric() bool {
 	return true
+}
+
+func (z *Int) Subst(x []RObj, lv []Level, idx int) RObj {
+	return z
 }

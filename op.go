@@ -18,6 +18,22 @@ func var2lv(v string) (Level, error) {
 }
 
 func InitVar(vlist []string) error {
+	for i, v := range vlist {
+		if v == "init" {
+			return fmt.Errorf("%s is reserved", v)
+		}
+		for _, bft := range builtin_func_table {
+			if v == bft.name {
+				return fmt.Errorf("%s is reserved", v)
+			}
+		}
+		for j := 0; j < i; j++ {
+			if vlist[j] == v {
+				return fmt.Errorf("%s is duplicated", v)
+			}
+		}
+	}
+
 	varlist = vlist
 	return nil
 }
@@ -40,8 +56,4 @@ func Mul(x, y RObj) RObj {
 	} else {
 		return y.Mul(x)
 	}
-}
-
-func Pow(x RObj, y *Int) RObj {
-	return x
 }
