@@ -17,7 +17,6 @@ type RObj interface {
 	IsMinusOne() bool
 	IsNumeric() bool
 	Equals(x RObj) bool
-	New() RObj
 }
 
 type RObjSample struct {
@@ -49,11 +48,6 @@ func (z *RObjSample) IsMinusOne() bool {
 
 func (z *RObjSample) IsNumeric() bool {
 	return false
-}
-
-func (z *RObjSample) New() RObj {
-	v := new(RObjSample)
-	return v
 }
 
 func (z *RObjSample) Set(x RObj) RObj {

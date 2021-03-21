@@ -239,7 +239,7 @@ func (l *pLexer) Error(s string) {
 }
 
 func yyytrace(s string) {
-	if true || debug_print_trace {
+	if debug_print_trace {
 		fmt.Printf(s + "\n")
 	}
 }

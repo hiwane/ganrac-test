@@ -9,7 +9,7 @@ import (
 var builtin_func_table = []struct {
 	name     string
 	min, max int
-	f        func(args []interface{}) (interface{}, error)
+	f        func(name string, args []interface{}) (interface{}, error)
 	descript string
 	help     string
 }{
@@ -75,14 +75,14 @@ func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
 			if len(args) > f.max {
 				return nil, fmt.Errorf("too many argument: function %s()", p.str)
 			}
-			return f.f(args)
+			return f.f(f.name, args)
 		}
 	}
 
 	return nil, fmt.Errorf("unknown function: %s", p.str)
 }
 
-func funcNot(args []interface{}) (interface{}, error) {
+func funcNot(name string, args []interface{}) (interface{}, error) {
 	f, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("not(): unsupported for %v", args[0])
@@ -90,7 +90,7 @@ func funcNot(args []interface{}) (interface{}, error) {
 	return f.Not(), nil
 }
 
-func funcAnd(args []interface{}) (interface{}, error) {
+func funcAnd(name string, args []interface{}) (interface{}, error) {
 	f0, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("and(): unsupported for %v", args[0])
@@ -102,7 +102,7 @@ func funcAnd(args []interface{}) (interface{}, error) {
 	return NewFmlAnd(f0, f1), nil
 }
 
-func funcOr(args []interface{}) (interface{}, error) {
+func funcOr(name string, args []interface{}) (interface{}, error) {
 	f0, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("or(): unsupported for %v", args[0])
@@ -114,12 +114,12 @@ func funcOr(args []interface{}) (interface{}, error) {
 	return NewFmlOr(f0, f1), nil
 }
 
-func funcExists(args []interface{}) (interface{}, error) {
-	return funcForEx(false, "ex", args)
+func funcExists(name string, args []interface{}) (interface{}, error) {
+	return funcForEx(false, name, args)
 }
 
-func funcForAll(args []interface{}) (interface{}, error) {
-	return funcForEx(true, "all", args)
+func funcForAll(name string, args []interface{}) (interface{}, error) {
+	return funcForEx(true, name, args)
 }
 
 func funcForEx(forex bool, name string, args []interface{}) (interface{}, error) {
@@ -144,7 +144,7 @@ func funcForEx(forex bool, name string, args []interface{}) (interface{}, error)
 	return NewQuantifier(forex, lv, f1), nil
 }
 
-func funcSubst(args []interface{}) (interface{}, error) {
+func funcSubst(name string, args []interface{}) (interface{}, error) {
 	if len(args)%2 != 1 {
 		return nil, fmt.Errorf("subst() invalid args")
 	} else if len(args) == 1 {
@@ -207,9 +207,8 @@ func funcSubst(args []interface{}) (interface{}, error) {
 
 }
 
-func funcDeg(args []interface{}) (interface{}, error) {
+func funcDeg(name string, args []interface{}) (interface{}, error) {
 	// FoF にも適用可能にする.
-	name := "deg"
 	_, ok := args[0].(RObj)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected poly: %v", name, args[0])
@@ -228,8 +227,7 @@ func funcDeg(args []interface{}) (interface{}, error) {
 	return NewInt(int64(p.Deg(d.lv))), nil
 }
 
-func funcCoef(args []interface{}) (interface{}, error) {
-	name := "coef"
+func funcCoef(name string, args []interface{}) (interface{}, error) {
 	_, ok := args[0].(RObj)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected RObj: %v", name, args[0])
@@ -263,8 +261,12 @@ func funcCoef(args []interface{}) (interface{}, error) {
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
 }
 
-func funcRootBound(args []interface{}) (interface{}, error) {
-	return zero, nil
+func funcRootBound(name string, args []interface{}) (interface{}, error) {
+	p, ok := args[0].(*Poly)
+	if !ok {
+		return nil, fmt.Errorf("%s(): expected poly: %v", name, args[0])
+	}
+	return p.RootBound()
 }
 
 func funcHelp(name string) (interface{}, error) {

@@ -47,7 +47,12 @@ func Add(x, y RObj) RObj {
 }
 
 func Sub(x, y RObj) RObj {
-	return Add(x, y.Neg())
+	if y.IsNumeric() || !x.IsNumeric() {
+		return x.Sub(y)
+	} else {
+		// num - poly
+		return Add(x, y.Neg())
+	}
 }
 
 func Mul(x, y RObj) RObj {

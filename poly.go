@@ -211,12 +211,6 @@ func (z *Poly) IsNumeric() bool {
 	return false
 }
 
-func (z *Poly) New() RObj {
-	v := new(Poly)
-	v.lv = z.lv
-	return v
-}
-
 func (z *Poly) Set(x RObj) RObj {
 	return z
 }
@@ -395,4 +389,22 @@ func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 		p = Add(Mul(p, x), z.c[i].Subst(xs, lvs, idx+1))
 	}
 	return p
+}
+
+func (z *Poly) RootBound() (RObj, error) {
+	for _, c := range z.c {
+		if _, ok := c.(*Int); !ok {
+			return nil, fmt.Errorf("supportedx only for univariate polynomial in Z[x]")
+		}
+	}
+
+	var m *Int
+	m = z.c[0].(*Int)
+	for i := 1; i < len(z.c)-1; i++ {
+		if m.cmpIntAbs(z.c[i].(*Int)) < 0 {
+			m = z.c[i].(*Int)
+		}
+	}
+
+	return nil, nil
 }

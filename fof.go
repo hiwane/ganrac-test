@@ -444,7 +444,6 @@ func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
 	q.fml = make([]Fof, 0, len(p.fml))
 	for i := 0; i < len(p.fml); i++ {
 		fml := p.fml[i].Subst(xs, lvs)
-		fmt.Printf("and.subst %d: %v -> %v\n", i, p.fml[i], fml)
 		switch fml.(type) {
 		case *AtomT:
 			break
