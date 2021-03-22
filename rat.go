@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"math/big"
 )
 
@@ -42,6 +43,12 @@ func (z *Rat) normal() RObj {
 	zi := newInt()
 	zi.n.Set(z.n.Num())
 	return zi
+}
+
+func (x *Rat) AddInt(n int64) NObj {
+	z := NewRatInt64(n, 1)
+	z.n.Add(z.n, x.n)
+	return z
 }
 
 func (x *Rat) Add(yy RObj) RObj {
@@ -92,6 +99,10 @@ func (x *Rat) Mul(yy RObj) RObj {
 	return nil
 }
 
+func (x *Rat) Div(yy NObj) RObj {
+	return nil // @TODO
+}
+
 func (x *Rat) Pow(y *Int) RObj {
 	den := newInt()
 	den.n.Set(x.n.Denom())
@@ -100,13 +111,13 @@ func (x *Rat) Pow(y *Int) RObj {
 	num.n.Set(x.n.Num())
 
 	if y.Sign() > 0 {
-		deni := den.Pow(y)
+		deni := den.Pow(y).(*Int)
 		numi := num.Pow(y).(*Int)
 		return numi.Div(deni)
 	} else if y.Sign() < 0 {
 		yi := y.Neg().(*Int)
 		deni := den.Pow(yi).(*Int)
-		numi := num.Pow(yi)
+		numi := num.Pow(yi).(*Int)
 		return deni.Div(numi)
 	} else {
 		return one
@@ -175,4 +186,31 @@ func (z *Rat) CmpAbs(xx NObj) int {
 		return s1 * z.n.Cmp(x.n)
 	}
 	panic("unknown")
+}
+
+func (z *Rat) Abs() NObj {
+	if z.Sign() >= 0 {
+		return z
+	} else {
+		return z.Neg().(NObj)
+	}
+}
+
+func (z *Rat) valid() error {
+	if z.n.IsInt() {
+		return fmt.Errorf("den = 1. rat=%v", z)
+	}
+	if brat_one.Cmp(big.NewRat(1, 1)) != 0 {
+		return fmt.Errorf("brat_one is broken: %v", zero)
+	}
+	if brat_mone.Cmp(big.NewRat(-1, 1)) != 0 {
+		return fmt.Errorf("brat_mone is broken: %v", zero)
+	}
+	return nil
+}
+
+func (z *Rat) ToInt(n int) *Int {
+	v := newInt()
+	v.n.Div(z.n.Num(), z.n.Denom())
+	return v
 }

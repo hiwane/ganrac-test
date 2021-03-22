@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"math/big"
 )
 
@@ -40,6 +41,13 @@ func ParseInt(s string, base int) *Int {
 func (x *Int) Equals(y RObj) bool {
 	c, ok := y.(*Int)
 	return ok && x.n.Cmp(c.n) == 0
+}
+
+func (x *Int) AddInt(n int64) NObj {
+	z := newInt()
+	z.n.SetInt64(n)
+	z.n.Add(z.n, x.n)
+	return z
 }
 
 func (x *Int) Add(y RObj) RObj {
@@ -102,11 +110,19 @@ func (x *Int) Set(y RObj) RObj {
 	return x
 }
 
-func (x *Int) Div(yy RObj) RObj {
+func (x *Int) Div(yy NObj) RObj {
 	switch y := yy.(type) {
 	case *Int:
+		if y.n.Cmp(one.n) == 0 {
+			return x
+		}
 		z := newRat()
 		z.n.SetFrac(x.n, y.n)
+		if z.n.IsInt() {
+			zi := newInt()
+			zi.n.Set(z.n.Num())
+			return zi
+		}
 		return z
 	}
 	return nil // @TODO
@@ -211,4 +227,26 @@ func (z *Int) CmpAbs(xx NObj) int {
 		return zr.CmpAbs(x.n.Num())
 	}
 	panic("unknown")
+}
+
+func (z *Int) Abs() NObj {
+	if z.Sign() >= 0 {
+		return z
+	} else {
+		return z.Neg().(NObj)
+	}
+}
+
+func (z *Int) valid() error {
+	if zero.n.Sign() != 0 {
+		return fmt.Errorf("zero is broken: %v", zero)
+	}
+	if one.String() != "1" {
+		return fmt.Errorf("one is broken: %v", one)
+	}
+	return nil
+}
+
+func (z *Int) ToInt(n int) *Int {
+	return z
 }

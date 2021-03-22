@@ -7,6 +7,7 @@ type RObj interface {
 	Add(x RObj) RObj // z+x
 	Sub(x RObj) RObj // z-x
 	Mul(x RObj) RObj
+	Div(x NObj) RObj
 	Pow(x *Int) RObj
 	Subst(x []RObj, lv []Level, n int) RObj
 	Neg() RObj
@@ -17,6 +18,7 @@ type RObj interface {
 	IsMinusOne() bool
 	IsNumeric() bool
 	Equals(x RObj) bool
+	valid() error
 }
 
 type RObjSample struct {
@@ -72,6 +74,10 @@ func (z *RObjSample) Mul(x RObj) RObj {
 	return z
 }
 
+func (z *RObjSample) Div(x NObj) RObj {
+	return z
+}
+
 func (z *RObjSample) Pow(x *Int) RObj {
 	return z
 }
@@ -82,4 +88,8 @@ func (z *RObjSample) Equals(x RObj) bool {
 
 func (z *RObjSample) Subst(x []RObj, lv []Level, idx int) RObj {
 	return z
+}
+
+func (z *RObjSample) valid() error {
+	return nil
 }

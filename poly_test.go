@@ -75,7 +75,7 @@ func TestPolyAdd(t *testing.T) {
 		{[]int64{1, 2, 3}, []int64{4, 5}, NewPolyInts(lv, 5, 7, 3)},
 		{[]int64{1, 4, 5}, []int64{1, 3, -5}, NewPolyInts(lv, 2, 7)},
 		{[]int64{1, 1}, []int64{1, -1}, NewInt(2)},
-		{[]int64{2, 1}, []int64{-2, -1}, NewInt(0)},
+		{[]int64{2, 1}, []int64{-2, -1}, zero},
 	} {
 		a := NewPolyInts(lv, s.a...)
 		b := NewPolyInts(lv, s.b...)
@@ -168,7 +168,7 @@ func TestPolyMulLv(t *testing.T) {
 		t.Errorf("invalid poly.mul a=%v, b=%v, expect=%v, actual=%v", a, b, ep, c)
 	}
 
-	b = NewInt(0)
+	b = zero
 	c = a.Mul(b)
 	if !b.Equals(c) {
 		t.Errorf("invalid poly.mul a=%v, b=%v, expect=%v, actual=%v", a, b, b, c)
@@ -177,8 +177,6 @@ func TestPolyMulLv(t *testing.T) {
 
 func TestPolyPow(t *testing.T) {
 	lv := Level(0)
-	zero := NewInt(0)
-	one := NewInt(1)
 	for _, s := range []struct {
 		a      []int64
 		b      int64
@@ -224,6 +222,30 @@ func TestPolySubst(t *testing.T) {
 		c := a.Subst([]RObj{b}, []Level{lv}, 0)
 		if !c.Equals(ep) {
 			t.Errorf("invalid poly.subst a=%v, b=%v, exp=%v, actual=%v", a, b, ep, c)
+		}
+	}
+}
+
+func TestPolyRootBound(t *testing.T) {
+	for _, s := range []struct {
+		a     []int64
+		bound NObj
+	}{
+		{[]int64{2, 1}, NewInt(2)},
+		{[]int64{17, 0, 3}, NewRatInt64(238, 100)},
+		{[]int64{39, -40, 0, 1}, NewInt(3)},
+		{[]int64{-6, 25, -27, 4}, NewInt(3)},
+	} {
+		a := NewPolyInts(0, s.a...)
+		b, err := a.RootBound()
+		if err != nil {
+			t.Errorf("?? %s", err.Error())
+			continue
+		}
+
+		if b.Cmp(s.bound) < 0 {
+			t.Errorf("invalid bound expect=%v, actual=%v", s.bound, b)
+			continue
 		}
 	}
 }

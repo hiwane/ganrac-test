@@ -30,13 +30,18 @@ func Eval(r io.Reader) (interface{}, error) {
 	}
 	switch p := pp.(type) {
 	case Fof:
-		if !p.valid() {
-			return nil, fmt.Errorf("system error. invalid fof `%v`", p)
+		err = p.valid()
+		if err != nil {
+			return nil, err
 		}
-	case *Poly:
-		if !p.valid() {
-			return nil, fmt.Errorf("system error. invalid poly `%v`", p)
+	case RObj:
+		err = p.valid()
+		if err != nil {
+			return nil, err
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	return pp, nil
 }
@@ -122,7 +127,7 @@ func evalInitVar(stack *pStack, num int) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewInt(0), nil
+	return zero, nil
 }
 
 func evalStackFof2(stack *pStack, node pNode) (interface{}, error) {

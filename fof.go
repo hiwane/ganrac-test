@@ -12,7 +12,7 @@ type Fof interface {
 	Equals(f Fof) bool // 等化まではやらない. 形として同じもの
 	hasFreeVar(lv Level) bool
 	Subst(xs []RObj, lvs []Level) Fof
-	valid() bool // for DEBUG
+	valid() error // for DEBUG
 }
 
 type OP uint8
@@ -169,81 +169,101 @@ func (p *Exists) Tag() uint {
 	return TAG_FOF
 }
 
-func (p *Atom) valid() bool {
-	return p.p.valid() && 1 <= p.op && p.op <= 7
-}
-
-func (p *AtomT) valid() bool {
-	return true
-}
-func (p *AtomF) valid() bool {
-	return true
-}
-
-func (p *FmlAnd) valid() bool {
-	if len(p.fml) < 2 {
-		return false
+func (p *Atom) valid() error {
+	err := p.p.valid()
+	if err != nil {
+		return err
 	}
+	if 1 <= p.op && p.op <= 7 {
+		return nil
+	} else {
+		return fmt.Errorf("op is invalid: %d", p.op)
+	}
+}
+
+func (p *AtomT) valid() error {
+	return nil
+}
+func (p *AtomF) valid() error {
+	return nil
+}
+
+func validAndOr(name string, fml []Fof) error {
+	if len(fml) < 2 {
+		return fmt.Errorf("len(%s) should be greater than 1.", name)
+	}
+	for _, f := range fml {
+		switch f.(type) {
+		case *AtomT, *AtomF:
+			return fmt.Errorf("%s: invalid element. %v", name, f)
+		}
+		err := f.valid()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *FmlAnd) valid() error {
 	for _, f := range p.fml {
 		switch f.(type) {
-		case *AtomT, *AtomF, *FmlAnd:
-			return false
-		}
-		if !f.valid() {
-			return false
+		case *FmlAnd:
+			return fmt.Errorf("and is in and")
 		}
 	}
-	return true
+	return validAndOr("and", p.fml)
 }
 
-func (p *FmlOr) valid() bool {
-	if len(p.fml) < 2 {
-		return false
-	}
+func (p *FmlOr) valid() error {
 	for _, f := range p.fml {
 		switch f.(type) {
-		case *AtomT, *AtomF, *FmlOr:
-			return false
-		}
-		if !f.valid() {
-			return false
+		case *FmlOr:
+			return fmt.Errorf("or is in or")
 		}
 	}
-	return true
+	return validAndOr("or", p.fml)
 }
 
-func (p *ForAll) valid() bool {
-	if len(p.q) == 0 {
-		return false
+func validQuantifier(name string, q []Level, fml Fof) error {
+	if len(q) == 0 {
+		return fmt.Errorf("quantifier %s() is empty", name)
 	}
-	for _, lv := range p.q {
-		if !p.fml.hasFreeVar(lv) {
-			return false
+	for _, lv := range q {
+		if !fml.hasFreeVar(lv) {
+			return fmt.Errorf("quantifier %s(lv=%d) in redundant", name, lv)
 		}
 	}
-	fml := p.fml
 	switch fml.(type) {
-	case *AtomT, *AtomF, *ForAll:
-		return false
+	case *AtomT, *AtomF:
+		return fmt.Errorf("quantifier %s() has boolean", name)
 	}
-	return p.fml.valid()
+
+	return fml.valid()
 }
 
-func (p *Exists) valid() bool {
-	if len(p.q) == 0 {
-		return false
+func (p *ForAll) valid() error {
+	err := validQuantifier("all", p.q, p.fml)
+	if err != nil {
+		return err
 	}
-	for _, lv := range p.q {
-		if !p.fml.hasFreeVar(lv) {
-			return false
-		}
+	switch p.fml.(type) {
+	case *ForAll:
+		return fmt.Errorf("all is in all")
 	}
-	fml := p.fml
-	switch fml.(type) {
-	case *AtomT, *AtomF, *Exists:
-		return false
+	return nil
+}
+
+func (p *Exists) valid() error {
+	err := validQuantifier("ex", p.q, p.fml)
+	if err != nil {
+		return err
 	}
-	return p.fml.valid()
+	switch p.fml.(type) {
+	case *Exists:
+		return fmt.Errorf("ex is in ex")
+	}
+	return nil
 }
 
 func (p *Atom) Equals(qq Fof) bool {

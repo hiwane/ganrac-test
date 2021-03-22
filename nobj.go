@@ -2,9 +2,12 @@ package ganrac
 
 // numeric
 type NObj interface {
-	GObj
+	RObj
 	Cmp(x NObj) int
 	CmpAbs(x NObj) int
+	Abs() NObj
+	AddInt(n int64) NObj
+	ToInt(n int) *Int // 整数に丸める.
 }
 
 type Number struct {

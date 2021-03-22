@@ -37,16 +37,26 @@ func NewPolyCoef(lv Level, coeffs ...RObj) *Poly {
 	return p
 }
 
-func (z *Poly) valid() bool {
+func (z *Poly) valid() error {
 	if z.c == nil {
-		return false
+		return fmt.Errorf("coefs is null")
+	}
+	if len(z.c) < 2 {
+		return fmt.Errorf("numeric... %v", z)
+	}
+	if z.c[len(z.c)-1].IsZero() {
+		return fmt.Errorf("lc should not be zero... %v", z)
 	}
 	for _, c := range z.c {
 		if c == nil {
-			return false
+			return fmt.Errorf("coef is null")
+		}
+		err := c.valid()
+		if err != nil {
+			return err
 		}
 	}
-	return len(z.c) >= 2 && !z.c[len(z.c)-1].IsZero()
+	return nil
 }
 
 func (z *Poly) Equals(x RObj) bool {
@@ -278,7 +288,7 @@ func (x *Poly) Add(y RObj) RObj {
 }
 
 func (z *Poly) Sub(y RObj) RObj {
-	// とりまサボり.
+	// @TODO とりまサボり.
 	yn := y.Neg()
 	return z.Add(yn)
 }
@@ -309,7 +319,6 @@ func (x *Poly) Mul(yy RObj) RObj {
 		}
 		return z
 	}
-	zero := NewInt(0)
 	z := NewPoly(x.lv, len(y.c)+len(x.c)-1)
 	for i := 0; i < len(z.c); i++ {
 		z.c[i] = zero
@@ -328,10 +337,18 @@ func (x *Poly) Mul(yy RObj) RObj {
 	return z
 }
 
+func (x *Poly) Div(y NObj) RObj {
+	z := NewPoly(x.lv, len(x.c))
+	for i, c := range x.c {
+		z.c[i] = c.Div(y)
+	}
+	return z
+}
+
 func (x *Poly) Pow(y *Int) RObj {
 	// return x^y
 	// int版と同じ手法. 通常 x^m 以外では使わないから放置
-	// @TODO 2項定理使ったほうが効率的
+	// @TODO 2項定理使ったほうが効率的?
 	if y.Sign() < 0 {
 		return nil // unsupported.
 	}
@@ -391,20 +408,20 @@ func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 	return p
 }
 
-func (z *Poly) RootBound() (RObj, error) {
+func (z *Poly) RootBound() (NObj, error) {
 	for _, c := range z.c {
-		if _, ok := c.(*Int); !ok {
-			return nil, fmt.Errorf("supportedx only for univariate polynomial in Z[x]")
+		if _, ok := c.(NObj); !ok {
+			return nil, fmt.Errorf("supportedx only for univariate polynomial")
 		}
 	}
 
-	var m *Int
-	m = z.c[0].(*Int)
+	var m NObj
+	m = z.c[0].(NObj)
 	for i := 1; i < len(z.c)-1; i++ {
-		if m.cmpIntAbs(z.c[i].(*Int)) < 0 {
-			m = z.c[i].(*Int)
+		if m.CmpAbs(z.c[i].(NObj)) < 0 {
+			m = z.c[i].(NObj)
 		}
 	}
-
-	return nil, nil
+	m = m.Div(z.c[len(z.c)-1].(NObj)).(NObj)
+	return m.Abs().AddInt(1), nil
 }
