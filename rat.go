@@ -53,47 +53,47 @@ func (x *Rat) AddInt(n int64) NObj {
 
 func (x *Rat) Add(yy RObj) RObj {
 	switch y := yy.(type) {
-	case *Rat:
-		z := newRat()
-		z.n.Add(x.n, y.n)
-		return z.normal()
 	case *Int:
 		yr := new(big.Rat)
 		yr.SetInt(y.n)
 		z := newRat()
 		z.n.Add(x.n, yr)
 		return z
+	case *Rat:
+		z := newRat()
+		z.n.Add(x.n, y.n)
+		return z.normal()
 	}
 	return nil
 }
 
 func (x *Rat) Sub(yy RObj) RObj {
 	switch y := yy.(type) {
-	case *Rat:
-		z := newRat()
-		z.n.Sub(x.n, y.n)
-		return z.normal()
 	case *Int:
 		yr := new(big.Rat)
 		yr.SetInt(y.n)
 		z := newRat()
 		z.n.Sub(x.n, yr)
 		return z
+	case *Rat:
+		z := newRat()
+		z.n.Sub(x.n, y.n)
+		return z.normal()
 	}
 	return nil
 }
 
 func (x *Rat) Mul(yy RObj) RObj {
 	switch y := yy.(type) {
-	case *Rat:
-		z := newRat()
-		z.n.Mul(x.n, y.n)
-		return z.normal()
 	case *Int:
 		yr := new(big.Rat)
 		yr.SetInt(y.n)
 		z := newRat()
 		z.n.Mul(x.n, yr)
+		return z.normal()
+	case *Rat:
+		z := newRat()
+		z.n.Mul(x.n, y.n)
 		return z.normal()
 	}
 	return nil

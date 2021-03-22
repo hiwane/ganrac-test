@@ -15,7 +15,7 @@ package ganrac
 %token eol lb rb lp rp lc rc
 
 %type <num> seq_mobj list_mobj seq_ident
-%type <node> f_true f_false
+%type <node> f_true f_false eol
 %type <node> mobj lb initvar
 %type <node> number name ident
 %type <node> plus minus mult div pow and or
@@ -32,7 +32,8 @@ package ganrac
 %%
 
 expr
-	: mobj eol { yyytrace("gege") }
+	: eol { stack.Push(newPNode("", eol, 0, $1.pos))}
+	| mobj eol { yyytrace("gege") }
 	| name assign mobj eol  { yyytrace("assign"); stack.Push(newPNode($1.str, assign, 0, $1.pos)) }
 	| initvar lp seq_ident rp eol { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
 	| help lp ident rp eol { yyytrace("help(" + $3.str + ")"); stack.Push(newPNode($3.str, help, 0, $2.pos)) }
@@ -63,10 +64,11 @@ mobj
 	| mobj eqop mobj { yyytrace("=="); stack.Push($2)}
 	| mobj neop mobj { yyytrace("!="); stack.Push($2)}
 	| list_mobj {}
+	| mobj lb mobj rb { yyytrace("="); stack.Push(newPNode("[]", lb, 0, $1.pos)) }
 	;
 
 list_mobj
-	: lb seq_ident rb { yyytrace("list" + string($2)); stack.Push(newPNode("_list", list, $2, $1.pos)) }
+	: lb seq_mobj rb { yyytrace("list" + string($2)); stack.Push(newPNode("_list", list, $2, $1.pos)) }
 	| lb rb { yyytrace("list0"); stack.Push(newPNode("_list", list, 0, $1.pos)) }
 	;
 

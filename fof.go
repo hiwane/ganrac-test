@@ -2,6 +2,8 @@ package ganrac
 
 import (
 	"fmt"
+	"io"
+	"strings"
 )
 
 // first-order formula
@@ -13,6 +15,7 @@ type Fof interface {
 	hasFreeVar(lv Level) bool
 	Subst(xs []RObj, lvs []Level) Fof
 	valid() error // for DEBUG
+	write(b io.Writer)
 }
 
 type OP uint8
@@ -188,12 +191,12 @@ func (p *AtomF) valid() error {
 	return nil
 }
 
-func validAndOr(name string, fml []Fof) error {
+func validFmlAndOr(name string, fml []Fof) error {
 	if len(fml) < 2 {
 		return fmt.Errorf("len(%s) should be greater than 1.", name)
 	}
 	for _, f := range fml {
-		switch f.(type) {
+		switch f.(type) { // 容易に簡単化できるので許さない
 		case *AtomT, *AtomF:
 			return fmt.Errorf("%s: invalid element. %v", name, f)
 		}
@@ -207,22 +210,24 @@ func validAndOr(name string, fml []Fof) error {
 
 func (p *FmlAnd) valid() error {
 	for _, f := range p.fml {
+		// and の入れ子は許さない
 		switch f.(type) {
 		case *FmlAnd:
 			return fmt.Errorf("and is in and")
 		}
 	}
-	return validAndOr("and", p.fml)
+	return validFmlAndOr("and", p.fml)
 }
 
 func (p *FmlOr) valid() error {
 	for _, f := range p.fml {
+		// or の入れ子は許さない
 		switch f.(type) {
 		case *FmlOr:
 			return fmt.Errorf("or is in or")
 		}
 	}
-	return validAndOr("or", p.fml)
+	return validFmlAndOr("or", p.fml)
 }
 
 func validQuantifier(name string, q []Level, fml Fof) error {
@@ -230,10 +235,13 @@ func validQuantifier(name string, q []Level, fml Fof) error {
 		return fmt.Errorf("quantifier %s() is empty", name)
 	}
 	for _, lv := range q {
+		// 限量できるのは，子論理式の自由変数のみ
 		if !fml.hasFreeVar(lv) {
 			return fmt.Errorf("quantifier %s(lv=%d) in redundant", name, lv)
 		}
 	}
+	// 限量子の重複は許さない.. @TODO
+
 	switch fml.(type) {
 	case *AtomT, *AtomF:
 		return fmt.Errorf("quantifier %s() has boolean", name)
@@ -370,37 +378,86 @@ func (p *Exists) Equals(qq Fof) bool {
 func (p *AtomT) String() string {
 	return "true"
 }
+func (p *AtomT) write(b io.Writer) {
+	fmt.Fprintf(b, p.String())
+}
+
 func (p *AtomF) String() string {
 	return "false"
 }
+func (p *AtomF) write(b io.Writer) {
+	fmt.Fprintf(b, p.String())
+}
+
 func (p *Atom) String() string {
 	return fmt.Sprintf("%v%s0", p.p, op2str[p.op])
 }
+func (p *Atom) write(b io.Writer) {
+	fmt.Fprintf(b, "%v%s0", p.p, op2str[p.op])
+}
 
-func stringFmlAndOr(fmls []Fof, op string) string {
-	// @TODO
-	return op
+func writeFmlAndOr(b io.Writer, fmls []Fof, op string) {
+	for i, f := range fmls {
+		if i != 0 {
+			fmt.Fprintf(b, " %s ", op)
+		}
+		f.write(b)
+	}
+}
+
+func (p *FmlAnd) write(b io.Writer) {
+	writeFmlAndOr(b, p.fml, "&&")
+}
+
+func (p *FmlOr) write(b io.Writer) {
+	writeFmlAndOr(b, p.fml, "||")
 }
 
 func (p *FmlAnd) String() string {
-	return stringFmlAndOr(p.fml, "&&")
+	var b strings.Builder
+	p.write(&b)
+	return b.String()
 }
 
 func (p *FmlOr) String() string {
-	return stringFmlAndOr(p.fml, "||")
+	var b strings.Builder
+	p.write(&b)
+	return b.String()
 }
 
-func stringFmlQ(fmls Fof, q string) string {
-	// @TODO
-	return q
+func writeFmlQ(b io.Writer, lvs []Level, fml Fof, q string) {
+	fmt.Fprintf(b, "%s(", q)
+	for i, lv := range lvs {
+		if i == 0 {
+			fmt.Fprintf(b, "[")
+		} else {
+			fmt.Fprintf(b, ",")
+		}
+		fmt.Fprintf(b, "%s", varlist[lv])
+	}
+	fmt.Fprintf(b, "], ")
+	fml.write(b)
+	fmt.Fprintf(b, ")")
+}
+
+func (p *ForAll) write(b io.Writer) {
+	writeFmlQ(b, p.q, p.fml, "all")
+}
+
+func (p *Exists) write(b io.Writer) {
+	writeFmlQ(b, p.q, p.fml, "ex")
 }
 
 func (p *ForAll) String() string {
-	return stringFmlQ(p.fml, "all")
+	var b strings.Builder
+	p.write(&b)
+	return b.String()
 }
 
 func (p *Exists) String() string {
-	return stringFmlQ(p.fml, "ex")
+	var b strings.Builder
+	p.write(&b)
+	return b.String()
 }
 
 func (p *AtomT) Not() Fof {
@@ -576,15 +633,31 @@ func NewFmlAnd(pp Fof, qq Fof) Fof {
 			return pp
 		case *AtomF:
 			return qq
+		case *Atom:
+			r := new(FmlAnd)
+			r.fml = make([]Fof, len(p.fml)+1)
+			copy(r.fml, p.fml)
+			r.fml[len(p.fml)] = q
+			return r
 		}
 	case *AtomT:
 		return qq
 	case *AtomF:
 		return pp
+	case *Atom:
+		switch q := qq.(type) {
+		case *FmlAnd:
+			r := new(FmlAnd)
+			r.fml = make([]Fof, len(q.fml)+1)
+			copy(r.fml[1:], q.fml)
+			r.fml[0] = p
+			return r
+		}
 	}
 
 	switch q := qq.(type) {
 	case *FmlAnd:
+		// p は or か q か
 		r := new(FmlAnd)
 		r.fml = make([]Fof, len(q.fml)+1)
 		copy(r.fml, q.fml)
@@ -620,11 +693,26 @@ func NewFmlOr(pp Fof, qq Fof) Fof {
 			return qq
 		case *AtomF:
 			return pp
+		case *Atom:
+			r := new(FmlOr)
+			r.fml = make([]Fof, len(p.fml)+1)
+			copy(r.fml, p.fml)
+			r.fml[len(p.fml)] = q
+			return r
 		}
 	case *AtomT:
 		return pp
 	case *AtomF:
 		return qq
+	case *Atom:
+		switch q := qq.(type) {
+		case *FmlOr:
+			r := new(FmlOr)
+			r.fml = make([]Fof, len(q.fml)+1)
+			copy(r.fml[1:], q.fml)
+			r.fml[0] = p
+			return r
+		}
 	}
 
 	switch q := qq.(type) {
@@ -688,4 +776,54 @@ func NewQuantifier(forex bool, lvv []Level, fml Fof) Fof {
 		q.fml = fml
 		return q
 	}
+}
+
+func (p *FmlAnd) Len() int {
+	return len(p.fml)
+}
+
+func (p *FmlOr) Len() int {
+	return len(p.fml)
+}
+
+func getFmlAndOr(fml []Fof, idx *Int) (Fof, error) {
+	if idx.Sign() < 0 || !idx.IsInt64() {
+		return nil, fmt.Errorf("index out of range")
+	}
+	m := idx.Int64()
+	if m >= int64(len(fml)) {
+		return nil, fmt.Errorf("index out of range")
+	}
+	fmt.Printf("idx=%v, m=%d, len=%d\n", idx, m, len(fml))
+	for i, f := range fml {
+		fmt.Printf("fml[%d]=%v: %d\n", i, f, f.Tag())
+	}
+	return fml[m], nil
+}
+
+func (p *FmlAnd) Get(idx *Int) (Fof, error) {
+	return getFmlAndOr(p.fml, idx)
+}
+
+func (p *FmlOr) Get(idx *Int) (Fof, error) {
+	return getFmlAndOr(p.fml, idx)
+}
+
+func getFmlQuantifier(q []Level, fml Fof, idx *Int) (interface{}, error) {
+	if idx.IsZero() {
+		return q, nil
+	}
+	if idx.IsOne() {
+		return fml, nil
+	}
+
+	return nil, fmt.Errorf("invalid index")
+}
+
+func (p *ForAll) Get(idx *Int) (interface{}, error) {
+	return getFmlQuantifier(p.q, p.fml, idx)
+}
+
+func (p *Exists) Get(idx *Int) (interface{}, error) {
+	return getFmlQuantifier(p.q, p.fml, idx)
 }

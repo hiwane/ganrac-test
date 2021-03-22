@@ -13,3 +13,7 @@ type GObj interface {
 	String() string
 	Tag() uint
 }
+
+type Lener interface {
+	Len() int
+}

@@ -5,6 +5,8 @@ import (
 	"io"
 )
 
+var varmap map[string]interface{} = make(map[string]interface{}, 100)
+
 func parse(lexer *pLexer) (*pStack, error) {
 	stack = new(pStack)
 	yyParse(lexer)
@@ -26,7 +28,7 @@ func Eval(r io.Reader) (interface{}, error) {
 		return nil, err
 	}
 	if pp == nil {
-		return nil, fmt.Errorf("system error. returnd nil")
+		return nil, nil
 	}
 	switch p := pp.(type) {
 	case Fof:
@@ -52,14 +54,20 @@ func evalStack(stack *pStack) (interface{}, error) {
 		return nil, err
 	}
 	switch s.cmd {
-	case initvar:
-		return evalInitVar(stack, s.extra)
-	case plus, minus, mult, pow:
+	case plus, minus, mult, pow, div:
 		return evalStackRObj2(stack, s)
-	case and, or:
-		return evalStackFof2(stack, s)
+	case ident:
+		lv, err := var2lv(s.str)
+		if err != nil {
+			return nil, err
+		}
+		return NewPolyInts(lv, 0, 1), nil
+	case name:
+		return evalStackName(stack, s)
 	case unaryminus:
 		return evalStackRObj1(stack, s)
+	case and, or:
+		return evalStackFof2(stack, s)
 	case geop:
 		return evalStackAtom(stack, GE, s)
 	case gtop:
@@ -74,6 +82,10 @@ func evalStack(stack *pStack) (interface{}, error) {
 		return evalStackAtom(stack, NE, s)
 	case call, list:
 		return evalStackNvar(stack, s)
+	case assign:
+		return evalStackAssign(stack, s)
+	case lb:
+		return evalStackElem(stack, s)
 	case number:
 		bi := ParseInt(s.str, 10)
 		if bi != nil {
@@ -83,12 +95,10 @@ func evalStack(stack *pStack) (interface{}, error) {
 		}
 	case help:
 		return funcHelp(s.str)
-	case ident:
-		lv, err := var2lv(s.str)
-		if err != nil {
-			return nil, err
-		}
-		return NewPolyInts(lv, 0, 1), nil
+	case initvar:
+		return evalInitVar(stack, s.extra)
+	case eol:
+		return nil, nil
 	}
 	return nil, fmt.Errorf("unsupported [str=%s, cmd=%d]", s.str, s.cmd)
 }
@@ -127,7 +137,7 @@ func evalInitVar(stack *pStack, num int) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return zero, nil
+	return nil, nil
 }
 
 func evalStackFof2(stack *pStack, node pNode) (interface{}, error) {
@@ -185,7 +195,19 @@ func evalStackRObj2(stack *pStack, node pNode) (interface{}, error) {
 		if !ok || c.Sign() < 0 {
 			return nil, fmt.Errorf("%s is not supported", node.str)
 		}
+		if c.IsZero() && l.IsZero() {
+			return nil, fmt.Errorf("0^0 is not defined")
+		}
 		return l.Pow(c), nil
+	case div:
+		c, ok := r.(NObj)
+		if !ok {
+			return nil, fmt.Errorf("%s is not supported", node.str)
+		}
+		if c.IsZero() {
+			return nil, fmt.Errorf("divide by zero")
+		}
+		return l.Div(c), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
 }
@@ -223,4 +245,51 @@ func evalStackNvar(stack *pStack, node pNode) (interface{}, error) {
 		return NewList(args), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
+}
+
+func evalStackAssign(stack *pStack, node pNode) (interface{}, error) {
+	v, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	varmap[node.str] = v
+	return nil, nil
+}
+
+func evalStackName(stack *pStack, node pNode) (interface{}, error) {
+	v, ok := varmap[node.str]
+	if !ok {
+		return zero, nil
+	} else {
+		return v, nil
+	}
+}
+
+func evalStackElem(stack *pStack, node pNode) (interface{}, error) {
+	idx, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	pp, err := evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	idxi, ok := idx.(*Int)
+	if !ok {
+		return nil, fmt.Errorf("index should be integer")
+	}
+
+	switch p := pp.(type) {
+	case *List:
+		return p.Get(idxi)
+	case *FmlAnd:
+		return p.Get(idxi)
+	case *FmlOr:
+		return p.Get(idxi)
+	case *ForAll:
+		return p.Get(idxi)
+	case *Exists:
+		return p.Get(idxi)
+	}
+	return nil, fmt.Errorf("index is not supported")
 }

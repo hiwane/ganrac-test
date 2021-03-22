@@ -153,11 +153,11 @@ func (z *Poly) Sign() int {
 
 func (z *Poly) String() string {
 	var b strings.Builder
-	z.stringFV(&b, varlist)
+	z.write(&b)
 	return b.String()
 }
 
-func (z *Poly) stringFV(b io.Writer, vs []string) {
+func (z *Poly) write(b io.Writer) {
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if s := z.c[i].Sign(); s == 0 {
 			continue
@@ -188,7 +188,7 @@ func (z *Poly) stringFV(b io.Writer, vs []string) {
 					fmt.Fprintf(b, "+")
 				}
 				fmt.Fprintf(b, "(")
-				p.stringFV(b, varlist)
+				p.write(b)
 				fmt.Fprintf(b, ")*")
 			}
 			if i > 0 {

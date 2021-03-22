@@ -48,6 +48,7 @@ Examples
   > ex([x], a*x^2+b*x+c == 0)
 `},
 	{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
+	{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
 	{"not", 1, 1, funcNot, "(FOF)", `
 Args
 ========
@@ -267,6 +268,14 @@ func funcRootBound(name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("%s(): expected poly: %v", name, args[0])
 	}
 	return p.RootBound()
+}
+
+func funcLen(name string, args []interface{}) (interface{}, error) {
+	p, ok := args[0].(Lener)
+	if !ok {
+		return nil, fmt.Errorf("%s(): not supported: %v", name, args[0])
+	}
+	return NewInt(int64(p.Len())), nil
 }
 
 func funcHelp(name string) (interface{}, error) {

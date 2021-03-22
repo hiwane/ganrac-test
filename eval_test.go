@@ -18,7 +18,7 @@ func TestEvalRobj(t *testing.T) {
 		{"1+2;", NewInt(3)},
 		{"2*3;", NewInt(6)},
 		{"2-5;", NewInt(-3)},
-		{"init(x,y,z,t);", zero},
+		{"init(x,y,z,t);", nil},
 		{"x;", NewPolyInts(0, 0, 1)},
 		{"y;", NewPolyInts(1, 0, 1)},
 		{"z;", NewPolyInts(2, 0, 1)},
@@ -40,6 +40,10 @@ func TestEvalRobj(t *testing.T) {
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
+		}
+
+		if u == s.expect {
+			continue
 		}
 
 		c, ok := u.(RObj)
