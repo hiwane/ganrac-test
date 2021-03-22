@@ -93,6 +93,8 @@ func evalStack(stack *pStack) (interface{}, error) {
 		} else {
 			return nil, fmt.Errorf("invalid number: %s", s.str)
 		}
+	case t_str:
+		return evalStackString(stack, s)
 	case help:
 		return funcHelp(s.str)
 	case initvar:
@@ -245,6 +247,10 @@ func evalStackNvar(stack *pStack, node pNode) (interface{}, error) {
 		return NewList(args), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
+}
+
+func evalStackString(stack *pStack, node pNode) (interface{}, error) {
+	return NewString(node.str), nil
 }
 
 func evalStackAssign(stack *pStack, node pNode) (interface{}, error) {

@@ -9,6 +9,7 @@ import (
 // first-order formula
 type Fof interface {
 	GObj
+	Indeter
 	IsQff() bool
 	Not() Fof
 	Equals(f Fof) bool // 等化まではやらない. 形として同じもの
@@ -826,4 +827,33 @@ func (p *ForAll) Get(idx *Int) (interface{}, error) {
 
 func (p *Exists) Get(idx *Int) (interface{}, error) {
 	return getFmlQuantifier(p.q, p.fml, idx)
+}
+
+func (p *Atom) Indets(b []bool) {
+	p.p.Indets(b)
+}
+
+func (p *AtomT) Indets(b []bool) {
+}
+func (p *AtomF) Indets(b []bool) {
+}
+
+func (p *FmlAnd) Indets(b []bool) {
+	for _, f := range p.fml {
+		f.Indets(b)
+	}
+}
+
+func (p *FmlOr) Indets(b []bool) {
+	for _, f := range p.fml {
+		f.Indets(b)
+	}
+}
+
+func (p *ForAll) Indets(b []bool) {
+	p.fml.Indets(b)
+}
+
+func (p *Exists) Indets(b []bool) {
+	p.fml.Indets(b)
 }

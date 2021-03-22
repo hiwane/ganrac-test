@@ -147,7 +147,7 @@ func (z *Poly) hasVar(lv Level) bool {
 }
 
 func (z *Poly) Sign() int {
-	// sign of leading coeff.
+	// sign of leading coefficient
 	return z.c[len(z.c)-1].Sign()
 }
 
@@ -409,10 +409,8 @@ func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 }
 
 func (z *Poly) RootBound() (NObj, error) {
-	for _, c := range z.c {
-		if _, ok := c.(NObj); !ok {
-			return nil, fmt.Errorf("supportedx only for univariate polynomial")
-		}
+	if !z.isUnivariate() {
+		return nil, fmt.Errorf("supported only for univariate polynomial")
 	}
 
 	var m NObj
@@ -424,4 +422,22 @@ func (z *Poly) RootBound() (NObj, error) {
 	}
 	m = m.Div(z.c[len(z.c)-1].(NObj)).(NObj)
 	return m.Abs().AddInt(1), nil
+}
+
+func (z *Poly) isUnivariate() bool {
+	for _, c := range z.c {
+		if _, ok := c.(NObj); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (z *Poly) Indets(b []bool) {
+	b[z.lv] = true
+	for _, c := range z.c {
+		if _, ok := c.(Indeter); ok {
+			c.(Indeter).Indets(b)
+		}
+	}
 }

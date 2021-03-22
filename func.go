@@ -15,7 +15,7 @@ var builtin_func_table = []struct {
 }{
 	// sorted by name
 	{"all", 2, 2, funcForAll, "([x], FOF): universal quantifier.", ""},
-	{"and", 2, 2, funcAnd, "", ""},
+	{"and", 2, 2, funcAnd, "(FOF, ...): conjunction (&&)", ""},
 	{"coef", 3, 3, funcCoef, "(poly, var, deg): ", ""}, // coef(F, x, 2)
 	{"deg", 2, 2, funcDeg, "(poly|FOF, var): degree of a polynomial with respect to var", `
 Args
@@ -45,10 +45,12 @@ Args
 
 Examples
 ========
-  > ex([x], a*x^2+b*x+c == 0)
+  > ex([x], a*x^2+b*x+c == 0);
 `},
+	{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
 	{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
 	{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
+	{"load", 2, 2, funcLoad, "(fname): load file", ""},
 	{"not", 1, 1, funcNot, "(FOF)", `
 Args
 ========
@@ -61,8 +63,18 @@ Examples
   > not(ex([x], a*x^2+b*x+c==0))
   all([x], a*x^2+b*x+c != 0)
 `},
-	{"or", 2, 2, funcOr, "", ""},
-	{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", ""},
+	{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
+	{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
+Args
+========
+  poly: univariate polynomial
+
+Examples
+========
+  > realroot(x^2-2);
+
+`},
+	{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
 	{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
 }
 
@@ -270,6 +282,31 @@ func funcRootBound(name string, args []interface{}) (interface{}, error) {
 	return p.RootBound()
 }
 
+func funcIndets(name string, args []interface{}) (interface{}, error) {
+	b := make([]bool, len(varlist))
+	p, ok := args[0].(Indeter)
+	ret := make([]interface{}, 0, len(b))
+	if !ok {
+		return NewList(ret), nil
+	}
+	p.Indets(b)
+
+	for i := 0; i < len(b); i++ {
+		if b[i] {
+			ret = append(ret, NewPolyInts(Level(i), 0, 1))
+		}
+	}
+	return NewList(ret), nil
+}
+
+func funcLoad(name string, args []interface{}) (interface{}, error) {
+	return nil, fmt.Errorf("%s not implemented", name) // @TODO
+}
+
+func funcSave(name string, args []interface{}) (interface{}, error) {
+	return nil, fmt.Errorf("%s not implemented", name) // @TODO
+}
+
 func funcLen(name string, args []interface{}) (interface{}, error) {
 	p, ok := args[0].(Lener)
 	if !ok {
@@ -280,11 +317,31 @@ func funcLen(name string, args []interface{}) (interface{}, error) {
 
 func funcHelp(name string) (interface{}, error) {
 	if name == "@" {
-		fmt.Printf("help: GANRAC\n")
-		fmt.Printf("==============\n")
+		fmt.Printf("GANRAC\n")
+		fmt.Printf("==========\n")
+		fmt.Printf("tokens:\n")
+		fmt.Printf("  integer      : `[0-9]+`\n")
+		fmt.Printf("  string       : `\"[^\"]*\"`\n")
+		fmt.Printf("  indeterminate: `[a-z][a-zA-Z0-9_]*`\n")
+		fmt.Printf("  variable     : `[A-Z][a-zA-Z0-9_]*`\n")
+		fmt.Printf("  true/false   : `true`/`false`\n")
+		fmt.Printf("\n")
+		fmt.Printf("operations:\n")
+		fmt.Printf("  + - * / ^\n")
+		fmt.Printf("  < <= > >= == !=\n")
+		fmt.Printf("  && ||\n")
+		fmt.Printf("\n")
+		fmt.Printf("functions:\n")
 		for _, fv := range builtin_func_table {
-			fmt.Printf("%s%s\n", fv.name, fv.descript)
+			fmt.Printf("  %s%s\n", fv.name, fv.descript)
 		}
+		fmt.Printf("\n")
+		fmt.Printf("examples:\n")
+		fmt.Printf("  > init(x, y, z);  # init variable order.\n")
+		fmt.Printf("  > F = x^2 + 2;\n")
+		fmt.Printf("  > deg(F, x);\n")
+		fmt.Printf("  2\n")
+		fmt.Printf("  > help(deg);\n")
 		return zero, nil
 	}
 	for _, fv := range builtin_func_table {

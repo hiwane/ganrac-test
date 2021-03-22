@@ -227,6 +227,16 @@ func (l *pLexer) Lex(lval *yySymType) int {
 		}
 		return lval.node.cmd
 	}
+	if l.Peek() == '"' {
+		sbuf := make([]rune, 0)
+		l.Next()
+		for l.Peek() != '"' {
+			sbuf = append(sbuf, l.Next())
+		}
+		l.Next()
+		lval.node = newPNode(string(sbuf), t_str, 0, l.Pos())
+		return t_str
+	}
 
 	return int(c)
 }

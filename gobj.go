@@ -17,3 +17,7 @@ type GObj interface {
 type Lener interface {
 	Len() int
 }
+
+type Indeter interface {
+	Indets(b []bool)
+}

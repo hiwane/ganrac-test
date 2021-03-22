@@ -8,7 +8,7 @@ package ganrac
 }
 
 %token call list initvar help
-%token name ident number f_true f_false
+%token name ident number f_true f_false t_str
 %token all ex and or not abs
 %token plus minus comma mult div pow
 %token ltop gtop leop geop neop eqop assign
@@ -17,7 +17,7 @@ package ganrac
 %type <num> seq_mobj list_mobj seq_ident
 %type <node> f_true f_false eol
 %type <node> mobj lb initvar
-%type <node> number name ident
+%type <node> number name ident t_str
 %type <node> plus minus mult div pow and or
 %type <node> ltop gtop leop geop neop eqop assign lb lp
 
@@ -42,6 +42,7 @@ expr
 
 mobj
 	: number	{ yyytrace("poly.num: " + $1.str); stack.Push($1) }
+	| t_str { yyytrace("string"); stack.Push($1) }
 	| f_true  { yyytrace("true");  stack.Push($1)}
 	| f_false { yyytrace("false"); stack.Push($1)}
 	| ident		{ yyytrace("ident: " + $1.str ); stack.Push($1) }

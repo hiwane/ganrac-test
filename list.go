@@ -37,6 +37,15 @@ func (z *List) Len() int {
 	return len(z.v)
 }
 
+func (z *List) Indets(b []bool) {
+	for _, p := range z.v {
+		q, ok := p.(Indeter)
+		if ok {
+			q.Indets(b)
+		}
+	}
+}
+
 func NewList(args []interface{}) *List {
 	lst := new(List)
 	lst.v = make([]GObj, len(args))
