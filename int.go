@@ -93,7 +93,7 @@ func (x *Int) Mul(y RObj) RObj {
 		xr.SetInt(x.n)
 		z := newRat()
 		z.n.Mul(xr, yi.n)
-		return z
+		return z.normal()
 	}
 	return nil
 }
@@ -118,12 +118,16 @@ func (x *Int) Div(yy NObj) RObj {
 		}
 		z := newRat()
 		z.n.SetFrac(x.n, y.n)
-		if z.n.IsInt() {
-			zi := newInt()
-			zi.n.Set(z.n.Num())
-			return zi
-		}
-		return z
+		return z.normal()
+	case *Rat:
+		yr := new(big.Rat)
+		yr.Inv(y.n)
+		xr := new(big.Rat)
+		xr.SetInt(x.n)
+
+		z := newRat()
+		z.n.Mul(xr, yr)
+		return z.normal()
 	}
 	return nil // @TODO
 }
@@ -195,14 +199,6 @@ func (x *Int) IsMinusOne() bool {
 
 func (z *Int) Subst(x []RObj, lv []Level, idx int) RObj {
 	return z
-}
-
-func (z *Int) cmpInt(x *Int) int {
-	return z.n.Cmp(x.n)
-}
-
-func (z *Int) cmpIntAbs(x *Int) int {
-	return z.n.CmpAbs(x.n)
 }
 
 func (z *Int) Cmp(xx NObj) int {

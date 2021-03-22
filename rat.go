@@ -100,6 +100,23 @@ func (x *Rat) Mul(yy RObj) RObj {
 }
 
 func (x *Rat) Div(yy NObj) RObj {
+	switch y := yy.(type) {
+	case *Int:
+		yr := new(big.Rat)
+		yr.SetFrac(one.n, y.n)
+
+		z := newRat()
+		z.n.Mul(x.n, yr)
+		return z
+	case *Rat:
+		yr := new(big.Rat)
+		yr.Inv(y.n)
+
+		z := newRat()
+		z.n.Mul(x.n, yr)
+		return z.normal()
+	}
+
 	return nil // @TODO
 }
 
