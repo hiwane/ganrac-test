@@ -64,6 +64,7 @@ Examples
   all([x], a*x^2+b*x+c != 0)
 `},
 	{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
+	{"realroot", 2, 2, funcRealRoot, "(uni-poly): real root isolation", ""},
 	{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
 Args
 ========
@@ -272,6 +273,14 @@ func funcCoef(name string, args []interface{}) (interface{}, error) {
 	}
 
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
+}
+
+func funcRealRoot(name string, args []interface{}) (interface{}, error) {
+	p, ok := args[0].(*Poly)
+	if !ok {
+		return nil, fmt.Errorf("%s(): expected poly: %v", name, args[0])
+	}
+	return p.RealRootIsolation(1)
 }
 
 func funcRootBound(name string, args []interface{}) (interface{}, error) {

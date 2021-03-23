@@ -12,6 +12,7 @@ type Int struct {
 
 var zero *Int = newInt()
 var one *Int = NewInt(1)
+var two *Int = NewInt(2)
 
 func newInt() *Int {
 	v := new(Int)
@@ -245,4 +246,11 @@ func (z *Int) valid() error {
 
 func (z *Int) ToInt(n int) *Int {
 	return z
+}
+
+func (z Int) Float() float64 {
+	f := new(big.Float)
+	f.SetInt(z.n)
+	ff, _ := f.Float64()
+	return ff
 }

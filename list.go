@@ -46,6 +46,10 @@ func (z *List) Indets(b []bool) {
 	}
 }
 
+func (z *List) Append(a GObj) {
+	z.v = append(z.v, a)
+}
+
 func NewList(args []interface{}) *List {
 	lst := new(List)
 	lst.v = make([]GObj, len(args))

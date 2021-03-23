@@ -231,3 +231,8 @@ func (z *Rat) ToInt(n int) *Int {
 	v.n.Div(z.n.Num(), z.n.Denom())
 	return v
 }
+
+func (z Rat) Float() float64 {
+	f, _ := z.n.Float64()
+	return f
+}

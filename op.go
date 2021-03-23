@@ -51,7 +51,7 @@ func Sub(x, y RObj) RObj {
 		return x.Sub(y)
 	} else {
 		// num - poly
-		return Add(x, y.Neg())
+		return y.Neg().Add(x)
 	}
 }
 

@@ -3,6 +3,7 @@ package ganrac
 // numeric
 type NObj interface {
 	RObj
+	Float() float64
 	Cmp(x NObj) int
 	CmpAbs(x NObj) int
 	Abs() NObj
