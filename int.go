@@ -39,6 +39,10 @@ func ParseInt(s string, base int) *Int {
 	}
 }
 
+func (x *Int) Tag() uint {
+	return TAG_INT
+}
+
 func (x *Int) Equals(y RObj) bool {
 	c, ok := y.(*Int)
 	return ok && x.n.Cmp(c.n) == 0

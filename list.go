@@ -33,6 +33,13 @@ func (z *List) Get(ii *Int) (GObj, error) {
 	return z.v[m], nil
 }
 
+func (z *List) Geti(i int) (GObj, error) {
+	if i < 0 || i >= len(z.v) {
+		return nil, fmt.Errorf("list index out of range")
+	}
+	return z.v[i], nil
+}
+
 func (z *List) Len() int {
 	return len(z.v)
 }
