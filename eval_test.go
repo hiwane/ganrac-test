@@ -3,7 +3,17 @@ package ganrac
 import (
 	"strings"
 	"testing"
+	"os"
 )
+
+func TestMain(m *testing.M) {
+	println("before all...")
+	InitVarList([]string{"x", "y", "z", "t"})
+	code := m.Run()
+	println("after all...")
+	os.Exit(code)
+}
+
 
 func TestEvalRobj(t *testing.T) {
 

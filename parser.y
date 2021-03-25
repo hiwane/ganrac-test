@@ -7,7 +7,7 @@ package ganrac
 	num int
 }
 
-%token call list initvar help
+%token call list initvar
 %token name ident number f_true f_false t_str
 %token all ex and or not abs
 %token plus minus comma mult div pow
@@ -36,8 +36,6 @@ expr
 	| mobj eol { yyytrace("gege") }
 	| name assign mobj eol  { yyytrace("assign"); stack.Push(newPNode($1.str, assign, 0, $1.pos)) }
 	| initvar lp seq_ident rp eol { yyytrace("init"); stack.Push(newPNode($1.str, initvar, $3, $1.pos)) }
-	| help lp ident rp eol { yyytrace("help(" + $3.str + ")"); stack.Push(newPNode($3.str, help, 0, $2.pos)) }
-	| help lp rp eol { yyytrace("help(@)"); stack.Push(newPNode("@", help, 0, $2.pos)) }
 	;
 
 mobj
@@ -51,6 +49,7 @@ mobj
 	| mobj or mobj  { yyytrace("or");  stack.Push($2)}
 	| lp mobj rp { $$ = $2 }
 	| ident lp seq_mobj rp { yyytrace("call"); stack.Push(newPNode($1.str, call, $3, $1.pos)) }
+	| ident lp rp { yyytrace("call"); stack.Push(newPNode($1.str, call, 0, $1.pos)) }
 	| mobj plus mobj	{ yyytrace("+"); stack.Push($2)}
 	| mobj minus mobj	{ yyytrace("-"); stack.Push($2)}
 	| mobj mult mobj	{ yyytrace("*"); stack.Push($2)}

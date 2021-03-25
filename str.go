@@ -1,20 +1,20 @@
 package ganrac
 
-type Str struct {
+type String struct {
 	GObj
 	s string
 }
 
-func NewString(s string) *Str {
-	p := new(Str)
+func NewString(s string) *String {
+	p := new(String)
 	p.s = s
 	return p
 }
 
-func (s *Str) String() string {
+func (s *String) String() string {
 	return "\"" + s.s + "\""
 }
 
-func (s *Str) Tag() uint {
+func (s *String) Tag() uint {
 	return TAG_STR
 }

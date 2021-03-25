@@ -30,12 +30,14 @@ Returns
 
 Examples
 ========
-  > deg(x^2+3*y+1, x)
+  > deg(x^2+3*y+1, x);
   2
-  > deg(x^2+3*y+1, y)
+  > deg(x^2+3*y+1, y);
   1
-  > deg(x^2+3*y+1>0 && x^3+y^3==0, y)
+  > deg(x^2+3*y+1>0 && x^3+y^3==0, y);
   3
+  > deg(0, y);
+  -1
 `}, // deg(F, x)
 	{"ex", 2, 2, funcExists, "(vars, FOF): existential quantifier.", `
 Args
@@ -47,6 +49,8 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
+	// {"fctr", 1, 1, funcFctr, "(poly)*: factorize polynomial over the rationals.", ""},
+	{"help", 0, 1, nil, "(): show help", ""},
 	{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
 	{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
 	{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
@@ -58,9 +62,9 @@ Args
 
 Examples
 ========
-  > not(x > 0)
+  > not(x > 0);
   x <= 0
-  > not(ex([x], a*x^2+b*x+c==0))
+  > not(ex([x], a*x^2+b*x+c==0));
   all([x], a*x^2+b*x+c != 0)
 `},
 	{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
@@ -76,6 +80,7 @@ Examples
 
 `},
 	{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
+	// {"sqrt", 1, 1, funcSqrt, "(poly)*: square-free factorization", ""},
 	{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
 }
 
@@ -89,7 +94,11 @@ func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
 			if len(args) > f.max {
 				return nil, fmt.Errorf("too many argument: function %s()", p.str)
 			}
-			return f.f(f.name, args)
+			if f.name == "help" {
+				return funcHelp(f.name, args)
+			} else {
+				return f.f(f.name, args)
+			}
 		}
 	}
 
@@ -235,7 +244,11 @@ func funcDeg(name string, args []interface{}) (interface{}, error) {
 
 	p, ok := args[0].(*Poly)
 	if !ok {
-		return zero, nil
+		if p.IsZero() {
+			return mone, nil
+		} else {
+			return zero, nil
+		}
 	}
 
 	return NewInt(int64(p.Deg(d.lv))), nil
@@ -324,34 +337,51 @@ func funcLen(name string, args []interface{}) (interface{}, error) {
 	return NewInt(int64(p.Len())), nil
 }
 
-func funcHelp(name string) (interface{}, error) {
+func funcHelp(name string, args []interface{}) (interface{}, error) {
+	if len(args) == 0 {
+		return funcHelps("@")
+	}
+
+	p, ok := args[0].(*String)
+	if !ok {
+		return nil, fmt.Errorf("%s(): required help(\"string\"):", name)
+	}
+
+	return funcHelps(p.s)
+}
+
+func funcHelps(name string) (interface{}, error) {
 	if name == "@" {
 		fmt.Printf("GANRAC\n")
 		fmt.Printf("==========\n")
-		fmt.Printf("tokens:\n")
+		fmt.Printf("TOKENS:\n")
 		fmt.Printf("  integer      : `[0-9]+`\n")
 		fmt.Printf("  string       : `\"[^\"]*\"`\n")
 		fmt.Printf("  indeterminate: `[a-z][a-zA-Z0-9_]*`\n")
 		fmt.Printf("  variable     : `[A-Z][a-zA-Z0-9_]*`\n")
 		fmt.Printf("  true/false   : `true`/`false`\n")
 		fmt.Printf("\n")
-		fmt.Printf("operations:\n")
+		fmt.Printf("OPERATORS:\n")
 		fmt.Printf("  + - * / ^\n")
 		fmt.Printf("  < <= > >= == !=\n")
 		fmt.Printf("  && ||\n")
 		fmt.Printf("\n")
-		fmt.Printf("functions:\n")
+		fmt.Printf("FUNCTIONS:\n")
 		for _, fv := range builtin_func_table {
 			fmt.Printf("  %s%s\n", fv.name, fv.descript)
 		}
 		fmt.Printf("\n")
-		fmt.Printf("examples:\n")
+		fmt.Printf("EXAMPLES:\n")
 		fmt.Printf("  > init(x, y, z);  # init variable order.\n")
 		fmt.Printf("  > F = x^2 + 2;\n")
 		fmt.Printf("  > deg(F, x);\n")
 		fmt.Printf("  2\n")
-		fmt.Printf("  > help(deg);\n")
-		return zero, nil
+		fmt.Printf("  > t;\n")
+		fmt.Printf("  error: undefined variable `t`\n")
+		fmt.Printf("  > qe(ex([x], x+1 = 0 && x < 0));\n")
+		fmt.Printf("  true\n")
+		fmt.Printf("  > help(\"deg\");\n")
+		return nil, nil
 	}
 	for _, fv := range builtin_func_table {
 		if fv.name == name {
@@ -359,7 +389,7 @@ func funcHelp(name string) (interface{}, error) {
 			if fv.help != "" {
 				fmt.Printf("%s\n", fv.help)
 			}
-			return zero, nil
+			return nil, nil
 		}
 	}
 

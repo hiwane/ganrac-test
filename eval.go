@@ -95,8 +95,6 @@ func evalStack(stack *pStack) (interface{}, error) {
 		}
 	case t_str:
 		return evalStackString(stack, s)
-	case help:
-		return funcHelp(s.str)
 	case initvar:
 		return evalInitVar(stack, s.extra)
 	case eol:

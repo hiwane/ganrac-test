@@ -45,8 +45,9 @@ func TestParseValid(t *testing.T) {
 		{"AAA = [];", []int{assign, list}},
 		{"all([x], 3 > x);", []int{call, gtop, ident, number, list, ident}},
 		{"A = 0;", []int{assign, number}},
-		{"help();", []int{help}},
-		{"help(all);", []int{help}},
+		{"func();", []int{call}},
+		{"help();", []int{call}},
+		{"help(\"all\");", []int{call, t_str}},
 	} {
 		stack, err := test_parse(s.str)
 		if err != nil {

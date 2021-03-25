@@ -132,7 +132,6 @@ var sfuns = []token{
 	// {"all", all},
 	// {"ex", ex},
 	{"init", initvar},
-	{"help", help},
 	{"true", f_true},
 	{"false", f_false},
 }

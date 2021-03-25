@@ -10,7 +10,8 @@ type Int struct {
 	n *big.Int
 }
 
-var zero *Int = newInt()
+var mone *Int = NewInt(-1)	// -1
+var zero *Int = newInt()	// 0
 var one *Int = NewInt(1)
 var two *Int = NewInt(2)
 

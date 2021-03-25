@@ -434,7 +434,7 @@ func writeFmlQ(b io.Writer, lvs []Level, fml Fof, q string) {
 		} else {
 			fmt.Fprintf(b, ",")
 		}
-		fmt.Fprintf(b, "%s", varlist[lv])
+		fmt.Fprintf(b, "%s", varlist[lv].v)
 	}
 	fmt.Fprintf(b, "], ")
 	fml.write(b)
