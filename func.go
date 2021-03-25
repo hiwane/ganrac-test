@@ -302,7 +302,7 @@ func funcIndets(name string, args []interface{}) (interface{}, error) {
 
 	for i := 0; i < len(b); i++ {
 		if b[i] {
-			ret = append(ret, NewPolyInts(Level(i), 0, 1))
+			ret = append(ret, NewPolyVar(Level(i)))
 		}
 	}
 	return NewList(ret), nil

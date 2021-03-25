@@ -11,30 +11,62 @@ import (
 	"time"
 )
 
+func test_execfunc(ox *ganrac.OpenXM) {
+	ox.ExecFunction("igcd", []interface{}{
+		ganrac.NewInt(8), ganrac.NewInt(12)})
+	s, _ := ox.PopCMO()
+	if s.(*big.Int).Cmp(big.NewInt(4)) != 0 {
+		panic("!")
+	}
+}
+
+func test_list(ox *ganrac.OpenXM) {
+	lst := ganrac.NewList([]interface{}{
+		ganrac.NewInt(1025),
+		ganrac.NewInt(4097),
+	})
+	ox.PushOxCMO(lst)
+	s, _ := ox.PopCMO()
+
+	sl, ok := s.(*ganrac.List)
+	if !ok || sl.Len() != 2 {
+		panic("why!")
+	}
+}
+
+func test_rpoly(ox *ganrac.OpenXM) {
+	p := ganrac.NewPolyInts(0, 1, 7, 8, 4, 5)
+	ox.PushOxCMO(p)
+	u, _ := ox.PopString()
+	fmt.Printf("%s\n", u)
+
+	p = ganrac.NewPolyCoef(0, ganrac.NewInt(1),
+		ganrac.NewPolyInts(1, 71, 17),
+		ganrac.NewPolyInts(2, 0, 43),
+		ganrac.NewPolyCoef(1, ganrac.NewInt(11), ganrac.NewPolyInts(2, 0, 2)),
+		ganrac.NewPolyInts(2, 0, -43),
+		ganrac.NewInt(5))
+
+	ox.ExecFunction("fctr", []interface{}{p})
+	u, _ = ox.PopString()
+	fmt.Printf("fctr1=%s\n", u)
+
+	ox.ExecFunction("fctr", []interface{}{p})
+	s, _ := ox.PopCMO()
+	// fctr1=[[1,1],[5*x^5+7*x^4+(2*z*y+11)*x^3+(43*z+53)*x^2+(17*y+71)*x+1,1]]
+	fmt.Printf("fctr2=%v\n", s)
+
+	p = ganrac.NewPolyInts(1, 4, 0, -1)
+	ox.ExecFunction("fctr", []interface{}{p})
+	s, _ = ox.PopCMO()
+	fmt.Printf("fctr3=%v\n", s)
+}
+
 func test(ox *ganrac.OpenXM) {
 
-	if true {
-		ox.ExecFunction("igcd", []interface{} {
-			ganrac.NewInt(8), ganrac.NewInt(12)})
-		s, _ := ox.PopCMO()
-		if s.(*big.Int).Cmp(big.NewInt(4)) != 0 {
-			panic("!")
-		}
-	}
-
-	if true {
-		lst := ganrac.NewList([]interface{}{
-			ganrac.NewInt(1025),
-			ganrac.NewInt(4097),
-		})
-		ox.PushOxCMO(lst)
-		s, _ := ox.PopCMO()
-
-		sl, ok := s.(*ganrac.List)
-		if !ok || sl.Len() != 2 {
-			panic("why!")
-		}
-	}
+	test_rpoly(ox)
+	test_execfunc(ox)
+	test_list(ox)
 
 	for _, ss := range []string{"hoge dayo!", "こんちわ"} {
 		ox.PushOxCMO(ss)
@@ -101,53 +133,11 @@ func main() {
 		return
 	}
 
+	ganrac.InitVarList([]string{
+		"x", "y", "z", "w", "a", "b", "c", "e", "f", "g", "h",
+	})
+
 	test(ox)
 
 	fmt.Println("finished")
-
-	// for _, val := range []int64{5, -3, 132, 102400, -1032} {
-	// 	ox.logger.Printf("@@ push ZZ [%d]", val)
-	// 	z := big.NewInt(val)
-	// 	err = ox.PushCMOZZ(z)
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	m, _ := ox.PopCMO()
-	// 	ox.logger.Printf("@@ get CMO=%x\n", m)
-	// }
-	if true {
-		return
-	}
-
-	// cmo0 := []byte{00, 00, 00, 0x14,
-	// 	00, 00, 00, 01, 00, 00, 00, 0xc}
-	//
-	// /* (CMO_ZZ,8) */
-	// cmo1 := []byte{00, 00, 00, 0x14,
-	// 	00, 00, 00, 01, 00, 00, 00, 8}
-	//
-	// /* (CMO_INT32,2); */
-	// cmo2 := []byte{00, 00, 00, 02, 00, 00, 00, 02}
-	//
-	// /* (CMO_STRING,"igcd") */
-	// cmo3 := []byte{00, 00, 00, 04, 00, 00, 00, 04,
-	// 	0x69, 0x67, 0x63, 0x64}
-	//
-	// ox_push_cmo(dw, cmo0)
-	// dw.Flush()
-	// ox_pop_string(dw, connd)
-	//
-	// ox_push_cmo(dw, cmo0)
-	// ox_push_cmo(dw, cmo1)
-	// ox_push_cmo(dw, cmo2)
-	// ox_push_cmo(dw, cmo3)
-	// dw.Flush()
-	//
-	// ox_push_cmd(dw, SM_executeFunction)
-	// dw.Flush()
-	// s, err := ox_pop_string(dw, connd)
-	// fmt.Printf("get %s\n", s)
-	//
-	// //	ox_push_string(connd, "(x+1)^2;")
-
 }

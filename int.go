@@ -29,6 +29,12 @@ func NewInt(n int64) *Int {
 	return v
 }
 
+func NewIntZ(z *big.Int) *Int {
+	v := new(Int)
+	v.n = z
+	return v
+}
+
 func ParseInt(s string, base int) *Int {
 	v := newInt()
 	_, ok := v.n.SetString(s, base)

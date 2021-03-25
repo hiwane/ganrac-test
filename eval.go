@@ -61,7 +61,7 @@ func evalStack(stack *pStack) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewPolyInts(lv, 0, 1), nil
+		return NewPolyVar(lv), nil
 	case name:
 		return evalStackName(stack, s)
 	case unaryminus:
@@ -135,7 +135,7 @@ func evalInitVar(stack *pStack, num int) (interface{}, error) {
 		}
 		vlist[i] = p.str
 	}
-	err := InitVar(vlist)
+	err := InitVarList(vlist)
 	if err != nil {
 		return nil, err
 	}

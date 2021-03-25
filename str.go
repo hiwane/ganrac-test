@@ -1,6 +1,7 @@
 package ganrac
 
 type Str struct {
+	GObj
 	s string
 }
 
@@ -12,4 +13,8 @@ func NewString(s string) *Str {
 
 func (s *Str) String() string {
 	return "\"" + s.s + "\""
+}
+
+func (s *Str) Tag() uint {
+	return TAG_STR
 }

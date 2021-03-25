@@ -4,20 +4,25 @@ import (
 	"fmt"
 )
 
-var varlist = []string{
-	"x", "y", "z", "w", "a", "b", "c", "e", "f", "g", "h",
+type varInfo struct {
+	v string
+	p *Poly
 }
+
+var varlist []varInfo
+
+var varstr2lv map[string]Level
 
 func var2lv(v string) (Level, error) {
 	for i, x := range varlist {
-		if x == v {
+		if x.v == v {
 			return Level(i), nil
 		}
 	}
 	return 0, fmt.Errorf("undefined variable `%s`.", v)
 }
 
-func InitVar(vlist []string) error {
+func InitVarList(vlist []string) error {
 	for i, v := range vlist {
 		if v == "init" {
 			return fmt.Errorf("%s is reserved", v)
@@ -34,7 +39,13 @@ func InitVar(vlist []string) error {
 		}
 	}
 
-	varlist = vlist
+	varlist = make([]varInfo, len(vlist))
+	varstr2lv = make(map[string]Level, len(vlist))
+	for i := 0; i < len(vlist); i++ {
+		varlist[i] = varInfo{vlist[i], NewPolyInts(Level(i), 0, 1)}
+		varstr2lv[vlist[i]] = Level(i)
+	}
+
 	return nil
 }
 

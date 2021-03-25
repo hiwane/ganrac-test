@@ -14,6 +14,10 @@ type Poly struct { // recursive expression
 	c  []RObj
 }
 
+func NewPolyVar(lv Level) *Poly {
+	return varlist[lv].p
+}
+
 func NewPoly(lv Level, deg_1 int) *Poly {
 	p := new(Poly)
 	p.c = make([]RObj, deg_1)
@@ -153,18 +157,18 @@ func (z *Poly) Sign() int {
 
 func (z *Poly) String() string {
 	var b strings.Builder
-	z.write(&b)
+	z.write(&b, false)
 	return b.String()
 }
 
-func (z *Poly) write(b io.Writer) {
+func (z *Poly) write(b io.Writer, out_sgn bool) {
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if s := z.c[i].Sign(); s == 0 {
 			continue
 		} else {
 			if z.c[i].IsNumeric() {
 				if s > 0 {
-					if i != len(z.c)-1 {
+					if i != len(z.c)-1 || out_sgn {
 						fmt.Fprintf(b, "+")
 					}
 					if i == 0 || !z.c[i].IsOne() {
@@ -184,15 +188,20 @@ func (z *Poly) write(b io.Writer) {
 					}
 				}
 			} else if p, ok := z.c[i].(*Poly); ok {
-				if i != len(z.c)-1 {
-					fmt.Fprintf(b, "+")
+				if p.isMono() {
+					p.write(b, i != len(z.c)-1)
+					fmt.Fprintf(b, "*")
+				} else {
+					if i != len(z.c)-1 {
+						fmt.Fprintf(b, "+")
+					}
+					fmt.Fprintf(b, "(")
+					p.write(b, false)
+					fmt.Fprintf(b, ")*")
 				}
-				fmt.Fprintf(b, "(")
-				p.write(b)
-				fmt.Fprintf(b, ")*")
 			}
 			if i > 0 {
-				fmt.Fprintf(b, "%s", varlist[z.lv])
+				fmt.Fprintf(b, "%s", varlist[z.lv].v)
 				if i > 1 {
 					fmt.Fprintf(b, "^%d", i)
 				}
@@ -428,4 +437,13 @@ func (z *Poly) Indets(b []bool) {
 			c.(Indeter).Indets(b)
 		}
 	}
+}
+
+func (z *Poly) isMono() bool {
+	for i := len(z.c) - 2; i >= 0; i-- {
+		if !z.c[i].IsZero() {
+			return false
+		}
+	}
+	return true
 }

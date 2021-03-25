@@ -134,7 +134,7 @@ func (ox *OpenXM) dataReadInt32() (int32, error) {
 }
 
 func (ox *OpenXM) dataWrite(v interface{}) error {
-	if true {
+	if false {
 		buf := new(bytes.Buffer)
 		binary.Write(buf, ox.border, v)
 		b := buf.Bytes()
@@ -233,7 +233,17 @@ func (ox *OpenXM) PushOxCMO(vv interface{}) error {
 		ox.logger.Printf("%s(oxtag) failed: %s", fname, err.Error())
 		return err
 	}
-	err = ox.sendCMO(vv)
+	var lvmap map[Level]int32
+	switch v := vv.(type) {
+	case *Poly:
+		lvmap, err = ox.sendCMORecPoly(v)
+		if err != nil {
+			ox.logger.Printf("%s(recpoly) failed: %s", fname, err.Error())
+			return err
+		}
+	}
+
+	err = ox.sendCMO(vv, lvmap)
 	if err != nil {
 		ox.logger.Printf("%s(cmo) failed: %s", fname, err.Error())
 		return err
@@ -242,8 +252,9 @@ func (ox *OpenXM) PushOxCMO(vv interface{}) error {
 	return err
 }
 
-func (ox *OpenXM) sendCMO(vv interface{}) error {
+func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 	// Remarks: OX_tag is already sent.
+	const fname = "sendCMO"
 	switch v := vv.(type) {
 	case int32:
 		return ox.sendCMOInt32(v)
@@ -255,9 +266,11 @@ func (ox *OpenXM) sendCMO(vv interface{}) error {
 		return ox.sendCMOString(v)
 	case *List:
 		return ox.sendCMOList(v)
+	case *Poly:
+		return ox.sendCMOPoly(v, lvmap)
 	}
 
-	return fmt.Errorf("sendCMO(): unsupported cmo %v", vv)
+	return fmt.Errorf("%s(): unsupported cmo %v", fname, vv)
 }
 
 func (ox *OpenXM) sendCMOList(v *List) error {
@@ -277,13 +290,69 @@ func (ox *OpenXM) sendCMOList(v *List) error {
 	for i := 0; i < v.Len(); i++ {
 		o, _ := v.Geti(i)
 		ox.logger.Printf("%s(cmotag:%d)", fname, i)
-		err := ox.sendCMO(o)
+		err := ox.sendCMO(o, nil)
 		if err != nil {
 			ox.logger.Printf("%s(%d) failed: %s", fname, i, err.Error())
 			return err
 		}
 	}
 	return nil
+}
+
+func (ox *OpenXM) sendCMORecPoly(p *Poly) (map[Level]int32, error) {
+	const fname = "sendCMORecPoly"
+	err := ox.sendCMOTag(CMO_RECURSIVE_POLYNOMIAL)
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]bool, len(varlist))
+	p.Indets(b)
+
+	var cnt int32 = 0
+	lvmap := make(map[Level]int32, len(varlist))
+	for i := 0; i < len(varlist); i++ {
+		if b[i] {
+			lvmap[Level(i)] = cnt
+			cnt++
+		}
+	}
+	ox.logger.Printf("%s() cnt=%d\n", fname, cnt)
+	ox.sendCMOTag(CMO_LIST)
+	err = ox.dataWrite(&cnt)
+	for i := int32(0); cnt > 0; i++ {
+		if b[i] {
+			ox.sendCMOString(varlist[i].v)
+			cnt--
+		}
+	}
+	return lvmap, err
+}
+
+func (ox *OpenXM) sendCMOPoly(p *Poly, lvmap map[Level]int32) error {
+	// すでに sendCMORecPoly() は呼ばれている
+	err := ox.sendCMOTag(CMO_POLYNOMIAL_IN_ONE_VARIABLE)
+	if err != nil {
+		return err
+	}
+
+	var cnt int32 = 1 // 非ゼロ項数
+	for i := 0; i < len(p.c)-1; i++ {
+		if !p.c[i].IsZero() {
+			cnt++
+		}
+	}
+	ox.logger.Printf("sendCMOPoly() #mono=%d\n", cnt)
+	err = ox.dataWrite(&cnt)
+	err = ox.dataWrite(lvmap[p.lv])
+	for i := int32(len(p.c) - 1); cnt > 0; i-- {
+		if !p.c[i].IsZero() {
+			cnt--
+			err = ox.dataWrite(&i)
+			ox.sendCMO(p.c[i], lvmap)
+		}
+	}
+	return err
 }
 
 func (ox *OpenXM) sendCMOString(s string) error {
@@ -374,11 +443,77 @@ func (ox *OpenXM) recvCMOInt32() (int32, error) {
 	return c, err
 }
 
+func (ox *OpenXM) recvCMOIndeterminate() (*Poly, error) {
+	const fname = "recvCMOIndeterminate"
+	cc, err := ox.recvCMO(nil)
+	if err != nil {
+		return nil, err
+	}
+	c := cc.(string)
+
+	lv, ok := varstr2lv[c]
+	if ok {
+		return varlist[lv].p, nil
+	}
+
+	return nil, fmt.Errorf("unknown variable %s", c)
+}
+
+func (ox *OpenXM) recvCMOPoly1Var(ringdef *List) (*Poly, error) {
+	m, err := ox.dataReadInt32()
+	if err != nil {
+		return nil, err
+	}
+	lv, err := ox.dataReadInt32()
+	if err != nil {
+		return nil, err
+	}
+	var pp []RObj = nil
+	for m > 0 {
+		m--
+		exp, _ := ox.dataReadInt32()
+		coef, _ := ox.recvCMO(ringdef)
+		if pp == nil {
+			pp = make([]RObj, exp+1)
+			for i := int32(0); i < exp; i++ {
+				pp[i] = zero
+			}
+		}
+		switch cc := coef.(type) {
+		case RObj:
+			pp[exp] = cc
+		case int32:
+			pp[exp] = NewInt(int64(cc))
+		case *big.Int:
+			bb := newInt()
+			bb.n.Set(cc)
+			pp[exp] = bb
+		default:
+			panic("unsupported")
+		}
+
+	}
+	p, _ := ringdef.Geti(int(lv))
+	return NewPolyCoef(p.(*Poly).lv, pp...), err
+}
+func (ox *OpenXM) recvCMORPoly() (*Poly, error) {
+	ringdef, err := ox.recvCMO(nil)
+	if err != nil {
+		return nil, err
+	}
+	ox.logger.Printf("ringdef=%v", ringdef)
+	coef, err := ox.recvCMO(ringdef.(*List))
+	if err != nil {
+		return nil, err
+	}
+	return coef.(*Poly), nil
+}
+
 func (ox *OpenXM) recvCMOList() (*List, error) {
 	const fname = "recvCMOList"
 	var m int32
 	err := ox.dataRead(&m)
-	ox.logger.Printf("recvCMOList() m=%d\n", m)
+	// ox.logger.Printf("recvCMOList() m=%d\n", m)
 	if err != nil {
 		ox.logger.Printf("%s(len) failed: %s", fname, err.Error())
 		return nil, err
@@ -386,7 +521,7 @@ func (ox *OpenXM) recvCMOList() (*List, error) {
 
 	ret := NewList([]interface{}{})
 	for i := int(m); i > 0; i-- {
-		o, err := ox.recvCMO()
+		o, err := ox.recvCMO(nil)
 		if err != nil {
 			ox.logger.Printf("%s(%d) failed: %s", fname, int(m)-i, err.Error())
 			return nil, err
@@ -397,9 +532,11 @@ func (ox *OpenXM) recvCMOList() (*List, error) {
 		case int32:
 			ret.Append(NewInt(int64(oo)))
 		case *big.Int:
-			v := new(Int)
-			v.n = oo
-			ret.Append(v)
+			z := new(Int)
+			z.n = oo
+			ret.Append(z)
+		case string:
+			ret.Append(NewString(oo))
 		default:
 			ox.logger.Printf("%s(%d) unknown %v", fname, int(m)-i, o)
 		case nil:
@@ -454,15 +591,94 @@ func (ox *OpenXM) recvCMOZZ() (*big.Int, error) {
 	return z, nil
 }
 
-func (ox *OpenXM) recvCMO() (interface{}, error) {
+func (ox *OpenXM) cmoTagString(tag int32) string {
+	switch tag {
+	case CMO_ERROR2:
+		return "CMO_ERROR2"
+	case CMO_NULL:
+		return "CMO_NULL"
+	case CMO_INT32:
+		return "CMO_INT32"
+	case CMO_DATUM:
+		return "CMO_DATUM"
+	case CMO_STRING:
+		return "CMO_STRING"
+	case CMO_MATHCAP:
+		return "CMO_MATHCAP"
+	case CMO_LIST:
+		return "CMO_LIST"
+
+	case CMO_ATTRIBUTE_LIST:
+		return "CMO_ATTRIBUTE_LIST"
+
+	case CMO_MONOMIAL32:
+		return "CMO_MONOMIAL32"
+	case CMO_ZZ:
+		return "CMO_ZZ"
+	case CMO_QQ:
+		return "CMO_QQ"
+	case CMO_ZERO:
+		return "CMO_ZERO"
+	case CMO_DMS:
+		return "CMO_DMS"
+	case CMO_DMS_GENERIC:
+		return "CMO_DMS_GENERIC"
+	case CMO_DMS_OF_N_VARIABLES:
+		return "CMO_DMS_OF_N_VARIABLES"
+	case CMO_RING_BY_NAME:
+		return "CMO_RING_BY_NAME"
+	case CMO_RECURSIVE_POLYNOMIAL:
+		return "CMO_RECURSIVE_POLYNOMIAL"
+	case CMO_LIST_R:
+		return "CMO_LIST_R"
+	case CMO_INT32COEFF:
+		return "CMO_INT32COEFF"
+	case CMO_DISTRIBUTED_POLYNOMIAL:
+		return "CMO_DISTRIBUTED_POLYNOMIAL"
+	case CMO_POLYNOMIAL_IN_ONE_VARIABLE:
+		return "CMO_POLYNOMIAL_IN_ONE_VARIABLE"
+	case CMO_RATIONAL:
+		return "CMO_RATIONAL"
+	case CMO_COMPLEX:
+		return "CMO_COMPLEX"
+
+	case CMO_64BIT_MACHINE_DOUBLE:
+		return "CMO_64BIT_MACHINE_DOUBLE"
+	case CMO_ARRAY_OF_64BIT_MACHINE_DOUBLE:
+		return "CMO_ARRAY_OF_64BIT_MACHINE_DOUBLE"
+	case CMO_128BIT_MACHINE_DOUBLE:
+		return "CMO_128BIT_MACHINE_DOUBLE"
+	case CMO_ARRAY_OF_128BIT_MACHINE_DOUBLE:
+		return "CMO_ARRAY_OF_128BIT_MACHINE_DOUBLE"
+
+	case CMO_BIGFLOAT:
+		return "CMO_BIGFLOAT"
+	case CMO_IEEE_DOUBLE_FLOAT:
+		return "CMO_IEEE_DOUBLE_FLOAT"
+	case CMO_BIGFLOAT32:
+		return "CMO_BIGFLOAT32"
+
+	case CMO_INDETERMINATE:
+		return "CMO_INDETERMINATE"
+	case CMO_TREE:
+		return "CMO_TREE"
+	case CMO_LAMBDA:
+		return "CMO_LAMBDA"
+	default:
+		return "unknown"
+	}
+}
+
+func (ox *OpenXM) recvCMO(ringdef *List) (interface{}, error) {
 	// Remarks: OX_TAG is already received.
+	const fname = "recvCMO"
 	var tag int32
 	err := ox.dataRead(&tag)
 	if err != nil {
-		ox.logger.Printf("recvCMO(tag) failed: %s", err.Error())
+		ox.logger.Printf("%s(tag) failed: %s", fname, err.Error())
 		return nil, err
 	}
-	ox.logger.Printf("<--  recvCMO() tag=%d", tag)
+	ox.logger.Printf("<--  %s() tag=%d:%s", fname, tag, ox.cmoTagString(tag))
 
 	switch tag {
 	case CMO_ZERO:
@@ -475,8 +691,22 @@ func (ox *OpenXM) recvCMO() (interface{}, error) {
 		return ox.recvCMOString()
 	case CMO_ZZ:
 		return ox.recvCMOZZ()
-	case CMO_LIST:
+	case CMO_LIST: // 17
 		return ox.recvCMOList()
+	case CMO_RECURSIVE_POLYNOMIAL: // 27
+		return ox.recvCMORPoly()
+	case CMO_POLYNOMIAL_IN_ONE_VARIABLE: // 33
+		return ox.recvCMOPoly1Var(ringdef)
+	case CMO_INDETERMINATE: // 60
+		return ox.recvCMOIndeterminate()
+	case CMO_DATUM:
+		m, _ := ox.dataReadInt32()
+		ss := fmt.Sprintf("datam m=%d:", m)
+		for i := int32(0); i < m; i++ {
+			xx, _ := ox.dataReadInt32()
+			ss += fmt.Sprintf(" %08x", xx)
+		}
+		ox.logger.Printf("%s() %s", fname, ss)
 	}
 
 	return 1, nil
@@ -513,7 +743,7 @@ func (ox *OpenXM) PopCMO() (interface{}, error) {
 	if tag != OX_DATA {
 		return "", fmt.Errorf("PopCMO() unexpected tag=%d", tag)
 	}
-	v, err := ox.recvCMO()
+	v, err := ox.recvCMO(nil)
 	if err != nil {
 		ox.logger.Printf("PopCMO(get) failed: %s", err.Error())
 		return "", err
@@ -524,33 +754,33 @@ func (ox *OpenXM) PopCMO() (interface{}, error) {
 func (ox *OpenXM) ExecFunction(funcname string, argv []interface{}) error {
 	const fname = "ExecFunction"
 	for i := len(argv) - 1; i >= 0; i-- {
-		ox.logger.Printf("%s(arg-%d): send %v", fname, i, argv[i])
+		ox.logger.Printf("%s(arg-%d): %s() send %v", fname, i, funcname, argv[i])
 		err := ox.PushOxCMO(argv[i])
 		if err != nil {
-			ox.logger.Printf("%s() push-arg(%d) failed", fname, i)
+			ox.logger.Printf("%s() push-arg(%d) %s() failed", fname, i, funcname)
 			return err
 		}
 	}
-	ox.logger.Printf("%s(#arg-%d): send", fname, len(argv))
+	// ox.logger.Printf("%s(#arg-%d): send %s()", fname, len(argv), funcname)
 	err := ox.PushOxCMO(int32(len(argv)))
 	if err != nil {
 		ox.logger.Printf("%s() push-arglen(%d) failed", fname, len(argv))
 		return err
 	}
-	ox.logger.Printf("%s(): send funcname %v", fname, funcname)
+	// ox.logger.Printf("%s(): send funcname %v", fname, funcname)
 	err = ox.PushOxCMO(funcname)
 	if err != nil {
 		ox.logger.Printf("%s() push-fname() failed", fname)
 		return err
 	}
-	ox.logger.Printf("%s(): send command %v", fname, SM_executeFunction)
+	// ox.logger.Printf("%s(): %s() send command %v", fname, funcname, SM_executeFunction)
 	err = ox.PushOXCommand(SM_executeFunction)
 	if err != nil {
 		ox.logger.Printf("%s(%d) push OxCommand() failed", fname, SM_executeFunction)
 		return err
 	}
 	err = ox.dw.Flush()
-	ox.logger.Printf("%s(): finished", fname)
+	// ox.logger.Printf("%s(): %s() finished", fname, funcname)
 	return err
 }
 
@@ -576,7 +806,7 @@ func (ox *OpenXM) PopString() (string, error) {
 		return "", fmt.Errorf("invalid OX tag")
 	}
 
-	v, err := ox.recvCMO()
+	v, err := ox.recvCMO(nil)
 	if err != nil {
 		ox.logger.Printf("PopString(get) failed: %s", err.Error())
 		return "", err
