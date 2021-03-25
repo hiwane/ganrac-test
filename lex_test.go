@@ -7,6 +7,7 @@ import (
 
 func TestLexer(t *testing.T) {
 
+	g := NewGANRAC()
 	for _, s := range []struct {
 		str   string
 		token []int
@@ -21,15 +22,13 @@ func TestLexer(t *testing.T) {
 		{"A B a b true True false FALSE", []int{name, name, ident, ident, f_true, name, f_false, name}},
 		{"x = 0", []int{ident, assign, number}},
 	} {
-		l := new(pLexer)
-		l.Init(strings.NewReader(s.str))
-		l.varmap = make(map[string]string)
+		l := g.genLexer(strings.NewReader(s.str))
 		var lval yySymType
 
 		for j, v := range s.token {
 			u := l.Lex(&lval)
 			if u != v {
-				t.Errorf("input=`%s`: j=%d: expected=%s, actual=%s", s.str, j, yyyToken2Str(v), yyyToken2Str(u))
+				t.Errorf("input=`%s`: j=%d: expected=%s, actual=%s", s.str, j, l.token2Str(v), l.token2Str(u))
 			}
 		}
 	}

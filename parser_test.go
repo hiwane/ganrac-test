@@ -5,26 +5,21 @@ import (
 	"testing"
 )
 
-func test_parse(str string) (*pStack, error) {
-	l := new(pLexer)
-	l.Init(strings.NewReader(str))
-	l.varmap = make(map[string]string)
-	return parse(l)
-}
-
 func TestToken2Str(t *testing.T) {
-	if yyyToken2Str(call) != "call" {
+	l := new(pLexer)
+	if l.token2Str(call) != "call" {
 		t.Errorf("invalid call")
 	}
-	if yyyToken2Str(pow) != "pow" {
+	if l.token2Str(pow) != "pow" {
 		t.Errorf("invalid pow")
 	}
-	if yyyToken2Str(unaryplus) != "unaryplus" {
+	if l.token2Str(unaryplus) != "unaryplus" {
 		t.Errorf("invalid unaryplus")
 	}
 }
 
 func TestParseValid(t *testing.T) {
+	g := NewGANRAC()
 	for k, s := range []struct {
 		str   string
 		stack []int
@@ -49,7 +44,7 @@ func TestParseValid(t *testing.T) {
 		{"help();", []int{call}},
 		{"help(\"all\");", []int{call, t_str}},
 	} {
-		stack, err := test_parse(s.str)
+		stack, err := g.parse(strings.NewReader(s.str))
 		if err != nil {
 			t.Errorf("[%d]invalid input=\"%s\", err=%s", k, s.str, err.Error())
 			continue
@@ -58,7 +53,7 @@ func TestParseValid(t *testing.T) {
 		for i := 0; !stack.Empty() && i < len(s.stack); i++ {
 			v, _ := stack.Pop()
 			if v.cmd != s.stack[i] {
-				t.Errorf("[%d,%d]invalid input=\"%s\", expect[%d]=%s, actual=%s", k, m, s.str, i, yyyToken2Str(s.stack[i]), yyyToken2Str(v.cmd))
+				t.Errorf("[%d,%d]invalid input=\"%s\", expect[%d]=%d, actual=%d", k, m, s.str, i, (s.stack[i]), (v.cmd))
 				goto _next
 			}
 		}

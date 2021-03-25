@@ -4,14 +4,16 @@ import (
 	"fmt"
 )
 
+// グローバル変数にしたくないのだけど，
+// どうやって保持すべきなのか....
+var varlist []varInfo
+
+var varstr2lv map[string]Level
+
 type varInfo struct {
 	v string
 	p *Poly
 }
-
-var varlist []varInfo
-
-var varstr2lv map[string]Level
 
 func var2lv(v string) (Level, error) {
 	for i, x := range varlist {
@@ -22,12 +24,12 @@ func var2lv(v string) (Level, error) {
 	return 0, fmt.Errorf("undefined variable `%s`.", v)
 }
 
-func InitVarList(vlist []string) error {
+func (g *Ganrac) InitVarList(vlist []string) error {
 	for i, v := range vlist {
 		if v == "init" {
 			return fmt.Errorf("%s is reserved", v)
 		}
-		for _, bft := range builtin_func_table {
+		for _, bft := range g.builtin_func_table {
 			if v == bft.name {
 				return fmt.Errorf("%s is reserved", v)
 			}

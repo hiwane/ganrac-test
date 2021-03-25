@@ -47,10 +47,8 @@ const lb = 57375
 const rb = 57376
 const lp = 57377
 const rp = 57378
-const lc = 57379
-const rc = 57380
-const unaryminus = 57381
-const unaryplus = 57382
+const unaryminus = 57379
+const unaryplus = 57380
 
 var yyToknames = [...]string{
 	"$end",
@@ -89,8 +87,6 @@ var yyToknames = [...]string{
 	"rb",
 	"lp",
 	"rp",
-	"lc",
-	"rc",
 	"unaryminus",
 	"unaryplus",
 }
@@ -202,7 +198,7 @@ var yyTok2 = [...]int{
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-	32, 33, 34, 35, 36, 37, 38, 39, 40,
+	32, 33, 34, 35, 36, 37, 38,
 }
 
 var yyTok3 = [...]int{
@@ -550,83 +546,83 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:35
 		{
-			stack.Push(newPNode("", eol, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).push(newPNode("", eol, 0, yyDollar[1].node.pos))
 		}
 	case 2:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line parser.y:36
 		{
-			yyytrace("gege")
+			yylex.(*pLexer).trace("gege")
 		}
 	case 3:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line parser.y:37
 		{
-			yyytrace("assign")
-			stack.Push(newPNode(yyDollar[1].node.str, assign, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("assign")
+			yylex.(*pLexer).push(newPNode(yyDollar[1].node.str, assign, 0, yyDollar[1].node.pos))
 		}
 	case 4:
 		yyDollar = yyS[yypt-5 : yypt+1]
 //line parser.y:38
 		{
-			yyytrace("init")
-			stack.Push(newPNode(yyDollar[1].node.str, initvar, yyDollar[3].num, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("init")
+			yylex.(*pLexer).push(newPNode(yyDollar[1].node.str, initvar, yyDollar[3].num, yyDollar[1].node.pos))
 		}
 	case 5:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:42
 		{
-			yyytrace("poly.num: " + yyDollar[1].node.str)
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("poly.num: " + yyDollar[1].node.str)
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 6:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:43
 		{
-			yyytrace("string")
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("string")
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 7:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:44
 		{
-			yyytrace("true")
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("true")
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 8:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:45
 		{
-			yyytrace("false")
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("false")
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 9:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:46
 		{
-			yyytrace("ident: " + yyDollar[1].node.str)
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("ident: " + yyDollar[1].node.str)
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 10:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:47
 		{
-			yyytrace("name: " + yyDollar[1].node.str)
-			stack.Push(yyDollar[1].node)
+			yylex.(*pLexer).trace("name: " + yyDollar[1].node.str)
+			yylex.(*pLexer).push(yyDollar[1].node)
 		}
 	case 11:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:48
 		{
-			yyytrace("and")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("and")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 12:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:49
 		{
-			yyytrace("or")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("or")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 13:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -638,105 +634,105 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line parser.y:51
 		{
-			yyytrace("call")
-			stack.Push(newPNode(yyDollar[1].node.str, call, yyDollar[3].num, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("call")
+			yylex.(*pLexer).push(newPNode(yyDollar[1].node.str, call, yyDollar[3].num, yyDollar[1].node.pos))
 		}
 	case 15:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:52
 		{
-			yyytrace("call")
-			stack.Push(newPNode(yyDollar[1].node.str, call, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("call")
+			yylex.(*pLexer).push(newPNode(yyDollar[1].node.str, call, 0, yyDollar[1].node.pos))
 		}
 	case 16:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:53
 		{
-			yyytrace("+")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("+")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:54
 		{
-			yyytrace("-")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("-")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 18:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:55
 		{
-			yyytrace("*")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("*")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 19:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:56
 		{
-			yyytrace("/")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("/")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 20:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:57
 		{
-			yyytrace("^")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("^")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 21:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line parser.y:58
 		{
-			yyytrace("-")
-			stack.Push(newPNode("-.", unaryminus, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("-")
+			yylex.(*pLexer).push(newPNode("-.", unaryminus, 0, yyDollar[1].node.pos))
 		}
 	case 22:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line parser.y:59
 		{
-			yyytrace("+.")
+			yylex.(*pLexer).trace("+.")
 		}
 	case 23:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:60
 		{
-			yyytrace("<")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("<")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 24:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:61
 		{
-			yyytrace(">")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace(">")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 25:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:62
 		{
-			yyytrace("<=")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("<=")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 26:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:63
 		{
-			yyytrace(">=")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace(">=")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 27:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:64
 		{
-			yyytrace("==")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("==")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 28:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:65
 		{
-			yyytrace("!=")
-			stack.Push(yyDollar[2].node)
+			yylex.(*pLexer).trace("!=")
+			yylex.(*pLexer).push(yyDollar[2].node)
 		}
 	case 29:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -747,22 +743,22 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line parser.y:67
 		{
-			yyytrace("=")
-			stack.Push(newPNode("[]", lb, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("=")
+			yylex.(*pLexer).push(newPNode("[]", lb, 0, yyDollar[1].node.pos))
 		}
 	case 31:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:71
 		{
-			yyytrace("list" + string(yyDollar[2].num))
-			stack.Push(newPNode("_list", list, yyDollar[2].num, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("list" + string(yyDollar[2].num))
+			yylex.(*pLexer).push(newPNode("_list", list, yyDollar[2].num, yyDollar[1].node.pos))
 		}
 	case 32:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line parser.y:72
 		{
-			yyytrace("list0")
-			stack.Push(newPNode("_list", list, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).trace("list0")
+			yylex.(*pLexer).push(newPNode("_list", list, 0, yyDollar[1].node.pos))
 		}
 	case 33:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -781,14 +777,14 @@ yydefault:
 //line parser.y:81
 		{
 			yyVAL.num = 1
-			stack.Push(newPNode(yyDollar[1].node.str, ident, 0, yyDollar[1].node.pos))
+			yylex.(*pLexer).push(newPNode(yyDollar[1].node.str, ident, 0, yyDollar[1].node.pos))
 		}
 	case 36:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:82
 		{
 			yyVAL.num = yyDollar[1].num + 1
-			stack.Push(newPNode(yyDollar[3].node.str, ident, 0, yyDollar[3].node.pos))
+			yylex.(*pLexer).push(newPNode(yyDollar[3].node.str, ident, 0, yyDollar[3].node.pos))
 		}
 	}
 	goto yystack /* stack new state and value */

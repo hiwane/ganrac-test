@@ -7,11 +7,11 @@ import (
 	"text/scanner"
 )
 
+var debug_print_trace = false
+
 ///////////////////////////////////////////////////////////////
 // NODE
 ///////////////////////////////////////////////////////////////
-var debug_print_trace = false
-
 type pNode struct {
 	cmd   int
 	extra int
@@ -83,15 +83,21 @@ func (s *pStack) String() string {
 ///////////////////////////////////////////////////////////////
 // LEXer
 ///////////////////////////////////////////////////////////////
-
-var stack *pStack
-
 type pLexer struct {
 	scanner.Scanner
-	s           string
-	err         error
-	varmap      map[string]string
-	print_trace bool
+	s            string
+	err          error
+	varmap       map[string]string
+	print_trace  bool
+	stack        *pStack
+	sones, sfuns []token
+}
+
+func newLexer(trace bool) *pLexer {
+	p := new(pLexer)
+	p.stack = new(pStack)
+	p.print_trace = trace
+	return p
 }
 
 type token struct {
@@ -99,68 +105,31 @@ type token struct {
 	label int
 }
 
-var sones = []token{
-	{"+", plus},
-	{"-", minus},
-	{"*", mult},
-	{"/", div},
-	{"^", pow},
-	{"[", lb},
-	{"]", rb},
-	{"{", lc},
-	{"}", rc},
-	{"(", lp},
-	{")", rp},
-	{",", comma},
-	{";", eol},
-	{"==", eqop},
-	{"=", assign},
-	{"!=", neop},
-	{"<=", leop},
-	{"<", ltop},
-	{">=", geop},
-	{">", gtop},
-	{"&&", and},
-	{"||", or},
-}
-
-var sfuns = []token{
-	// {"impl", impl},
-	// {"repl", repl},
-	// {"equiv", equiv},
-	// {"not", not},
-	// {"all", all},
-	// {"ex", ex},
-	{"init", initvar},
-	{"true", f_true},
-	{"false", f_false},
-}
-
-func isupper(ch rune) bool {
+func (p *pLexer) isupper(ch rune) bool {
 	return 'A' <= ch && ch <= 'Z'
 }
-func islower(ch rune) bool {
+func (p *pLexer) islower(ch rune) bool {
 	return 'a' <= ch && ch <= 'z'
 }
-func isalpha(ch rune) bool {
-	return isupper(ch) || islower(ch)
+func (p *pLexer) isalpha(ch rune) bool {
+	return p.isupper(ch) || p.islower(ch)
 }
-func isdigit(ch rune) bool {
+func (p *pLexer) isdigit(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
-func isalnum(ch rune) bool {
-	return isalpha(ch) || isdigit(ch)
+func (p *pLexer) isalnum(ch rune) bool {
+	return p.isalpha(ch) || p.isdigit(ch)
 }
-func isletter(ch rune) bool {
-	return isalpha(ch) || ch == '_'
+func (p *pLexer) isletter(ch rune) bool {
+	return p.isalpha(ch) || ch == '_'
 }
-func isspace(ch rune) bool {
+func (p *pLexer) isspace(ch rune) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
 
 func (l *pLexer) skip_space() {
 	for {
-		for isspace(l.Peek()) {
+		for l.isspace(l.Peek()) {
 			l.Next()
 		}
 		if l.Peek() != '#' {
@@ -178,13 +147,13 @@ func (l *pLexer) Lex(lval *yySymType) int {
 	l.skip_space()
 
 	c := l.Peek()
-	for i, s := range sones { // 記号系
+	for i, s := range l.sones { // 記号系
 		// if rune(s.val[0]) == c && (len(s.val) == 1 || l.Peek() == rune(s.val[1])) {
 		if rune(s.val[0]) == c {
 			l.Next()
 			c2 := l.Peek()
-			for ; i < len(sones); i++ {
-				s2 := sones[i]
+			for ; i < len(l.sones); i++ {
+				s2 := l.sones[i]
 				if rune(s2.val[0]) == c && (len(s2.val) == 1 || rune(s2.val[1]) == c2) {
 					lval.node = newPNode(s2.val, s2.label, 0, l.Pos())
 					if len(s2.val) > 1 {
@@ -197,29 +166,29 @@ func (l *pLexer) Lex(lval *yySymType) int {
 		}
 	}
 
-	if isdigit(l.Peek()) { // Integer
+	if l.isdigit(l.Peek()) { // Integer
 		var ret []rune
-		for isdigit(l.Peek()) {
+		for l.isdigit(l.Peek()) {
 			ret = append(ret, l.Next())
 		}
 		lval.node = newPNode(string(ret), number, 0, l.Pos())
 		return number
 	}
 
-	if isalpha(l.Peek()) { // 英字
+	if l.isalpha(l.Peek()) { // 英字
 		var ret []rune
-		for isdigit(l.Peek()) || isletter(l.Peek()) {
+		for l.isdigit(l.Peek()) || l.isletter(l.Peek()) {
 			ret = append(ret, l.Next())
 		}
 		str := string(ret)
-		for i := 0; i < len(sfuns); i++ {
-			if str == sfuns[i].val {
-				lval.node = newPNode(str, sfuns[i].label, 0, l.Pos())
-				return sfuns[i].label
+		for i := 0; i < len(l.sfuns); i++ {
+			if str == l.sfuns[i].val {
+				lval.node = newPNode(str, l.sfuns[i].label, 0, l.Pos())
+				return l.sfuns[i].label
 			}
 		}
 
-		if isupper(rune(str[0])) {
+		if l.isupper(rune(str[0])) {
 			lval.node = newPNode(str, name, 0, l.Pos())
 		} else {
 			lval.node = newPNode(str, ident, 0, l.Pos())
@@ -247,15 +216,27 @@ func (l *pLexer) Error(s string) {
 	}
 }
 
-func yyytrace(s string) {
-	if debug_print_trace {
+func (l *pLexer) push(n pNode) {
+	l.stack.Push(n)
+}
+
+func (l *pLexer) trace(s string) {
+	if l.print_trace {
 		fmt.Printf(s + "\n")
 	}
 }
 
-func yyyToken2Str(t int) string {
+func (l *pLexer) token2Str(t int) string {
 	if call <= t && t <= unaryplus {
 		return yyToknames[t-call+3]
 	}
 	return fmt.Sprintf("unknown(%d)", t)
+}
+
+func (l *pLexer) Parse() (*pStack, error) {
+	yyParse(l)
+	if l.err != nil {
+		return nil, l.err
+	}
+	return l.stack, nil
 }

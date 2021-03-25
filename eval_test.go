@@ -1,20 +1,13 @@
 package ganrac
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
 
-func TestMain(m *testing.M) {
-	println("before all...")
-	InitVarList([]string{"x", "y", "z", "t"})
-	code := m.Run()
-	println("after all...")
-	os.Exit(code)
-}
-
 func TestEvalRobj(t *testing.T) {
+
+	g := NewGANRAC()
 
 	for i, s := range []struct {
 		input  string
@@ -45,7 +38,7 @@ func TestEvalRobj(t *testing.T) {
 		{"(x^2+3*x+1)+(-x^2-3*x+8);", NewInt(9)},
 		{"(x^2+3*x+1)+(-x^2-3*x-1);", zero},
 	} {
-		u, err := Eval(strings.NewReader(s.input))
+		u, err := g.Eval(strings.NewReader(s.input))
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
@@ -69,6 +62,7 @@ func TestEvalRobj(t *testing.T) {
 }
 
 func TestEvalCallRObj(t *testing.T) {
+	g := NewGANRAC()
 	for i, s := range []struct {
 		input  string
 		expect RObj
@@ -107,7 +101,7 @@ func TestEvalCallRObj(t *testing.T) {
 		{"coef((x^2+z^2+x*z^3*3)*y^2+((8*z+3)*x^2+(4)*x+(6*z+7)),y,2);",
 			NewPolyCoef(0, NewPolyInts(2, 0, 0, 1), NewPolyInts(2, 0, 0, 0, 3), one)},
 	} {
-		u, err := Eval(strings.NewReader(s.input))
+		u, err := g.Eval(strings.NewReader(s.input))
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
@@ -133,6 +127,7 @@ func TestEvalCallRObj(t *testing.T) {
 }
 
 func TestEvalCallFof(t *testing.T) {
+	g := NewGANRAC()
 	for i, s := range []struct {
 		input  string
 		expect Fof
@@ -142,7 +137,7 @@ func TestEvalCallFof(t *testing.T) {
 		{"subst(x>0 && y>0, x,1,y,1);", NewBool(true)},
 		{"subst(x>0 && y>0, x,1,y,-1);", NewBool(false)},
 	} {
-		u, err := Eval(strings.NewReader(s.input))
+		u, err := g.Eval(strings.NewReader(s.input))
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break
@@ -168,6 +163,7 @@ func TestEvalCallFof(t *testing.T) {
 }
 
 func TestEvalFof(t *testing.T) {
+	g := NewGANRAC()
 	x_gt := NewAtom(NewPolyInts(0, 0, 1), GT)
 	for i, s := range []struct {
 		input  string
@@ -181,7 +177,7 @@ func TestEvalFof(t *testing.T) {
 		{"all([x], x > 0);", NewQuantifier(true, []Level{0}, x_gt)},
 		{"all([x, x, y, x, y], x > 0);", NewQuantifier(true, []Level{0}, x_gt)},
 	} {
-		u, err := Eval(strings.NewReader(s.input))
+		u, err := g.Eval(strings.NewReader(s.input))
 		if err != nil && s.expect != nil {
 			t.Errorf("%d: input=%s: expect=%v, actual=err:%s", i, s.input, s.expect, err)
 			break

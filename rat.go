@@ -5,13 +5,13 @@ import (
 	"math/big"
 )
 
+var brat_one = big.NewRat(1, 1)
+var brat_mone = big.NewRat(-1, 1)
+
 type Rat struct {
 	Number
 	n *big.Rat
 }
-
-var brat_one = big.NewRat(1, 1)
-var brat_mone = big.NewRat(-1, 1)
 
 func newRat() *Rat {
 	v := new(Rat)

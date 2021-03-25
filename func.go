@@ -5,19 +5,14 @@ import (
 	"sort"
 )
 
-// 関数テーブル
-var builtin_func_table = []struct {
-	name     string
-	min, max int
-	f        func(name string, args []interface{}) (interface{}, error)
-	descript string
-	help     string
-}{
-	// sorted by name
-	{"all", 2, 2, funcForAll, "([x], FOF): universal quantifier.", ""},
-	{"and", 2, 2, funcAnd, "(FOF, ...): conjunction (&&)", ""},
-	{"coef", 3, 3, funcCoef, "(poly, var, deg): ", ""}, // coef(F, x, 2)
-	{"deg", 2, 2, funcDeg, "(poly|FOF, var): degree of a polynomial with respect to var", `
+func (g *Ganrac) setBuiltinFuncTable() {
+	// 関数テーブル
+	g.builtin_func_table = []func_table{
+		// sorted by name
+		{"all", 2, 2, funcForAll, "([x], FOF): universal quantifier.", ""},
+		{"and", 2, 2, funcAnd, "(FOF, ...): conjunction (&&)", ""},
+		{"coef", 3, 3, funcCoef, "(poly, var, deg): ", ""}, // coef(F, x, 2)
+		{"deg", 2, 2, funcDeg, "(poly|FOF, var): degree of a polynomial with respect to var", `
 Args
 ========
   poly: a polynomial
@@ -39,7 +34,7 @@ Examples
   > deg(0, y);
   -1
 `}, // deg(F, x)
-	{"ex", 2, 2, funcExists, "(vars, FOF): existential quantifier.", `
+		{"ex", 2, 2, funcExists, "(vars, FOF): existential quantifier.", `
 Args
 ========
   vars: list of variables
@@ -49,13 +44,13 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
-	// {"fctr", 1, 1, funcFctr, "(poly)*: factorize polynomial over the rationals.", ""},
-	{"help", 0, 1, nil, "(): show help", ""},
-	{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
-	{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
-	{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
-	{"load", 2, 2, funcLoad, "(fname): load file", ""},
-	{"not", 1, 1, funcNot, "(FOF)", `
+		// {"fctr", 1, 1, funcFctr, "(poly)*: factorize polynomial over the rationals.", ""},
+		{"help", 0, 1, nil, "(): show help", ""},
+		{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
+		{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
+		{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
+		{"load", 2, 2, funcLoad, "(fname): load file", ""},
+		{"not", 1, 1, funcNot, "(FOF)", `
 Args
 ========
   FOF : a first-order formula
@@ -67,9 +62,9 @@ Examples
   > not(ex([x], a*x^2+b*x+c==0));
   all([x], a*x^2+b*x+c != 0)
 `},
-	{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
-	{"realroot", 2, 2, funcRealRoot, "(uni-poly): real root isolation", ""},
-	{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
+		{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
+		{"realroot", 2, 2, funcRealRoot, "(uni-poly): real root isolation", ""},
+		{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
 Args
 ========
   poly: univariate polynomial
@@ -79,30 +74,32 @@ Examples
   > realroot(x^2-2);
 
 `},
-	{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
-	// {"sqrt", 1, 1, funcSqrt, "(poly)*: square-free factorization", ""},
-	{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
+		{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
+		// {"sqrt", 1, 1, funcSqrt, "(poly)*: square-free factorization", ""},
+		{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
+	}
 }
 
-func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
+// func (p *pNode) callFunction(args []interface{}) (interface{}, error) {
+func (g *Ganrac) callFunction(funcname string, args []interface{}) (interface{}, error) {
 	// とりあえず素朴に
-	for _, f := range builtin_func_table {
-		if f.name == p.str {
+	for _, f := range g.builtin_func_table {
+		if f.name == funcname {
 			if len(args) < f.min {
-				return nil, fmt.Errorf("too few argument: function %s()", p.str)
+				return nil, fmt.Errorf("too few argument: function %s()", funcname)
 			}
 			if len(args) > f.max {
-				return nil, fmt.Errorf("too many argument: function %s()", p.str)
+				return nil, fmt.Errorf("too many argument: function %s()", funcname)
 			}
 			if f.name == "help" {
-				return funcHelp(f.name, args)
+				return funcHelp(g.builtin_func_table, f.name, args)
 			} else {
 				return f.f(f.name, args)
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("unknown function: %s", p.str)
+	return nil, fmt.Errorf("unknown function: %s", funcname)
 }
 
 func funcNot(name string, args []interface{}) (interface{}, error) {
@@ -337,9 +334,9 @@ func funcLen(name string, args []interface{}) (interface{}, error) {
 	return NewInt(int64(p.Len())), nil
 }
 
-func funcHelp(name string, args []interface{}) (interface{}, error) {
+func funcHelp(builtin_func_table []func_table, name string, args []interface{}) (interface{}, error) {
 	if len(args) == 0 {
-		return funcHelps("@")
+		return funcHelps(builtin_func_table, "@")
 	}
 
 	p, ok := args[0].(*String)
@@ -347,10 +344,10 @@ func funcHelp(name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("%s(): required help(\"string\"):", name)
 	}
 
-	return funcHelps(p.s)
+	return funcHelps(builtin_func_table, p.s)
 }
 
-func funcHelps(name string) (interface{}, error) {
+func funcHelps(builtin_func_table []func_table, name string) (interface{}, error) {
 	if name == "@" {
 		fmt.Printf("GANRAC\n")
 		fmt.Printf("==========\n")

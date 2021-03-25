@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+var op2str = []string{"false", "<", "=", "<=", ">", "!=", ">=", "true"}
+
+var trueObj = new(AtomT)
+var falseObj = new(AtomF)
+
 // first-order formula
 type Fof interface {
 	GObj
@@ -29,11 +34,6 @@ const (
 	GE OP = GT | EQ
 	NE OP = GT | LT
 )
-
-var op2str = []string{"false", "<", "=", "<=", ">", "!=", ">=", "true"}
-
-var trueObj = new(AtomT)
-var falseObj = new(AtomF)
 
 type AtomT struct {
 }
@@ -835,6 +835,7 @@ func (p *Atom) Indets(b []bool) {
 
 func (p *AtomT) Indets(b []bool) {
 }
+
 func (p *AtomF) Indets(b []bool) {
 }
 

@@ -5,15 +5,15 @@ import (
 	"math/big"
 )
 
-type Int struct {
-	Number
-	n *big.Int
-}
-
 var mone *Int = NewInt(-1) // -1
 var zero *Int = newInt()   // 0
 var one *Int = NewInt(1)
 var two *Int = NewInt(2)
+
+type Int struct {
+	Number
+	n *big.Int
+}
 
 func newInt() *Int {
 	v := new(Int)
