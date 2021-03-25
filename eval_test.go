@@ -1,9 +1,9 @@
 package ganrac
 
 import (
+	"os"
 	"strings"
 	"testing"
-	"os"
 )
 
 func TestMain(m *testing.M) {
@@ -13,7 +13,6 @@ func TestMain(m *testing.M) {
 	println("after all...")
 	os.Exit(code)
 }
-
 
 func TestEvalRobj(t *testing.T) {
 
