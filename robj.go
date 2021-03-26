@@ -4,6 +4,7 @@ package ganrac
 // in R[x], in R
 type RObj interface {
 	GObj
+	equaler
 	Add(x RObj) RObj // z+x
 	Sub(x RObj) RObj // z-x
 	Mul(x RObj) RObj
@@ -17,7 +18,6 @@ type RObj interface {
 	IsOne() bool
 	IsMinusOne() bool
 	IsNumeric() bool
-	Equals(x RObj) bool
 	valid() error
 }
 
@@ -82,7 +82,7 @@ func (z *RObjSample) Pow(x *Int) RObj {
 	return z
 }
 
-func (z *RObjSample) Equals(x RObj) bool {
+func (z *RObjSample) Equals(x interface{}) bool {
 	return false
 }
 

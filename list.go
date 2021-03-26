@@ -44,9 +44,22 @@ func (z *List) Len() int {
 	return len(z.v)
 }
 
+func (z *List) Equals(vv interface{}) bool {
+	v, ok := vv.(*List)
+	if !ok || z.Len() != v.Len() {
+		return false
+	}
+	for i := z.Len() - 1; i >= 0; i-- {
+		if c, ok := z.v[i].(equaler); !ok || !c.Equals(v.v[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func (z *List) Indets(b []bool) {
 	for _, p := range z.v {
-		q, ok := p.(Indeter)
+		q, ok := p.(indeter)
 		if ok {
 			q.Indets(b)
 		}

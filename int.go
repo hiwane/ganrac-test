@@ -50,7 +50,7 @@ func (x *Int) Tag() uint {
 	return TAG_INT
 }
 
-func (x *Int) Equals(y RObj) bool {
+func (x *Int) Equals(y interface{}) bool {
 	c, ok := y.(*Int)
 	return ok && x.n.Cmp(c.n) == 0
 }

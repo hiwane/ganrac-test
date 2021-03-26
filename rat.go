@@ -31,7 +31,7 @@ func NewRatFrac(num, den *Int) *Rat {
 	return v
 }
 
-func (x *Rat) Equals(y RObj) bool {
+func (x *Rat) Equals(y interface{}) bool {
 	c, ok := y.(*Rat)
 	return ok && x.n.Cmp(c.n) == 0
 }

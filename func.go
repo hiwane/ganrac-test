@@ -10,10 +10,10 @@ func (g *Ganrac) setBuiltinFuncTable() {
 	// 関数テーブル
 	g.builtin_func_table = []func_table{
 		// sorted by name
-		{"all", 2, 2, funcForAll, "([x], FOF): universal quantifier.", ""},
-		{"and", 2, 2, funcAnd, "(FOF, ...): conjunction (&&)", ""},
-		{"coef", 3, 3, funcCoef, "(poly, var, deg): ", ""}, // coef(F, x, 2)
-		{"deg", 2, 2, funcDeg, "(poly|FOF, var): degree of a polynomial with respect to var", `
+		{"all", 2, 2, funcForAll, false, "([x], FOF): universal quantifier.", ""},
+		{"and", 2, 2, funcAnd, false, "(FOF, ...): conjunction (&&)", ""},
+		{"coef", 3, 3, funcCoef, false, "(poly, var, deg): ", ""}, // coef(F, x, 2)
+		{"deg", 2, 2, funcDeg, false, "(poly|FOF, var): degree of a polynomial with respect to var", `
 Args
 ========
   poly: a polynomial
@@ -35,7 +35,8 @@ Examples
   > deg(0, y);
   -1
 `}, // deg(F, x)
-		{"ex", 2, 2, funcExists, "(vars, FOF): existential quantifier.", `
+		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2): fof1 is equivalent to fof2", ""},
+		{"ex", 2, 2, funcExists, false, "(vars, FOF): existential quantifier.", `
 Args
 ========
   vars: list of variables
@@ -45,13 +46,14 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
-		// {"fctr", 1, 1, funcFctr, "(poly)* factorize polynomial over the rationals.", ""},
-		{"help", 0, 1, nil, "(): show help", ""},
-		{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
-		{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
-		{"len", 1, 1, funcLen, "(mobj): length of an object", ""},
-		{"load", 2, 2, funcLoad, "(fname): load file", ""},
-		{"not", 1, 1, funcNot, "(FOF)", `
+		// {"fctr", 1, 1, funcFctr, false, "(poly)* factorize polynomial over the rationals.", ""},
+		{"help", 0, 1, nil, false, "(): show help", ""},
+		{"impl", 2, 2, funcImpl, false, "(fof1, fof2): fof1 impies fof2", ""},
+		{"indets", 1, 1, funcIndets, false, "(mobj): find indeterminates of an expression", ""},
+		{"init", 0, 0, nil, false, "(vars, ...): init variable order", ""},
+		{"len", 1, 1, funcLen, false, "(mobj): length of an object", ""},
+		{"load", 2, 2, funcLoad, false, "(fname): load file", ""},
+		{"not", 1, 1, funcNot, false, "(FOF)", `
 Args
 ========
   FOF : a first-order formula
@@ -63,8 +65,8 @@ Examples
   > not(ex([x], a*x^2+b*x+c==0));
   all([x], a*x^2+b*x+c != 0)
 `},
-		{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
-		{"oxfunc", 2, 100, funcOXFunc, "(fname, args...)* call ox-function by ox-asir", `
+		{"or", 2, 2, funcOr, false, "(FOF, ...): disjunction (||)", ""},
+		{"oxfunc", 2, 100, funcOXFunc, true, "(fname, args...)* call ox-function by ox-asir", `
 Args
 ========
 fname : string, function name of ox-server
@@ -75,7 +77,7 @@ Examples
   > oxfunc("deg", x^2-1, x);
   2
 `},
-		{"oxstr", 1, 1, funcOXStr, "(str)* evaluate str by ox-asir", `
+		{"oxstr", 1, 1, funcOXStr, true, "(str)* evaluate str by ox-asir", `
 Args
 ========
 str : string
@@ -85,22 +87,22 @@ Examples
   > oxstr("fctr(x^2-4);");
   [[1,1],[x-2,1],[x+2,1]]
 `},
-		{"realroot", 2, 2, funcRealRoot, "(uni-poly): real root isolation", ""},
-		{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
+		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly): real root isolation", ""},
+		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x]): root bound", `
 Args
 ========
   poly: univariate polynomial
 
 Examples
 ========
-  > realroot(x^2-2);
-
+  > rootbound(x^2-2);
+  3
 `},
-		{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
-		{"sleep", 1, 1, funcSleep, "(milisecond): zzz", ""},
-		// {"sqrt", 1, 1, funcSqrt, "(poly)* square-free factorization", ""},
-		{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...):", ""},
-		{"time", 1, 1, funcTime, "(expr)@ run command and system resource usage", ""},
+		{"save", 2, 3, funcSave, false, "(obj, fname): save object...", ""},
+		{"sleep", 1, 1, funcSleep, false, "(milisecond): zzz", ""},
+		// {"sqrt", 1, 1, funcSqrt, false, "(poly)* square-free factorization", ""},
+		{"subst", 1, 101, funcSubst, false, "(poly,x,vx,y,vy,...):", ""},
+		{"time", 1, 1, funcTime, false, "(expr)@ run command and system resource usage", ""},
 	}
 }
 
@@ -156,6 +158,32 @@ func funcOr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("or(): unsupported for %v", args[1])
 	}
 	return NewFmlOr(f0, f1), nil
+}
+
+func funcImpl(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st-arg): expected a first-order formula", name)
+	}
+	f1, ok := args[1].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s(2nd-arg): expected a first-order formula", name)
+	}
+
+	return NewFmlOr(f0.Not(), f1), nil
+}
+
+func funcEquiv(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st-arg): expected a first-order formula", name)
+	}
+	f1, ok := args[1].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s(2nd-arg): expected a first-order formula", name)
+	}
+
+	return NewFmlAnd(NewFmlOr(f0.Not(), f1), NewFmlOr(f0, f1.Not())), nil
 }
 
 func funcExists(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -312,27 +340,28 @@ func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 }
 
 func funcDeg(g *Ganrac, name string, args []interface{}) (interface{}, error) {
-	// FoF にも適用可能にする.
-	_, ok := args[0].(RObj)
-	if !ok {
-		return nil, fmt.Errorf("%s(1st arg): expected poly: %v", name, args[0])
-	}
-
 	d, ok := args[1].(*Poly)
 	if !ok || !d.isVar() {
 		return nil, fmt.Errorf("%s(2st arg): expected var: %v", name, args[1])
 	}
 
-	p, ok := args[0].(*Poly)
-	if !ok {
+	var deg int
+	switch p := args[0].(type) {
+	case Fof:
+		deg = p.Deg(d.lv)
+	case *Poly:
+		deg = p.Deg(d.lv)
+	case RObj:
 		if p.IsZero() {
-			return mone, nil
+			deg = -1
 		} else {
-			return zero, nil
+			deg = 0
 		}
+	default:
+		return nil, fmt.Errorf("%s(1st arg): expected poly or FOF: %v", name, args[0])
 	}
 
-	return NewInt(int64(p.Deg(d.lv))), nil
+	return NewInt(int64(deg)), nil
 }
 
 func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -387,7 +416,7 @@ func funcRootBound(g *Ganrac, name string, args []interface{}) (interface{}, err
 
 func funcIndets(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	b := make([]bool, len(varlist))
-	p, ok := args[0].(Indeter)
+	p, ok := args[0].(indeter)
 	ret := make([]interface{}, 0, len(b))
 	if !ok {
 		return NewList(ret), nil
@@ -411,7 +440,7 @@ func funcSave(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 }
 
 func funcLen(g *Ganrac, name string, args []interface{}) (interface{}, error) {
-	p, ok := args[0].(Lener)
+	p, ok := args[0].(lener)
 	if !ok {
 		return nil, fmt.Errorf("%s(): not supported: %v", name, args[0])
 	}

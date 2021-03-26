@@ -11,6 +11,7 @@ type Level uint
 // poly in K[x_lv,...,x_n]
 type Poly struct { // recursive expression
 	lv Level
+	indeter
 	c  []RObj
 }
 
@@ -63,7 +64,7 @@ func (z *Poly) valid() error {
 	return nil
 }
 
-func (z *Poly) Equals(x RObj) bool {
+func (z *Poly) Equals(x interface{}) bool {
 	p, ok := x.(*Poly)
 	if !ok {
 		return false
@@ -433,8 +434,8 @@ func (z *Poly) isUnivariate() bool {
 func (z *Poly) Indets(b []bool) {
 	b[z.lv] = true
 	for _, c := range z.c {
-		if _, ok := c.(Indeter); ok {
-			c.(Indeter).Indets(b)
+		if _, ok := c.(indeter); ok {
+			c.(indeter).Indets(b)
 		}
 	}
 }

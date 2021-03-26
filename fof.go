@@ -14,14 +14,15 @@ var falseObj = new(AtomF)
 // first-order formula
 type Fof interface {
 	GObj
-	Indeter
+	indeter
+	equaler // 等化まではやらない. 形として同じもの
 	IsQff() bool
 	Not() Fof
-	Equals(f Fof) bool // 等化まではやらない. 形として同じもの
 	hasFreeVar(lv Level) bool
 	Subst(xs []RObj, lvs []Level) Fof
 	valid() error // for DEBUG
 	write(b io.Writer)
+	Deg(lv Level) int
 }
 
 type OP uint8
@@ -275,7 +276,7 @@ func (p *Exists) valid() error {
 	return nil
 }
 
-func (p *Atom) Equals(qq Fof) bool {
+func (p *Atom) Equals(qq interface{}) bool {
 	q, ok := qq.(*Atom)
 	if !ok {
 		return false
@@ -289,16 +290,16 @@ func (p *Atom) Equals(qq Fof) bool {
 	}
 }
 
-func (p *AtomT) Equals(qq Fof) bool {
+func (p *AtomT) Equals(qq interface{}) bool {
 	_, ok := qq.(*AtomT)
 	return ok
 }
-func (p *AtomF) Equals(qq Fof) bool {
+func (p *AtomF) Equals(qq interface{}) bool {
 	_, ok := qq.(*AtomF)
 	return ok
 }
 
-func (p *FmlAnd) Equals(qq Fof) bool {
+func (p *FmlAnd) Equals(qq interface{}) bool {
 	q, ok := qq.(*FmlAnd)
 	if !ok {
 		return false
@@ -314,7 +315,7 @@ func (p *FmlAnd) Equals(qq Fof) bool {
 	return true
 }
 
-func (p *FmlOr) Equals(qq Fof) bool {
+func (p *FmlOr) Equals(qq interface{}) bool {
 	q, ok := qq.(*FmlOr)
 	if !ok {
 		return false
@@ -330,7 +331,7 @@ func (p *FmlOr) Equals(qq Fof) bool {
 	return true
 }
 
-func (p *ForAll) Equals(qq Fof) bool {
+func (p *ForAll) Equals(qq interface{}) bool {
 	q, ok := qq.(*ForAll)
 	if !ok {
 		return false
@@ -353,7 +354,7 @@ func (p *ForAll) Equals(qq Fof) bool {
 	return p.fml.Equals(q.fml)
 }
 
-func (p *Exists) Equals(qq Fof) bool {
+func (p *Exists) Equals(qq interface{}) bool {
 	q, ok := qq.(*Exists)
 	if !ok {
 		return false
@@ -857,4 +858,46 @@ func (p *ForAll) Indets(b []bool) {
 
 func (p *Exists) Indets(b []bool) {
 	p.fml.Indets(b)
+}
+
+func (p *Atom) Deg(lv Level) int {
+	return p.p.Deg(lv)
+}
+
+func (p *AtomT) Deg(lv Level) int {
+	return 0
+}
+
+func (p *AtomF) Deg(lv Level) int {
+	return 0
+}
+
+func (p *FmlAnd) Deg(lv Level) int {
+	m := -1
+	for _, f := range p.fml {
+		d := f.Deg(lv)
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+func (p *FmlOr) Deg(lv Level) int {
+	m := -1
+	for _, f := range p.fml {
+		d := f.Deg(lv)
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+func (p *ForAll) Deg(lv Level) int {
+	return p.fml.Deg(lv)
+}
+
+func (p *Exists) Deg(lv Level) int {
+	return p.fml.Deg(lv)
 }

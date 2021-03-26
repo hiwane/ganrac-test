@@ -15,10 +15,14 @@ type GObj interface {
 	Tag() uint
 }
 
-type Lener interface {
+type lener interface {
 	Len() int
 }
 
-type Indeter interface {
+type indeter interface {
 	Indets(b []bool)
+}
+
+type equaler interface {
+	Equals(v interface{}) bool
 }
