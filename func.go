@@ -3,6 +3,7 @@ package ganrac
 import (
 	"fmt"
 	"sort"
+	"time"
 )
 
 func (g *Ganrac) setBuiltinFuncTable() {
@@ -44,7 +45,7 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
-		// {"fctr", 1, 1, funcFctr, "(poly)*: factorize polynomial over the rationals.", ""},
+		// {"fctr", 1, 1, funcFctr, "(poly)* factorize polynomial over the rationals.", ""},
 		{"help", 0, 1, nil, "(): show help", ""},
 		{"indets", 1, 1, funcIndets, "(mobj): find indeterminates of an expression", ""},
 		{"init", 0, 0, nil, "(vars, ...): init variable order", ""},
@@ -63,6 +64,27 @@ Examples
   all([x], a*x^2+b*x+c != 0)
 `},
 		{"or", 2, 2, funcOr, "(FOF, ...): disjunction (||)", ""},
+		{"oxfunc", 2, 100, funcOXFunc, "(fname, args...)* call ox-function by ox-asir", `
+Args
+========
+fname : string, function name of ox-server
+args  : arguments of the function
+
+Examples
+========
+  > oxfunc("deg", x^2-1, x);
+  2
+`},
+		{"oxstr", 1, 1, funcOXStr, "(str)* evaluate str by ox-asir", `
+Args
+========
+str : string
+
+Examples
+========
+  > oxstr("fctr(x^2-4);");
+  [[1,1],[x-2,1],[x+2,1]]
+`},
 		{"realroot", 2, 2, funcRealRoot, "(uni-poly): real root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, "(uni-poly in Z[x]): root bound", `
 Args
@@ -75,8 +97,10 @@ Examples
 
 `},
 		{"save", 2, 3, funcSave, "(obj, fname): save object...", ""},
-		// {"sqrt", 1, 1, funcSqrt, "(poly)*: square-free factorization", ""},
-		{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...)", ""},
+		{"sleep", 1, 1, funcSleep, "(milisecond): zzz", ""},
+		// {"sqrt", 1, 1, funcSqrt, "(poly)* square-free factorization", ""},
+		{"subst", 1, 101, funcSubst, "(poly,x,vx,y,vy,...):", ""},
+		{"time", 1, 1, funcTime, "(expr)@ run command and system resource usage", ""},
 	}
 }
 
@@ -94,7 +118,7 @@ func (g *Ganrac) callFunction(funcname string, args []interface{}) (interface{},
 			if f.name == "help" {
 				return funcHelp(g.builtin_func_table, f.name, args)
 			} else {
-				return f.f(f.name, args)
+				return f.f(g, f.name, args)
 			}
 		}
 	}
@@ -102,7 +126,7 @@ func (g *Ganrac) callFunction(funcname string, args []interface{}) (interface{},
 	return nil, fmt.Errorf("unknown function: %s", funcname)
 }
 
-func funcNot(name string, args []interface{}) (interface{}, error) {
+func funcNot(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	f, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("not(): unsupported for %v", args[0])
@@ -110,7 +134,7 @@ func funcNot(name string, args []interface{}) (interface{}, error) {
 	return f.Not(), nil
 }
 
-func funcAnd(name string, args []interface{}) (interface{}, error) {
+func funcAnd(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	f0, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("and(): unsupported for %v", args[0])
@@ -122,7 +146,7 @@ func funcAnd(name string, args []interface{}) (interface{}, error) {
 	return NewFmlAnd(f0, f1), nil
 }
 
-func funcOr(name string, args []interface{}) (interface{}, error) {
+func funcOr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	f0, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("or(): unsupported for %v", args[0])
@@ -134,11 +158,11 @@ func funcOr(name string, args []interface{}) (interface{}, error) {
 	return NewFmlOr(f0, f1), nil
 }
 
-func funcExists(name string, args []interface{}) (interface{}, error) {
+func funcExists(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return funcForEx(false, name, args)
 }
 
-func funcForAll(name string, args []interface{}) (interface{}, error) {
+func funcForAll(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return funcForEx(true, name, args)
 }
 
@@ -164,9 +188,69 @@ func funcForEx(forex bool, name string, args []interface{}) (interface{}, error)
 	return NewQuantifier(forex, lv, f1), nil
 }
 
-func funcSubst(name string, args []interface{}) (interface{}, error) {
+func funcOXStr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(*String)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected string: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+	if g.ox == nil {
+		return nil, fmt.Errorf("%s(): required OX server", name)
+	}
+
+	g.ox.PushOxCMO(f0.s)
+	g.ox.PushOXCommand(SM_executeStringByLocalParser)
+	s, err := g.ox.PopCMO()
+	if err != nil {
+		return nil, fmt.Errorf("%s(): popCMO failed %w", name, err)
+	}
+	gob := g.ox.toGObj(s)
+
+	return gob, nil
+}
+
+func funcOXFunc(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(*String)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected string: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+	if g.ox == nil {
+		return nil, fmt.Errorf("%s(): required OX server", name)
+	}
+
+	err := g.ox.ExecFunction(f0.s, args[1:])
+	if err != nil {
+		return nil, fmt.Errorf("%s(): required OX server", name)
+	}
+	s, err := g.ox.PopCMO()
+	if err != nil {
+		return nil, fmt.Errorf("%s(): popCMO failed %w", name, err)
+	}
+	gob := g.ox.toGObj(s)
+
+	return gob, nil
+}
+
+func funcSleep(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	c, ok := args[0].(*Int)
+	if !ok {
+		return nil, fmt.Errorf("%s() expected int", name)
+	}
+	if c.Sign() <= 0 {
+		return nil, nil
+	}
+
+	v := c.Int64()
+	time.Sleep(time.Millisecond * time.Duration(v))
+	return nil, nil
+}
+
+func funcTime(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	return nil, nil
+}
+
+func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	if len(args)%2 != 1 {
-		return nil, fmt.Errorf("subst() invalid args")
+		return nil, fmt.Errorf("%s() invalid args", name)
 	} else if len(args) == 1 {
 		return args[0], nil
 	}
@@ -180,7 +264,7 @@ func funcSubst(name string, args []interface{}) (interface{}, error) {
 	for i := 1; i < len(args); i += 2 {
 		p, ok := args[i].(*Poly)
 		if !ok || !p.isVar() {
-			return nil, fmt.Errorf("subst() invalid %d'th arg: %v", i+1, args[i])
+			return nil, fmt.Errorf("%s() invalid %d'th arg: %v", name, i+1, args[i])
 		}
 		// 重複を除去
 		used := false
@@ -198,7 +282,7 @@ func funcSubst(name string, args []interface{}) (interface{}, error) {
 
 		v, ok := args[i+1].(RObj)
 		if !ok {
-			return nil, fmt.Errorf("subst() invalid %d'th arg", i+2)
+			return nil, fmt.Errorf("%s() invalid %d'th arg", name, i+2)
 		}
 		rlv[j].r = v
 		j += 1
@@ -223,11 +307,11 @@ func funcSubst(name string, args []interface{}) (interface{}, error) {
 		return f.Subst(rr, lv, 0), nil
 	}
 
-	return nil, fmt.Errorf("subst() invalid 1st arg")
+	return nil, fmt.Errorf("%s() unsupported 1st arg", name)
 
 }
 
-func funcDeg(name string, args []interface{}) (interface{}, error) {
+func funcDeg(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	// FoF にも適用可能にする.
 	_, ok := args[0].(RObj)
 	if !ok {
@@ -251,7 +335,7 @@ func funcDeg(name string, args []interface{}) (interface{}, error) {
 	return NewInt(int64(p.Deg(d.lv))), nil
 }
 
-func funcCoef(name string, args []interface{}) (interface{}, error) {
+func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	_, ok := args[0].(RObj)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected RObj: %v", name, args[0])
@@ -285,7 +369,7 @@ func funcCoef(name string, args []interface{}) (interface{}, error) {
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
 }
 
-func funcRealRoot(name string, args []interface{}) (interface{}, error) {
+func funcRealRoot(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	p, ok := args[0].(*Poly)
 	if !ok {
 		return nil, fmt.Errorf("%s(): expected poly: %v", name, args[0])
@@ -293,7 +377,7 @@ func funcRealRoot(name string, args []interface{}) (interface{}, error) {
 	return p.RealRootIsolation(1)
 }
 
-func funcRootBound(name string, args []interface{}) (interface{}, error) {
+func funcRootBound(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	p, ok := args[0].(*Poly)
 	if !ok {
 		return nil, fmt.Errorf("%s(): expected poly: %v", name, args[0])
@@ -301,7 +385,7 @@ func funcRootBound(name string, args []interface{}) (interface{}, error) {
 	return p.RootBound()
 }
 
-func funcIndets(name string, args []interface{}) (interface{}, error) {
+func funcIndets(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	b := make([]bool, len(varlist))
 	p, ok := args[0].(Indeter)
 	ret := make([]interface{}, 0, len(b))
@@ -318,15 +402,15 @@ func funcIndets(name string, args []interface{}) (interface{}, error) {
 	return NewList(ret), nil
 }
 
-func funcLoad(name string, args []interface{}) (interface{}, error) {
+func funcLoad(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("%s not implemented", name) // @TODO
 }
 
-func funcSave(name string, args []interface{}) (interface{}, error) {
+func funcSave(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("%s not implemented", name) // @TODO
 }
 
-func funcLen(name string, args []interface{}) (interface{}, error) {
+func funcLen(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	p, ok := args[0].(Lener)
 	if !ok {
 		return nil, fmt.Errorf("%s(): not supported: %v", name, args[0])
@@ -367,6 +451,10 @@ func funcHelps(builtin_func_table []func_table, name string) (interface{}, error
 		for _, fv := range builtin_func_table {
 			fmt.Printf("  %s%s\n", fv.name, fv.descript)
 		}
+		fmt.Printf("\n")
+		fmt.Printf(" * ... required OX-server\n")
+		fmt.Printf(" @ ... not implemented\n")
+		fmt.Printf("\n")
 		fmt.Printf("\n")
 		fmt.Printf("EXAMPLES:\n")
 		fmt.Printf("  > init(x, y, z);  # init variable order.\n")

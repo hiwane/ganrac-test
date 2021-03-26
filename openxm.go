@@ -260,10 +260,16 @@ func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 		return ox.sendCMOInt32(v)
 	case *big.Int:
 		return ox.sendCMOZZ(v)
+	case *big.Rat:
+		return ox.sendCMOQQ(v)
 	case *Int:
 		return ox.sendCMOZZ(v.n)
+	case *Rat:
+		return ox.sendCMOQQ(v.n)
 	case string:
 		return ox.sendCMOString(v)
+	case *String:
+		return ox.sendCMOString(v.s)
 	case *List:
 		return ox.sendCMOList(v)
 	case *Poly:
@@ -387,13 +393,8 @@ func (ox *OpenXM) sendCMOInt32(n int32) error {
 	return nil
 }
 
-func (ox *OpenXM) sendCMOZZ(z *big.Int) error {
-	const fname = "sendCMOZZ"
-	err := ox.sendCMOTag(CMO_ZZ)
-	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
-		return err
-	}
+func (ox *OpenXM) send_bigint(z *big.Int) error {
+	const fname = "send_bigint"
 	const intSize = 32 << (^uint(0) >> 63)
 	b := z.Bits()
 	bb := make([]uint32, 0, len(b)*intSize)
@@ -418,7 +419,7 @@ func (ox *OpenXM) sendCMOZZ(z *big.Int) error {
 	if z.Sign() < 0 {
 		m *= -1
 	}
-	err = ox.dataWrite(&m)
+	err := ox.dataWrite(&m)
 	if err != nil {
 		ox.logger.Printf("%s(len:%d) failed: %s", fname, m, err.Error())
 		return err
@@ -430,8 +431,28 @@ func (ox *OpenXM) sendCMOZZ(z *big.Int) error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func (ox *OpenXM) sendCMOQQ(z *big.Rat) error {
+	const fname = "sendCMOQQ"
+	err := ox.sendCMOTag(CMO_QQ)
+	if err != nil {
+		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		return err
+	}
+	ox.send_bigint(z.Num())
+	return ox.send_bigint(z.Denom())
+}
+
+func (ox *OpenXM) sendCMOZZ(z *big.Int) error {
+	const fname = "sendCMOZZ"
+	err := ox.sendCMOTag(CMO_ZZ)
+	if err != nil {
+		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		return err
+	}
+	return ox.send_bigint(z)
 }
 
 func (ox *OpenXM) recvCMOInt32() (int32, error) {
@@ -459,6 +480,27 @@ func (ox *OpenXM) recvCMOIndeterminate() (*Poly, error) {
 	return nil, fmt.Errorf("unknown variable %s", c)
 }
 
+func (ox *OpenXM) toGObj(p interface{}) GObj {
+	switch cc := p.(type) {
+	case GObj:
+		return cc
+	case int32:
+		return NewInt(int64(cc))
+	case *big.Int:
+		bb := newInt()
+		bb.n.Set(cc)
+		return bb
+	case *big.Rat:
+		bb := newRat()
+		bb.n.Set(cc)
+		return bb
+	case string:
+		return NewString(cc)
+	default:
+		panic(fmt.Sprintf("unsupported %v", p))
+	}
+}
+
 func (ox *OpenXM) recvCMOPoly1Var(ringdef *List) (*Poly, error) {
 	m, err := ox.dataReadInt32()
 	if err != nil {
@@ -479,19 +521,10 @@ func (ox *OpenXM) recvCMOPoly1Var(ringdef *List) (*Poly, error) {
 				pp[i] = zero
 			}
 		}
-		switch cc := coef.(type) {
-		case RObj:
-			pp[exp] = cc
-		case int32:
-			pp[exp] = NewInt(int64(cc))
-		case *big.Int:
-			bb := newInt()
-			bb.n.Set(cc)
-			pp[exp] = bb
-		default:
-			panic("unsupported")
+		c, ok := ox.toGObj(coef).(RObj)
+		if ok {
+			pp[exp] = c
 		}
-
 	}
 	p, _ := ringdef.Geti(int(lv))
 	return NewPolyCoef(p.(*Poly).lv, pp...), err
@@ -526,22 +559,7 @@ func (ox *OpenXM) recvCMOList() (*List, error) {
 			ox.logger.Printf("%s(%d) failed: %s", fname, int(m)-i, err.Error())
 			return nil, err
 		}
-		switch oo := o.(type) {
-		case GObj:
-			ret.Append(oo)
-		case int32:
-			ret.Append(NewInt(int64(oo)))
-		case *big.Int:
-			z := new(Int)
-			z.n = oo
-			ret.Append(z)
-		case string:
-			ret.Append(NewString(oo))
-		default:
-			ox.logger.Printf("%s(%d) unknown %v", fname, int(m)-i, o)
-		case nil:
-			ret.Append(zero)
-		}
+		ret.Append(ox.toGObj(o))
 	}
 
 	return ret, nil
@@ -560,6 +578,15 @@ func (ox *OpenXM) recvCMOString() (string, error) {
 		return "", err
 	}
 	return string(b), err
+}
+
+func (ox *OpenXM) recvCMOQQ() (*big.Rat, error) {
+	const fname = "recvCMOQQ"
+	num, _ := ox.recvCMOZZ()
+	den, _ := ox.recvCMOZZ()
+	q := big.NewRat(0, 1)
+	q.SetFrac(num, den)
+	return q, nil
 }
 
 func (ox *OpenXM) recvCMOZZ() (*big.Int, error) {

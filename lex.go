@@ -198,7 +198,7 @@ func (l *pLexer) Lex(lval *yySymType) int {
 	if l.Peek() == '"' {
 		sbuf := make([]rune, 0)
 		l.Next()
-		for l.Peek() != '"' {
+		for l.Peek() != '"' && l.Peek() != scanner.EOF {
 			sbuf = append(sbuf, l.Next())
 		}
 		l.Next()
