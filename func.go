@@ -48,6 +48,7 @@ Examples
 `},
 		// {"fctr", 1, 1, funcFctr, false, "(poly)* factorize polynomial over the rationals.", ""},
 		{"help", 0, 1, nil, false, "(): show help", ""},
+		{"igcd", 2, 2, funcIGCD, false, "(int1, int2): The integer greatest common divisor", ""},
 		{"impl", 2, 2, funcImpl, false, "(fof1, fof2): fof1 impies fof2", ""},
 		{"indets", 1, 1, funcIndets, false, "(mobj): find indeterminates of an expression", ""},
 		{"init", 0, 0, nil, false, "(vars, ...): init variable order", ""},
@@ -76,6 +77,8 @@ Examples
 ========
   > oxfunc("deg", x^2-1, x);
   2
+  > oxfunc("igcd", 8, 12);
+  4
 `},
 		{"oxstr", 1, 1, funcOXStr, true, "(str)* evaluate str by ox-asir", `
 Args
@@ -117,6 +120,9 @@ func (g *Ganrac) callFunction(funcname string, args []interface{}) (interface{},
 			if len(args) > f.max {
 				return nil, fmt.Errorf("too many argument: function %s()", funcname)
 			}
+			if f.ox && g.ox == nil {
+				return nil, fmt.Errorf("required OX server: function %s()", funcname)
+			}
 			if f.name == "help" {
 				return funcHelp(g.builtin_func_table, f.name, args)
 			} else {
@@ -128,6 +134,9 @@ func (g *Ganrac) callFunction(funcname string, args []interface{}) (interface{},
 	return nil, fmt.Errorf("unknown function: %s", funcname)
 }
 
+////////////////////////////////////////////////////////////
+// 論理式
+////////////////////////////////////////////////////////////
 func funcNot(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	f, ok := args[0].(Fof)
 	if !ok {
@@ -216,15 +225,14 @@ func funcForEx(forex bool, name string, args []interface{}) (interface{}, error)
 	return NewQuantifier(forex, lv, f1), nil
 }
 
+////////////////////////////////////////////////////////////
+// OpenXM
+////////////////////////////////////////////////////////////
 func funcOXStr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	f0, ok := args[0].(*String)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected string: %d:%v", name, args[0].(GObj).Tag(), args[0])
 	}
-	if g.ox == nil {
-		return nil, fmt.Errorf("%s(): required OX server", name)
-	}
-
 	g.ox.PushOxCMO(f0.s)
 	g.ox.PushOXCommand(SM_executeStringByLocalParser)
 	s, err := g.ox.PopCMO()
@@ -241,9 +249,6 @@ func funcOXFunc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected string: %d:%v", name, args[0].(GObj).Tag(), args[0])
 	}
-	if g.ox == nil {
-		return nil, fmt.Errorf("%s(): required OX server", name)
-	}
 
 	err := g.ox.ExecFunction(f0.s, args[1:])
 	if err != nil {
@@ -258,6 +263,9 @@ func funcOXFunc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 	return gob, nil
 }
 
+////////////////////////////////////////////////////////////
+// OpenXM
+////////////////////////////////////////////////////////////
 func funcSleep(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	c, ok := args[0].(*Int)
 	if !ok {
@@ -276,6 +284,9 @@ func funcTime(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, nil
 }
 
+////////////////////////////////////////////////////////////
+// poly
+////////////////////////////////////////////////////////////
 func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	if len(args)%2 != 1 {
 		return nil, fmt.Errorf("%s() invalid args", name)
@@ -342,7 +353,7 @@ func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 func funcDeg(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	d, ok := args[1].(*Poly)
 	if !ok || !d.isVar() {
-		return nil, fmt.Errorf("%s(2st arg): expected var: %v", name, args[1])
+		return nil, fmt.Errorf("%s(2nd arg): expected var: %v", name, args[1])
 	}
 
 	var deg int
@@ -372,7 +383,7 @@ func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 
 	c, ok := args[1].(*Poly)
 	if !ok || !c.isVar() {
-		return nil, fmt.Errorf("%s(2st arg): expected var: %v", name, args[1])
+		return nil, fmt.Errorf("%s(2nd arg): expected var: %v", name, args[1])
 	}
 
 	d, ok := args[2].(*Int)
@@ -430,6 +441,26 @@ func funcIndets(g *Ganrac, name string, args []interface{}) (interface{}, error)
 	}
 	return NewList(ret), nil
 }
+
+////////////////////////////////////////////////////////////
+// integer
+////////////////////////////////////////////////////////////
+func funcIGCD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	a, ok := args[0].(*Int)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected int: %v", name, args[0])
+	}
+	b, ok := args[1].(*Int)
+	if !ok {
+		return nil, fmt.Errorf("%s(2nd arg): expected int: %v", name, args[1])
+	}
+
+	return a.Gcd(b), nil
+}
+
+////////////////////////////////////////////////////////////
+// system
+////////////////////////////////////////////////////////////
 
 func funcLoad(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("%s not implemented", name) // @TODO

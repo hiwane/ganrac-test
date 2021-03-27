@@ -259,9 +259,47 @@ func (z *Int) ToInt(n int) *Int {
 	return z
 }
 
-func (z Int) Float() float64 {
+func (z *Int) Float() float64 {
 	f := new(big.Float)
 	f.SetInt(z.n)
 	ff, _ := f.Float64()
 	return ff
+}
+
+func (x *Int) Gcd(y *Int) *Int {
+	if x.Sign() == 0 || y.Sign() == 0 {
+		return zero
+	}
+	s := x.n.CmpAbs(y.n)
+	if s == 0 {
+		if x.Sign() > 0 {
+			return x
+		}
+		if y.Sign() > 0 {
+			return y
+		}
+		return x.Abs().(*Int)
+	}
+	var r1, r2 *big.Int
+	r1 = new(big.Int)
+	r2 = new(big.Int)
+	if s > 0 {
+		r1.Abs(x.n)
+		r2.Abs(y.n)
+	} else {
+		r1.Abs(y.n)
+		r2.Abs(x.n)
+	}
+	for {
+		r := new(big.Int)
+		r.Mod(r1, r2)
+		if r.Sign() == 0 {
+			break
+		}
+		r1 = r2
+		r2 = r
+	}
+	v := new(Int)
+	v.n = r2
+	return v
 }

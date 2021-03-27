@@ -232,7 +232,7 @@ func (z *Rat) ToInt(n int) *Int {
 	return v
 }
 
-func (z Rat) Float() float64 {
+func (z *Rat) Float() float64 {
 	f, _ := z.n.Float64()
 	return f
 }

@@ -10,7 +10,7 @@ type func_table struct {
 	name     string
 	min, max int
 	f        func(g *Ganrac, name string, args []interface{}) (interface{}, error)
-	ox		bool
+	ox       bool
 	descript string
 	help     string
 }
