@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var op2str = []string{"false", "<", "=", "<=", ">", "!=", ">=", "true"}
+var op2str = []string{"@false@", "<", "=", "<=", ">", "!=", ">=", "@true@"}
 
 var trueObj = new(AtomT)
 var falseObj = new(AtomF)
@@ -15,15 +15,24 @@ var falseObj = new(AtomF)
 type Fof interface {
 	GObj
 	indeter
-	equaler // 等化まではやらない. 形として同じもの
+	equaler // 等価まではやらない. 形として同じもの
+	fofTag() uint
 	IsQff() bool
 	Not() Fof
 	hasFreeVar(lv Level) bool
+	hasVar(lv Level) bool
+	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
 	Subst(xs []RObj, lvs []Level) Fof
-	valid() error // for DEBUG
+	valid() error // for DEBUG. 実装として適切な形式になっているか
 	write(b io.Writer)
+	dump(b io.Writer) // for debug print
 	Deg(lv Level) int
+	FmlLess(a Fof) bool
+	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
+
 }
+
+// AtomT, AtomF, Atom, FmlAnd, FmlOr, ForAll, Exists
 
 type OP uint8
 
@@ -34,6 +43,14 @@ const (
 	LE OP = LT | EQ
 	GE OP = GT | EQ
 	NE OP = GT | LT
+
+	FTAG_TRUE  uint = 0x101
+	FTAG_FALSE uint = 0x102
+	FTAG_ATOM  uint = 0x103
+	FTAG_AND   uint = 0x104
+	FTAG_OR    uint = 0x105
+	FTAG_ALL   uint = 0x106
+	FTAG_EX    uint = 0x107
 )
 
 type AtomT struct {
@@ -43,8 +60,10 @@ type AtomF struct {
 }
 
 type Atom struct {
-	p  *Poly
-	op OP
+	// p1*p2*...*pn op 0
+	p         []*Poly
+	op        OP
+	factorizd bool
 }
 
 type FmlAnd struct {
@@ -63,6 +82,20 @@ type ForAll struct {
 type Exists struct {
 	q   []Level // quantifier
 	fml Fof
+}
+
+func (op OP) neg() OP {
+	// 負  :        1 <--> 4, 2 <-->2, 3 <--> 6, 5 <-->5
+	if op == EQ || op == NE {
+		return op
+	} else {
+		return op ^ (LT | GT)
+	}
+}
+
+func (op OP) not() OP {
+	// 否定
+	return 7 - op
 }
 
 func (p *Atom) IsQff() bool {
@@ -102,7 +135,12 @@ func (p *Exists) IsQff() bool {
 }
 
 func (p *Atom) hasFreeVar(lv Level) bool {
-	return p.p.hasVar(lv)
+	for _, pp := range p.p {
+		if pp.hasVar(lv) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *AtomT) hasFreeVar(lv Level) bool {
@@ -147,6 +185,74 @@ func (p *Exists) hasFreeVar(lv Level) bool {
 	return p.fml.hasFreeVar(lv)
 }
 
+func (p *Atom) hasVar(lv Level) bool {
+	for _, pp := range p.p {
+		if pp.hasVar(lv) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *AtomT) hasVar(lv Level) bool {
+	return false
+}
+func (p *AtomF) hasVar(lv Level) bool {
+	return false
+}
+
+func hasVarFmls(lv Level, fmls []Fof) bool {
+	for _, f := range fmls {
+		if f.hasVar(lv) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *FmlAnd) hasVar(lv Level) bool {
+	return hasVarFmls(lv, p.fml)
+}
+
+func (p *FmlOr) hasVar(lv Level) bool {
+	return hasVarFmls(lv, p.fml)
+}
+
+func (p *ForAll) hasVar(lv Level) bool {
+	return p.fml.hasVar(lv)
+}
+
+func (p *Exists) hasVar(lv Level) bool {
+	return p.fml.hasVar(lv)
+}
+
+func (p *Atom) fofTag() uint {
+	return FTAG_ATOM
+}
+
+func (p *AtomT) fofTag() uint {
+	return FTAG_TRUE
+}
+func (p *AtomF) fofTag() uint {
+	return FTAG_FALSE
+}
+
+func (p *FmlAnd) fofTag() uint {
+	return FTAG_AND
+}
+
+func (p *FmlOr) fofTag() uint {
+	return FTAG_OR
+}
+
+func (p *ForAll) fofTag() uint {
+	return FTAG_ALL
+}
+
+func (p *Exists) fofTag() uint {
+	return FTAG_EX
+}
+
 func (p *Atom) Tag() uint {
 	return TAG_FOF
 }
@@ -175,9 +281,15 @@ func (p *Exists) Tag() uint {
 }
 
 func (p *Atom) valid() error {
-	err := p.p.valid()
-	if err != nil {
-		return err
+	for i, pp := range p.p {
+		err := pp.valid()
+		if err != nil {
+			return err
+		}
+		c := pp.LeadinfCoef()
+		if c.Sign() <= 0 {
+			return fmt.Errorf("%dth lc is poitive: %v", i, p)
+		}
 	}
 	if 1 <= p.op && p.op <= 7 {
 		return nil
@@ -222,11 +334,11 @@ func (p *FmlAnd) valid() error {
 }
 
 func (p *FmlOr) valid() error {
-	for _, f := range p.fml {
+	for i, f := range p.fml {
 		// or の入れ子は許さない
 		switch f.(type) {
 		case *FmlOr:
-			return fmt.Errorf("or is in or")
+			return fmt.Errorf("or is in or [%d] `%v`\n", i, f)
 		}
 	}
 	return validFmlAndOr("or", p.fml)
@@ -282,9 +394,15 @@ func (p *Atom) Equals(qq interface{}) bool {
 		return false
 	}
 	if p.op == q.op {
-		return p.p.Equals(q.p)
-	} else if p.op+q.op == 7 {
-		return p.p.lv == q.p.lv && len(p.p.c) == len(q.p.c) && p.p.Add(q.p).IsZero()
+		if len(p.p) != len(q.p) {
+			return false
+		}
+		for i := 0; i < len(p.p); i++ {
+			if !p.p[i].Equals(q.p[i]) {
+				return false
+			}
+		}
+		return true
 	} else {
 		return false
 	}
@@ -392,10 +510,22 @@ func (p *AtomF) write(b io.Writer) {
 }
 
 func (p *Atom) String() string {
-	return fmt.Sprintf("%v%s0", p.p, op2str[p.op])
+	var b strings.Builder
+	p.write(&b)
+	return b.String()
 }
 func (p *Atom) write(b io.Writer) {
-	fmt.Fprintf(b, "%v%s0", p.p, op2str[p.op])
+	if len(p.p) == 1 {
+		fmt.Fprintf(b, "%v%s0", p.p[0], op2str[p.op])
+	} else {
+		for i, pp := range p.p {
+			if i != 0 {
+				fmt.Fprintf(b, "*")
+			}
+			fmt.Fprintf(b, "(%v)", pp)
+		}
+		fmt.Fprintf(b, "%s0", op2str[p.op])
+	}
 }
 
 func writeFmlAndOr(b io.Writer, fmls []Fof, op string) {
@@ -403,7 +533,14 @@ func writeFmlAndOr(b io.Writer, fmls []Fof, op string) {
 		if i != 0 {
 			fmt.Fprintf(b, " %s ", op)
 		}
-		f.write(b)
+
+		if _, ok := f.(*FmlOr); ok {
+			fmt.Fprintf(b, "(")
+			f.write(b)
+			fmt.Fprintf(b, ")")
+		} else {
+			f.write(b)
+		}
 	}
 }
 
@@ -471,7 +608,7 @@ func (p *AtomF) Not() Fof {
 }
 
 func (p *Atom) Not() Fof {
-	return NewAtom(p.p, 7-p.op)
+	return newAtoms(p.p, p.op.not())
 }
 
 func (p *FmlAnd) Not() Fof {
@@ -484,7 +621,7 @@ func (p *FmlAnd) Not() Fof {
 }
 
 func (p *FmlOr) Not() Fof {
-	q := new(FmlOr)
+	q := new(FmlAnd)
 	q.fml = make([]Fof, len(p.fml))
 	for i := len(p.fml) - 1; i >= 0; i-- {
 		q.fml[i] = p.fml[i].Not()
@@ -515,7 +652,27 @@ func (p *AtomF) Subst(xs []RObj, lvs []Level) Fof {
 }
 
 func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
-	return NewAtom(p.p.Subst(xs, lvs, 0), p.op)
+	op := p.op
+	pp := make([]*Poly, 0, len(p.p))
+	s := 1
+	for _, q := range p.p {
+		qc := q.Subst(xs, lvs, 0)
+		if qc.IsNumeric() {
+			s *= qc.Sign()
+			if s == 0 {
+				return NewAtom(qc, op)
+			}
+		} else {
+			pp = append(pp, qc.(*Poly))
+		}
+	}
+	if len(pp) == 0 {
+		return NewAtom(NewInt(int64(s)), op)
+	}
+	if s < 0 {
+		op = op.neg()
+	}
+	return newAtoms(pp, op)
 }
 
 func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
@@ -596,6 +753,58 @@ func NewBool(b bool) Fof {
 	}
 }
 
+func newAtoms(p []*Poly, op OP) *Atom {
+	a := new(Atom)
+	a.p = p
+	a.op = op
+	if op <= 0 || op > 7 {
+		panic("invalid op")
+	}
+	return a
+}
+
+func NewAtoms(pp []RObj, op OP) Fof {
+	s := 1
+	polys := make([]*Poly, 0, len(pp))
+	for _, pi := range pp {
+		if pi.IsNumeric() {
+			sgn := pi.Sign()
+			if sgn < 0 {
+				s *= -1
+			} else if sgn == 0 {
+				return NewBool((op & EQ) != 0)
+			}
+			continue
+		}
+
+		// pi is poly
+		p := pi.(*Poly)
+		if p.Sign() < 0 {
+			p = p.Neg().(*Poly)
+			s *= -1
+		}
+		polys = append(polys, p)
+	}
+
+	if len(polys) == 0 {
+		// 全部 数だった.
+		if s < 0 {
+			return NewBool((op & LT) != 0)
+		} else {
+			return NewBool((op & GT) != 0)
+		}
+	}
+
+	if s < 0 {
+		op = op.neg()
+	}
+
+	a := new(Atom)
+	a.p = polys
+	a.op = op
+	return a
+}
+
 func NewAtom(p RObj, op OP) Fof {
 	if p.IsNumeric() {
 		s := p.Sign()
@@ -608,14 +817,37 @@ func NewAtom(p RObj, op OP) Fof {
 		}
 	}
 	a := new(Atom)
-	a.p = p.(*Poly)
-	if a.p.Sign() < 0 { // 正規化. 主係数を正にする.
-		a.p = a.p.Neg().(*Poly)
-		a.op = 7 - op
+
+	a.p = []*Poly{p.(*Poly)}
+	if a.p[0].Sign() < 0 { // 正規化. 主係数を正にする.
+		a.p[0] = a.p[0].Neg().(*Poly)
+		if op != EQ && op != NE {
+			a.op = op ^ (LT | GT)
+		} else {
+			a.op = op
+		}
 	} else {
 		a.op = op
 	}
+
+	// 整数化, 原始化 @TODO
 	return a
+}
+
+func newFmlAnds(pp ...Fof) Fof {
+	var q Fof = trueObj
+	for _, p := range pp {
+		q = NewFmlAnd(q, p)
+	}
+	return q
+}
+
+func newFmlOrs(pp ...Fof) Fof {
+	var q Fof = falseObj
+	for _, p := range pp {
+		q = NewFmlOr(q, p)
+	}
+	return q
 }
 
 func NewFmlAnd(pp Fof, qq Fof) Fof {
@@ -635,26 +867,21 @@ func NewFmlAnd(pp Fof, qq Fof) Fof {
 			return pp
 		case *AtomF:
 			return qq
-		case *Atom:
+		default:
 			r := new(FmlAnd)
 			r.fml = make([]Fof, len(p.fml)+1)
 			copy(r.fml, p.fml)
 			r.fml[len(p.fml)] = q
+			if err := r.valid(); err != nil {
+				fmt.Printf("pp=%v\nqq=%v\nrr=%v\n", pp, qq, r)
+				panic("stop")
+			}
 			return r
 		}
 	case *AtomT:
 		return qq
 	case *AtomF:
 		return pp
-	case *Atom:
-		switch q := qq.(type) {
-		case *FmlAnd:
-			r := new(FmlAnd)
-			r.fml = make([]Fof, len(q.fml)+1)
-			copy(r.fml[1:], q.fml)
-			r.fml[0] = p
-			return r
-		}
 	}
 
 	switch q := qq.(type) {
@@ -662,8 +889,12 @@ func NewFmlAnd(pp Fof, qq Fof) Fof {
 		// p は or か q か
 		r := new(FmlAnd)
 		r.fml = make([]Fof, len(q.fml)+1)
-		copy(r.fml, q.fml)
-		r.fml[len(q.fml)] = pp
+		copy(r.fml[1:], q.fml)
+		r.fml[0] = pp
+		if err := r.valid(); err != nil {
+			fmt.Printf("pp=%v\nqq=%v\nrr=%v\n", pp, qq, r)
+			panic("stop")
+		}
 		return r
 	case *AtomT:
 		return pp
@@ -675,6 +906,10 @@ func NewFmlAnd(pp Fof, qq Fof) Fof {
 	r.fml = make([]Fof, 2)
 	r.fml[0] = pp
 	r.fml[1] = qq
+	if err := r.valid(); err != nil {
+		fmt.Printf("pp=%v\nqq=%v\nrr=%v\n", pp, qq, r)
+		panic("stop")
+	}
 	return r
 }
 
@@ -695,7 +930,7 @@ func NewFmlOr(pp Fof, qq Fof) Fof {
 			return qq
 		case *AtomF:
 			return pp
-		case *Atom:
+		default:
 			r := new(FmlOr)
 			r.fml = make([]Fof, len(p.fml)+1)
 			copy(r.fml, p.fml)
@@ -706,23 +941,14 @@ func NewFmlOr(pp Fof, qq Fof) Fof {
 		return pp
 	case *AtomF:
 		return qq
-	case *Atom:
-		switch q := qq.(type) {
-		case *FmlOr:
-			r := new(FmlOr)
-			r.fml = make([]Fof, len(q.fml)+1)
-			copy(r.fml[1:], q.fml)
-			r.fml[0] = p
-			return r
-		}
 	}
 
 	switch q := qq.(type) {
 	case *FmlOr:
 		r := new(FmlOr)
 		r.fml = make([]Fof, len(q.fml)+1)
-		copy(r.fml, q.fml)
-		r.fml[len(q.fml)] = pp
+		copy(r.fml[1:], q.fml)
+		r.fml[0] = pp
 		return r
 	case *AtomT:
 		return qq
@@ -738,7 +964,12 @@ func NewFmlOr(pp Fof, qq Fof) Fof {
 }
 
 func NewQuantifier(forex bool, lvv []Level, fml Fof) Fof {
+	// forex: true -> forall, false -> exists
 	lvs := make([]Level, 0)
+	if err := fml.valid(); err != nil {
+		fmt.Printf("fml invalid %s: %v\n", err, fml)
+		panic(err)
+	}
 	for _, lv := range lvv {
 		if fml.hasFreeVar(lv) {
 			flag := false
@@ -780,6 +1011,14 @@ func NewQuantifier(forex bool, lvv []Level, fml Fof) Fof {
 	}
 }
 
+func newFmlImplies(f1, f2 Fof) Fof {
+	return NewFmlOr(f1.Not(), f2)
+}
+
+func newFmlEquiv(f1, f2 Fof) Fof {
+	return NewFmlAnd(newFmlImplies(f1, f2), newFmlImplies(f2, f1))
+}
+
 func (p *FmlAnd) Len() int {
 	return len(p.fml)
 }
@@ -796,7 +1035,6 @@ func getFmlAndOr(fml []Fof, idx *Int) (Fof, error) {
 	if m >= int64(len(fml)) {
 		return nil, fmt.Errorf("index out of range")
 	}
-	fmt.Printf("idx=%v, m=%d, len=%d\n", idx, m, len(fml))
 	for i, f := range fml {
 		fmt.Printf("fml[%d]=%v: %d\n", i, f, f.Tag())
 	}
@@ -831,7 +1069,9 @@ func (p *Exists) Get(idx *Int) (interface{}, error) {
 }
 
 func (p *Atom) Indets(b []bool) {
-	p.p.Indets(b)
+	for _, pp := range p.p {
+		pp.Indets(b)
+	}
 }
 
 func (p *AtomT) Indets(b []bool) {
@@ -861,7 +1101,11 @@ func (p *Exists) Indets(b []bool) {
 }
 
 func (p *Atom) Deg(lv Level) int {
-	return p.p.Deg(lv)
+	n := 0
+	for _, pp := range p.p {
+		n += pp.Deg(lv)
+	}
+	return n
 }
 
 func (p *AtomT) Deg(lv Level) int {
@@ -900,4 +1144,149 @@ func (p *ForAll) Deg(lv Level) int {
 
 func (p *Exists) Deg(lv Level) int {
 	return p.fml.Deg(lv)
+}
+
+func (p *Atom) vsDeg(lv Level) int {
+	n := 0
+	for _, pp := range p.p {
+		d := pp.Deg(lv)
+		if d > n {
+			n = d
+		}
+	}
+	return n
+}
+
+func (p *AtomT) vsDeg(lv Level) int {
+	return 0
+}
+
+func (p *AtomF) vsDeg(lv Level) int {
+	return 0
+}
+
+func (p *FmlAnd) vsDeg(lv Level) int {
+	m := -1
+	for _, f := range p.fml {
+		d := f.vsDeg(lv)
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+func (p *FmlOr) vsDeg(lv Level) int {
+	m := -1
+	for _, f := range p.fml {
+		d := f.vsDeg(lv)
+		if d > m {
+			m = d
+		}
+	}
+	return m
+}
+
+func (p *ForAll) vsDeg(lv Level) int {
+	return p.fml.vsDeg(lv)
+}
+
+func (p *Exists) vsDeg(lv Level) int {
+	return p.fml.vsDeg(lv)
+}
+
+func (p *Atom) FmlLess(q Fof) bool {
+	if p.fofTag() != q.fofTag() {
+		return p.fofTag() < q.fofTag()
+	}
+	return true // TODO
+}
+
+func (p *AtomT) FmlLess(q Fof) bool {
+	return true
+}
+
+func (p *AtomF) FmlLess(q Fof) bool {
+	return p.fofTag() < q.fofTag()
+}
+
+func (p *FmlAnd) FmlLess(q Fof) bool {
+	if p.fofTag() != q.fofTag() {
+		return p.fofTag() < q.fofTag()
+	}
+	return len(p.fml) < len(q.(*FmlAnd).fml)
+}
+
+func (p *FmlOr) FmlLess(q Fof) bool {
+	if p.fofTag() != q.fofTag() {
+		return p.fofTag() < q.fofTag()
+	}
+	return len(p.fml) < len(q.(*FmlOr).fml)
+}
+
+func (p *ForAll) FmlLess(q Fof) bool {
+	return p.fofTag() < q.fofTag()
+}
+
+func (p *Exists) FmlLess(q Fof) bool {
+	return p.fofTag() < q.fofTag()
+}
+
+func (p *AtomT) dump(b io.Writer) {
+	fmt.Fprintf(b, "true")
+}
+
+func (p *AtomF) dump(b io.Writer) {
+	fmt.Fprintf(b, "false")
+}
+
+func (p *Atom) dump(b io.Writer) {
+	fmt.Fprintf(b, "(atom ")
+	for _, pp := range p.p {
+		pp.dump(b)
+		fmt.Fprintf(b, " ")
+	}
+	fmt.Fprintf(b, " %s)", op2str[p.op])
+}
+
+func (p *FmlAnd) dump(b io.Writer) {
+	fmt.Fprintf(b, "(and ")
+	for _, pp := range p.fml {
+		fmt.Fprintf(b, "(")
+		pp.dump(b)
+		fmt.Fprintf(b, ")")
+	}
+	fmt.Fprintf(b, ")")
+}
+
+func (p *FmlOr) dump(b io.Writer) {
+	fmt.Fprintf(b, "(or ")
+	for _, pp := range p.fml {
+		fmt.Fprintf(b, "(")
+		pp.dump(b)
+		fmt.Fprintf(b, ")")
+	}
+	fmt.Fprintf(b, ")")
+}
+
+func dumpFmlQ(b io.Writer, lvs []Level, fml Fof, q string) {
+	fmt.Fprintf(b, "(%s ", q)
+	for i, lv := range lvs {
+		if i == 0 {
+			fmt.Fprintf(b, "[%d", lv)
+		} else {
+			fmt.Fprintf(b, " %d", lv)
+		}
+	}
+	fmt.Fprintf(b, "] (fml ")
+	fml.dump(b)
+	fmt.Fprintf(b, "))")
+}
+
+func (p *ForAll) dump(b io.Writer) {
+	dumpFmlQ(b, p.q, p.fml, "all")
+}
+
+func (p *Exists) dump(b io.Writer) {
+	dumpFmlQ(b, p.q, p.fml, "ex")
 }

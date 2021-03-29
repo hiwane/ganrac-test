@@ -225,3 +225,172 @@ func TestPolySubst(t *testing.T) {
 		}
 	}
 }
+
+func TestHasSameTerm(t *testing.T) {
+	for _, s := range []struct {
+		a      *Poly
+		b      *Poly
+		expect bool
+	}{
+		{
+			NewPolyInts(0, 1, 2, 3, 0, 5),
+			NewPolyInts(0, 1, 5, 8, 0, -3),
+			true},
+		{
+			NewPolyInts(0, 1, 2, 3, 0, 5),
+			NewPolyInts(1, 1, 2, 3, 0, 5),
+			false},
+		{
+			NewPolyCoef(0, one, zero, two, one, NewPolyInts(1, 1, 1, 1)),
+			NewPolyCoef(0, two, zero, two, one, NewPolyInts(1, 1, 1, 1)),
+			true},
+		{
+			NewPolyCoef(0, one, zero, two, one, NewPolyInts(1, 1, 0, 1)),
+			NewPolyCoef(0, two, zero, two, one, NewPolyInts(1, 1, 1, 1)),
+			false},
+	} {
+		c := s.a.hasSameTerm(s.b, true)
+		if c != s.expect {
+			t.Errorf("a=%v, b=%v, expect=%v, actual=%v", s.a, s.b, c, s.expect)
+		}
+
+		c = s.b.hasSameTerm(s.a, true)
+		if c != s.expect {
+			t.Errorf("a=%v, b=%v, expect=%v, actual=%v", s.a, s.b, c, s.expect)
+		}
+
+		an := s.a.Neg().(*Poly)
+		c = an.hasSameTerm(s.b, true)
+		if c != s.expect {
+			t.Errorf("a=%v, -a=%v, expect=%v, actual=%v", s.a, an, c, s.expect)
+		}
+
+		an = s.a.Mul(two).(*Poly)
+		c = an.hasSameTerm(s.b, true)
+		if c != s.expect {
+			t.Errorf("a=%v, -2a=%v, expect=%v, actual=%v", s.a, an, c, s.expect)
+		}
+
+		bn := s.b.Neg().(*Poly)
+		c = bn.hasSameTerm(s.a, true)
+		if c != s.expect {
+			t.Errorf("-b=%v, a=%v, expect=%v, actual=%v", bn, s.a, c, s.expect)
+		}
+
+		// 自身は true
+		c = s.a.hasSameTerm(s.a, true)
+		if !c {
+			t.Errorf("a=%v, expect=%v, actual=true", s.a, c)
+		}
+		c = s.b.hasSameTerm(s.b, true)
+		if !c {
+			t.Errorf("b=%v, expect=%v, actual=true", s.b, c)
+		}
+	}
+}
+
+func TestSubstFrac(t *testing.T) {
+	for _, s := range []struct {
+		p        *Poly
+		lv       Level
+		num, den RObj
+		expect   RObj
+	}{
+		{
+			NewPolyInts(0, -11, 13),
+			0,
+			NewInt(5), NewInt(7),
+			NewInt(-12),
+		}, {
+			NewPolyInts(0, 2, 3, 1),
+			0,
+			NewInt(5), NewInt(7),
+			NewInt(228),
+		}, {
+			NewPolyCoef(0,
+				NewPolyInts(1, 0, 3),
+				NewPolyInts(1, -7, 5, -3),
+				NewPolyCoef(1, NewInt(5), NewPolyInts(2, 1, 2, 3, 4, 5))),
+			1,
+			NewInt(5), NewInt(7),
+			NewPolyCoef(0,
+				NewInt(105),
+				NewInt(-243),
+				NewPolyInts(2, 280, 70, 105, 140, 175)),
+		},
+	} {
+		d := s.p.Deg(s.lv)
+
+		// prepare
+		dens := make([]RObj, d+1)
+		dens[0] = one
+		dens[1] = s.den
+		for i := 2; i <= d; i++ {
+			dens[i] = dens[i-1].Mul(s.den)
+		}
+
+		actual := s.p.subst_frac(s.num, dens, s.lv)
+		if !actual.Equals(s.expect) {
+			t.Errorf("p=%v, x=(%v)/(%v), expect=%v, actual=%v\n", s.p, s.num, s.den, s.expect, actual)
+		}
+
+		dens = append(dens, dens[len(dens)-1].Mul(s.den))
+		expect := s.expect.Mul(s.den)
+
+		actual = s.p.subst_frac(s.num, dens, s.lv)
+		if !actual.Equals(expect) {
+			t.Errorf("<1> p=%v, x=(%v)/(%v), expect=%v, actual=%v\n", s.p, s.num, s.den, expect, actual)
+		}
+
+		dens = append(dens, dens[len(dens)-1].Mul(s.den))
+		expect = expect.Mul(s.den)
+
+		actual = s.p.subst_frac(s.num, dens, s.lv)
+		if !actual.Equals(expect) {
+			t.Errorf("<2> p=%v, x=(%v)/(%v), expect=%v, actual=%v\n", s.p, s.num, s.den, expect, actual)
+		}
+
+	}
+}
+
+func TestPolyDiff(t *testing.T) {
+	for _, s := range []struct {
+		p      *Poly
+		lv     Level
+		expect RObj
+	}{
+		{
+			NewPolyInts(0, -11, 13),
+			0,
+			NewInt(13),
+		}, {
+			NewPolyInts(0, 2, 3, 1),
+			0,
+			NewPolyInts(0, 3, 2),
+		}, {
+			NewPolyCoef(0,
+				NewPolyInts(1, 2, 3, 4),
+				NewPolyInts(1, -3, -5, -6),
+				NewPolyInts(1, -2, 11)),
+			0,
+			NewPolyCoef(0,
+				NewPolyInts(1, -3, -5, -6),
+				NewPolyInts(1, -4, 22)),
+		}, {
+			NewPolyCoef(0,
+				NewPolyInts(1, 0, 1),
+				NewInt(1)),
+			1,
+			NewInt(1),
+		},
+	} {
+		c := s.p.diff(s.lv)
+		if err := c.valid(); err != nil {
+			t.Errorf("f[%d]=%v, actual=%v: %v", s.lv, s.p, c, err)
+		}
+
+		if !c.Equals(s.expect) {
+			t.Errorf("f[%d]=%v, expect=%v, actual=%v", s.lv, s.p, s.expect, c)
+		}
+	}
+}

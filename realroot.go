@@ -222,7 +222,7 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 	})
 
 	// テスト
-	if true {
+	if false {
 		// 左端点の符号は根があるたびに入れ替わる
 		sgn := p.c[len(p.c)-1].Sign()
 		if len(p.c)%2 == 0 { // 奇数次

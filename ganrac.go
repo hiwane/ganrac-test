@@ -29,7 +29,7 @@ func NewGANRAC() *Ganrac {
 	g.setBuiltinFuncTable()
 	g.logger = log.New(ioutil.Discard, "", 0)
 	g.InitVarList([]string{
-		"x", "y", "z", "w", "a", "b", "c", "e", "f", "g", "h",
+		"x", "y", "z", "w", "a", "b", "c", "d", "e", "f", "g", "h",
 	})
 
 	g.sones = []token{
@@ -126,4 +126,11 @@ func (g *Ganrac) SetLogger(logger *log.Logger) {
 func (g *Ganrac) ConnectOX(cw, dw Flusher, cr, dr io.Reader) error {
 	g.ox = NewOpenXM(cw, dw, cr, dr, g.logger)
 	return g.ox.Init()
+}
+
+func (g *Ganrac) Factor(p *Poly) *List {
+	g.ox.ExecFunction("fctr", p)
+	s, _ := g.ox.PopCMO()
+	gob := g.ox.toGObj(s)
+	return gob.(*List)
 }

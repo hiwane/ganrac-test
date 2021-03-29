@@ -250,7 +250,7 @@ func funcOXFunc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 		return nil, fmt.Errorf("%s(1st arg): expected string: %d:%v", name, args[0].(GObj).Tag(), args[0])
 	}
 
-	err := g.ox.ExecFunction(f0.s, args[1:])
+	err := g.ox.ExecFunction(f0.s, args[1:]...)
 	if err != nil {
 		return nil, fmt.Errorf("%s(): required OX server", name)
 	}

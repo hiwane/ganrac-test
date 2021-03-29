@@ -12,8 +12,7 @@ import (
 )
 
 func test_execfunc(ox *ganrac.OpenXM) {
-	ox.ExecFunction("igcd", []interface{}{
-		ganrac.NewInt(8), ganrac.NewInt(12)})
+	ox.ExecFunction("igcd", ganrac.NewInt(8), ganrac.NewInt(12))
 	s, _ := ox.PopCMO()
 	if s.(*big.Int).Cmp(big.NewInt(4)) != 0 {
 		panic("!")
@@ -47,17 +46,17 @@ func test_rpoly(ox *ganrac.OpenXM) {
 		ganrac.NewPolyInts(2, 0, -43),
 		ganrac.NewInt(5))
 
-	ox.ExecFunction("fctr", []interface{}{p})
+	ox.ExecFunction("fctr", p)
 	u, _ = ox.PopString()
 	fmt.Printf("fctr1=%s\n", u)
 
-	ox.ExecFunction("fctr", []interface{}{p})
+	ox.ExecFunction("fctr", p)
 	s, _ := ox.PopCMO()
 	// fctr1=[[1,1],[5*x^5+7*x^4+(2*z*y+11)*x^3+(43*z+53)*x^2+(17*y+71)*x+1,1]]
 	fmt.Printf("fctr2=%v\n", s)
 
 	p = ganrac.NewPolyInts(1, 4, 0, -1)
-	ox.ExecFunction("fctr", []interface{}{p})
+	ox.ExecFunction("fctr", p)
 	s, _ = ox.PopCMO()
 	fmt.Printf("fctr3=%v\n", s)
 }

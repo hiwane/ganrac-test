@@ -778,7 +778,7 @@ func (ox *OpenXM) PopCMO() (interface{}, error) {
 	return v, nil
 }
 
-func (ox *OpenXM) ExecFunction(funcname string, argv []interface{}) error {
+func (ox *OpenXM) ExecFunction(funcname string, argv ...interface{}) error {
 	const fname = "ExecFunction"
 	for i := len(argv) - 1; i >= 0; i-- {
 		ox.logger.Printf("%s(arg-%d): %s() send %v", fname, i, funcname, argv[i])

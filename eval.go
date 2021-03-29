@@ -53,6 +53,10 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return g.evalStackString(stack, s)
 	case initvar:
 		return g.evalInitVar(stack, s.extra)
+	case f_true:
+		return trueObj, nil
+	case f_false:
+		return falseObj, nil
 	case eol:
 		return nil, nil
 	}
@@ -77,7 +81,8 @@ func (g *Ganrac) evalStackAtom(stack *pStack, op OP, node pNode) (Fof, error) {
 		return nil, fmt.Errorf("%s is not supported", node.str)
 	}
 
-	return NewAtom(Sub(l, r), op), nil
+	a := NewAtom(Sub(l, r), op)
+	return a, nil
 }
 
 func (g *Ganrac) evalInitVar(stack *pStack, num int) (interface{}, error) {
@@ -115,6 +120,14 @@ func (g *Ganrac) evalStackFof2(stack *pStack, node pNode) (interface{}, error) {
 	}
 	switch node.cmd {
 	case and:
+		if err := l.valid(); err != nil {
+			fmt.Printf("l=%v, err=%v, r=%v %p\n", l, err, r, l)
+			panic("left")
+		}
+		if err := r.valid(); err != nil {
+			fmt.Printf("r=%v, err=%v\n", r, err)
+			panic("right")
+		}
 		return NewFmlAnd(l, r), nil
 	case or:
 		return NewFmlOr(l, r), nil

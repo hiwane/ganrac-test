@@ -12,7 +12,7 @@ type Level uint
 type Poly struct { // recursive expression
 	lv Level
 	indeter
-	c  []RObj
+	c []RObj
 }
 
 func NewPolyVar(lv Level) *Poly {
@@ -52,14 +52,20 @@ func (z *Poly) valid() error {
 	if z.c[len(z.c)-1].IsZero() {
 		return fmt.Errorf("lc should not be zero... %v", z)
 	}
-	for _, c := range z.c {
+	for i, c := range z.c {
 		if c == nil {
-			return fmt.Errorf("coef is null")
+			return fmt.Errorf("coef[%d] is null", i)
 		}
 		err := c.valid()
 		if err != nil {
 			return err
 		}
+		if cp, ok := c.(*Poly); ok {
+			if cp.lv <= z.lv {
+				return fmt.Errorf("invalid level z=%d, coef[%d][%v]", z.lv, i, cp)
+			}
+		}
+
 	}
 	return nil
 }
@@ -162,6 +168,20 @@ func (z *Poly) String() string {
 	return b.String()
 }
 
+func (z *Poly) dump(b io.Writer) {
+	fmt.Fprintf(b, "(poly %d %d (", z.lv, len(z.c))
+	for _, c := range z.c {
+		if c.IsNumeric() {
+			fmt.Fprintf(b, "%v", c)
+		} else {
+			cp := c.(*Poly)
+			cp.dump(b)
+		}
+		fmt.Fprintf(b, " ")
+	}
+	fmt.Fprintf(b, "))")
+}
+
 func (z *Poly) write(b io.Writer, out_sgn bool) {
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if s := z.c[i].Sign(); s == 0 {
@@ -191,14 +211,20 @@ func (z *Poly) write(b io.Writer, out_sgn bool) {
 			} else if p, ok := z.c[i].(*Poly); ok {
 				if p.isMono() {
 					p.write(b, i != len(z.c)-1)
-					fmt.Fprintf(b, "*")
+					if i > 0 {
+						fmt.Fprintf(b, "*")
+					}
 				} else {
 					if i != len(z.c)-1 {
 						fmt.Fprintf(b, "+")
 					}
-					fmt.Fprintf(b, "(")
-					p.write(b, false)
-					fmt.Fprintf(b, ")*")
+					if i > 0 {
+						fmt.Fprintf(b, "(")
+						p.write(b, false)
+						fmt.Fprintf(b, ")*")
+					} else {
+						p.write(b, false)
+					}
 				}
 			}
 			if i > 0 {
@@ -422,6 +448,53 @@ func (z *Poly) subst1(x RObj, lv Level) RObj {
 	return z.Subst([]RObj{x}, []Level{lv}, 0)
 }
 
+func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
+	// dens = [1, den, ..., den^d]
+	// d = len(dens) - 1
+	// z(x[lv]=num/den) * den^d
+	if z.lv < lv {
+		p := make([]RObj, len(z.c))
+		for i := 0; i < len(z.c); i++ {
+			switch zc := z.c[i].(type) {
+			case *Poly:
+				p[i] = zc.subst_frac(num, dens, lv)
+			case NObj:
+				p[i] = dens[len(dens)-1].Mul(zc)
+			default:
+				fmt.Printf("panic! %v\n", zc)
+			}
+		}
+		x := NewPolyVar(z.lv)
+		xn := x
+		ret := p[0]
+		for i := 1; i < len(p); i++ {
+			ret = Add(ret, xn.Mul(p[i]))
+			xn = xn.Mul(x).(*Poly)
+		}
+		if err := ret.valid(); err != nil {
+			panic("!")
+		}
+
+		return ret
+	} else if z.lv > lv {
+		vv := z.Mul(dens[len(dens)-1])
+		if err := vv.valid(); err != nil {
+			panic("!")
+		}
+		return vv
+	}
+
+	dd := len(dens) - len(z.c)
+	p := Mul(dens[dd], z.c[len(z.c)-1])
+	for i := len(z.c) - 2; i >= 0; i-- {
+		p = Add(Mul(z.c[i], dens[len(z.c)-i-1+dd]), Mul(p, num))
+	}
+	if err := p.valid(); err != nil {
+		panic("!")
+	}
+	return p
+}
+
 func (z *Poly) isUnivariate() bool {
 	for _, c := range z.c {
 		if _, ok := c.(NObj); !ok {
@@ -447,4 +520,90 @@ func (z *Poly) isMono() bool {
 		}
 	}
 	return true
+}
+
+func (z *Poly) LeadinfCoef() NObj {
+	switch c := z.c[len(z.c)-1].(type) {
+	case NObj:
+		return c
+	case *Poly:
+		return c.LeadinfCoef()
+	}
+	return nil
+}
+
+func (z *Poly) hasSameTerm(pp RObj, lowest bool) bool {
+	// 定数以外同じ項をもつか.
+	p, ok := pp.(*Poly)
+	if !ok {
+		return false
+	}
+
+	if z.lv != p.lv || len(p.c) != len(z.c) {
+		return false
+	}
+	for i := len(p.c) - 1; i >= 0; i-- {
+		switch zz := z.c[i].(type) {
+		case *Poly:
+			if !zz.hasSameTerm(p.c[i], lowest && i == 0) {
+				return false
+			}
+		case NObj:
+			pc, ok := p.c[i].(NObj)
+			if !ok {
+				return false
+			}
+			if pc.IsZero() != zz.IsZero() && !lowest {
+				return false
+			}
+		default:
+			// しらない
+			panic("unknown")
+		}
+	}
+	return true
+}
+
+func (z *Poly) diff(lv Level) RObj {
+	if z.lv < lv {
+		p := NewPoly(z.lv, len(z.c))
+		for i, c := range z.c {
+			if cp, ok := c.(*Poly); ok {
+				p.c[i] = cp.diff(lv)
+			} else {
+				p.c[i] = zero
+			}
+		}
+		for i := len(p.c) - 1; i > 0; i-- {
+			if !p.c[i].IsZero() {
+				p.c = p.c[:i+1]
+				return p
+			}
+		}
+		return p.c[0]
+	} else if z.lv > lv {
+		return z
+	}
+
+	if len(z.c) == 2 {
+		return z.c[1]
+	}
+
+	p := NewPoly(z.lv, len(z.c)-1)
+	for i := 0; i < len(z.c)-1; i++ {
+		p.c[i] = Mul(z.c[i+1], NewInt(int64(i+1)))
+	}
+	return p
+}
+
+func (f *Poly) diffConst(g *Poly) (int, bool) {
+	// if exisis c, d in Q s.t. f(x) = c*p(x) + d, returns sign(d), true
+	// otherwise returns 0, false
+	if !f.hasSameTerm(g, true) {
+		return 0, false
+	}
+	a := f.LeadinfCoef().Abs()
+	b := g.LeadinfCoef().Abs()
+
+	return f.Mul(b).Sub(g.Mul(a)).Sign(), true
 }

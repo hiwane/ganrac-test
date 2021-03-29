@@ -5,6 +5,7 @@ import (
 )
 
 func TestAtom(t *testing.T) {
+	NewGANRAC()
 	for _, s := range []struct {
 		op1, op2 OP
 	}{
@@ -25,9 +26,16 @@ func TestAtom(t *testing.T) {
 			return
 		}
 
-		if p.p != q.p || q.op != s.op2 {
+		if len(p.p) != len(q.p) || q.op != s.op2 {
 			t.Errorf("invalid atom not(%v)=%v", pp, qq)
 			return
+		}
+
+		for i := 0; i < len(p.p); i++ {
+			if p.p[i] != q.p[i] {
+				t.Errorf("invalid atom [%d] not(%v)=%v", i, pp, qq)
+				return
+			}
 		}
 
 		rr := q.Not()
@@ -37,14 +45,22 @@ func TestAtom(t *testing.T) {
 			return
 		}
 
-		if p.p != r.p || r.op != p.op {
+		if len(p.p) != len(r.p) || r.op != p.op {
 			t.Errorf("invalid atom not(%v)=%v", qq, rr)
 			return
+		}
+
+		for i := 0; i < len(p.p); i++ {
+			if p.p[i] != r.p[i] {
+				t.Errorf("invalid atom [%d] not(%v)=%v", i, pp, rr)
+				return
+			}
 		}
 	}
 }
 
 func TestFmlAnd(t *testing.T) {
+	NewGANRAC()
 	fmls := []Fof{
 		NewAtom(NewPolyInts(0, 1, 2, 3), GE),
 		NewAtom(NewPolyInts(0, 2, 3, 4), NE),
@@ -74,7 +90,7 @@ func TestFmlAnd(t *testing.T) {
 	f = NewFmlAnd(f, fmls[4])
 	h = NewFmlAnd(fmls[0], f)
 	if !ans.Equals(h) {
-		t.Errorf("0 && (((1 && 2) && 3) && 4)\n%v\n%v", h, ans)
+		t.Errorf("0 && (((1 && 2) && 3) && 4)\nh=%v\na=%v", h, ans)
 	}
 
 	h = NewFmlAnd(h, NewBool(false))
@@ -84,6 +100,7 @@ func TestFmlAnd(t *testing.T) {
 }
 
 func TestFmlOr(t *testing.T) {
+	NewGANRAC()
 	fmls := []Fof{
 		NewAtom(NewPolyInts(0, 1, 2, 3), GE),
 		NewAtom(NewPolyInts(0, 2, 3, 4), NE),
