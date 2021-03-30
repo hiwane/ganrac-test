@@ -16,6 +16,7 @@ type Fof interface {
 	GObj
 	indeter
 	equaler // 等価まではやらない. 形として同じもの
+	simpler
 	fofTag() uint
 	IsQff() bool
 	Not() Fof

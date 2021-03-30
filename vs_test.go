@@ -34,7 +34,7 @@ func TestVsLin(t *testing.T) {
 		for j, s := range []struct {
 			qff    string
 			expect string
-		}{
+		}{		// 再帰表現なので，自由変数と束縛変数のレベルの大小で動きが異なる
 			{ss.qff, ss.expect},
 			{strings.ReplaceAll(ss.qff, "x", "z"),
 				strings.ReplaceAll(ss.expect, "x", "z")}} {
@@ -87,6 +87,30 @@ func TestVsLin(t *testing.T) {
 				if _, ok := q.(*AtomT); !ok {
 					fmt.Printf("q=%v\n", q)
 					t.Errorf("%d: qe failed\ninput =%s\nexpect=%v\nactual=%v", i, s.qff, s.expect, qff)
+					return
+				}
+			}
+
+			sqff := qff.simplBasic(trueObj, falseObj)
+			if err = sqff.valid(); err != nil {
+				t.Errorf("%d: formula is broken input=`%v`: out=`%v`, %v", i, qff, sqff, err)
+				return
+			}
+
+			if !sqff.Equals(ans) {
+				var q Fof
+				lllv := []Level{0, 2, 3, 4, 5, 6}
+				q = NewQuantifier(true, lllv, newFmlEquiv(sqff, ans.(Fof)))
+				for _, llv := range lllv {
+					q = vsLinear(q, llv)
+					if q.hasVar(llv) {
+						t.Errorf("%d: variable %d is not eliminated: X1 out=%s", i, llv, q)
+						return
+					}
+				}
+				if _, ok := q.(*AtomT); !ok {
+					fmt.Printf("q=%v\n", q)
+					t.Errorf("%d: qe failed\ninput =%s\nexpect=%v\nactual=%v", i, qff, s.expect, s.qff)
 					return
 				}
 			}
