@@ -30,7 +30,6 @@ type Fof interface {
 	Deg(lv Level) int
 	FmlLess(a Fof) bool
 	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
-
 }
 
 // AtomT, AtomF, Atom, FmlAnd, FmlOr, ForAll, Exists
@@ -1242,7 +1241,7 @@ func (p *AtomF) dump(b io.Writer) {
 }
 
 func (p *Atom) dump(b io.Writer) {
-	fmt.Fprintf(b, "(atom ")
+	fmt.Fprintf(b, "(atom %d ", len(p.p))
 	for _, pp := range p.p {
 		pp.dump(b)
 		fmt.Fprintf(b, " ")

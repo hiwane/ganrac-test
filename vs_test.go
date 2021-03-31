@@ -34,7 +34,7 @@ func TestVsLin(t *testing.T) {
 		for j, s := range []struct {
 			qff    string
 			expect string
-		}{		// 再帰表現なので，自由変数と束縛変数のレベルの大小で動きが異なる
+		}{ // 再帰表現なので，自由変数と束縛変数のレベルの大小で動きが異なる
 			{ss.qff, ss.expect},
 			{strings.ReplaceAll(ss.qff, "x", "z"),
 				strings.ReplaceAll(ss.expect, "x", "z")}} {

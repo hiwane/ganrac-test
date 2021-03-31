@@ -381,6 +381,10 @@ func (x *Poly) Div(y NObj) RObj {
 	return z
 }
 
+func (x *Poly) powi(y int64) RObj {
+	return x.Pow(NewInt(y))
+}
+
 func (x *Poly) Pow(y *Int) RObj {
 	// return x^y
 	// int版と同じ手法. 通常 x^m 以外では使わないから放置

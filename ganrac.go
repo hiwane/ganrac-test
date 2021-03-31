@@ -127,10 +127,3 @@ func (g *Ganrac) ConnectOX(cw, dw Flusher, cr, dr io.Reader) error {
 	g.ox = NewOpenXM(cw, dw, cr, dr, g.logger)
 	return g.ox.Init()
 }
-
-func (g *Ganrac) Factor(p *Poly) *List {
-	g.ox.ExecFunction("fctr", p)
-	s, _ := g.ox.PopCMO()
-	gob := g.ox.toGObj(s)
-	return gob.(*List)
-}

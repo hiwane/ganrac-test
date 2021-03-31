@@ -61,7 +61,7 @@ func simplAtomAnd(p *Atom, neccon *Atom) Fof {
 				return newAtoms(p.p, NE)
 			}
 
-			return NewAtom(p.p[0], p.op & neccon.op)
+			return NewAtom(p.p[0], p.op&neccon.op)
 		} else {
 			switch neccon.op {
 			case EQ:
@@ -117,6 +117,21 @@ func simplAtomOr(p *Atom, q *Atom) Fof {
 }
 
 func (p *Atom) simplBasic(neccon, sufcon Fof) Fof {
+	if len(p.p) > 1 && (p.op == EQ || p.op == NE) {
+		if p.op == EQ {
+			var ret Fof = falseObj
+			for _, poly := range p.p {
+				ret = NewFmlOr(ret, NewAtom(poly, p.op).simplBasic(neccon, sufcon))
+			}
+			return ret
+		} else {
+			var ret Fof = trueObj
+			for _, poly := range p.p {
+				ret = NewFmlOr(ret, NewAtom(poly, p.op).simplBasic(neccon, sufcon))
+			}
+			return ret
+		}
+	}
 
 	switch nn := neccon.(type) {
 	case *Atom:
