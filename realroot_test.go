@@ -73,15 +73,26 @@ func TestRealRoot(t *testing.T) {
 		{[]int64{-2, 0, 1}, 2},
 		{[]int64{0, -2, 0, 1}, 3},
 		{[]int64{+3, -4, 1}, 2},
-		// {[]int64{-10, 31, 37, -124, 12}, 4},
-		// {[]int64{-2, 1, -2, 1}, 1},	// CA p182
+		{[]int64{-10, 31, 37, -124, 12}, 4},
+		{[]int64{-2, 1, -2, 1}, 1},      // CA p182
+		{[]int64{0, +6, -7, 0, 1}, 4},   // 0,1,2 -3
+		{[]int64{0, -110, -1, 1}, 3},    // 0,11,-10
+		{[]int64{0, 6, 0, -5, 0, 1}, 5}, // 0,+-sqrt(2),+-sqrt(3)
 	} {
 		lv := Level(0)
-		for sgn := 1; sgn >= -1; sgn -= 2 {
-			p := NewPolyInts(lv, s.p...)
-			if sgn < 0 {
-				p = p.Neg().(*Poly)
-			}
+		pp := NewPolyInts(lv, s.p...)
+		qq := pp.subsXinv()
+		if s.p[0] == 0 {
+			qq = qq.Mul(NewPolyVar(lv)).(*Poly)
+		}
+		for _, p := range []*Poly{
+			pp,
+			pp.Neg().(*Poly),
+			pp.subst1(NewPolyInts(lv, 0, -1), lv).(*Poly),
+			qq,
+			qq.Neg().(*Poly),
+			qq.subst1(NewPolyInts(lv, 0, -1), lv).(*Poly),
+		} {
 			r, err := p.RealRootIsolation(1)
 			if err != nil {
 				t.Errorf("err %v\ninput=%p", err, p)

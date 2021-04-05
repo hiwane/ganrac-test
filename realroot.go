@@ -89,8 +89,22 @@ func (z *Poly) descartesSignRules() int {
 	return np
 }
 
+func (q *Poly) subsXinv() *Poly {
+	// if f(0)!=0: return x^n f(1/x)
+	// if f(0)==0: return x^(n-1) f(1/x)
+	// where n = deg(q)
+	m := 0
+	if q.c[m].IsZero() {
+		m = 1
+	}
+	qq := NewPoly(q.lv, len(q.c)-m)
+	for i := m; i < len(q.c); i++ {
+		qq.c[i-m] = q.c[len(q.c) - 1 - i + m]
+	}
+	return qq
+}
+
 func (p *Poly) convertRange(low *BinInt) *Poly {
-	fmt.Printf("convertRange(%v..%v), ... %v\n", low, low.upperBound(), p)
 	var q *Poly
 	if low.m >= 0 {
 		lb := newInt()
@@ -98,40 +112,20 @@ func (p *Poly) convertRange(low *BinInt) *Poly {
 		h := newInt()
 		h.n.Lsh(one.n, uint(low.m))
 		q = p.subst1(NewPolyCoef(p.lv, lb, h), p.lv).(*Poly)
-		//		fmt.Printf("Q1=%v ... (left=%v, width=%v)\n", q, lb, h)
 	} else {
 		c := new(Int)
 		c.n = low.n
 		m := uint(-low.m)
 		q = p.subst_binint_1var(c, m).(*Poly)
-		//		fmt.Printf("q0=%v\n", q)
 		for i := 0; i < len(q.c)-1; i++ {
 			q.c[i] = q.c[i].(NObj).Mul2Exp(m * uint(len(q.c)-i-1))
 		}
 
-		//		fmt.Printf("..=%v %v, %v\n", low, low.upperBound().Sub(low), NewPolyCoef(p.lv, low, low.upperBound().Sub(low)))
-		//		lb := low.ToIntRat()
-		//		rb := low.upperBound().ToIntRat()
-		//		fmt.Printf("Q0=%v\n", p.subst1(NewPolyCoef(p.lv, lb, rb.Sub(lb)), p.lv))
-		//		fmt.Printf("q1=%v\n", q)
-		//		fmt.Printf("Q1=%v\n", p.subst1(NewPolyCoef(p.lv, low, low.upperBound().Sub(low)), p.lv))
 		if err := q.valid(); err != nil {
 			panic(err)
 		}
 	}
-	if q.c[0].IsZero() {
-		qq := NewPoly(q.lv, len(q.c)-1)
-		for i := 1; i < len(q.c); i++ {
-			qq.c[i-1] = q.c[i]
-		}
-		q = qq
-	}
-	for i := 0; i < len(q.c)/2; i++ {
-		t := q.c[i]
-		q.c[i] = q.c[len(q.c)-i-1]
-		q.c[len(q.c)-i-1] = t
-	}
-	// fmt.Printf("q2=%v\n", q)
+	q = q.subsXinv()
 	if err := q.valid(); err != nil {
 		panic(err)
 	}
