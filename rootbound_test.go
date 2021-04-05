@@ -29,5 +29,11 @@ func TestPolyRootBound(t *testing.T) {
 			t.Errorf("invalid bound expect=%v, actual=%v", s.bound, b)
 			continue
 		}
+
+		c := a.rootBoundBinInt()
+		if c.Cmp(b) < 0 {
+			t.Errorf("invalid binint expect=%v, actual=%v -> %v", s.bound, b, c)
+			continue
+		}
 	}
 }

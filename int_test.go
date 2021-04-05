@@ -99,7 +99,7 @@ func TestIntOp2(t *testing.T) {
 
 		expect := NewInt(s.a + s.b)
 		for i, c := range []RObj{
-			a.Add(b), b.Add(a), a.AddInt(s.b), b.AddInt(s.a),
+			a.Add(b), b.Add(a), a.Add(NewInt(s.b)), b.Add(NewInt(s.a)),
 		} {
 			if !c.Equals(expect) {
 				t.Errorf("[%d] invalid %d+%d expect=%v actual=%v", i, s.a, s.b, expect, c)

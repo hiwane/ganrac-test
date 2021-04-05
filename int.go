@@ -45,21 +45,13 @@ func ParseInt(s string, base int) *Int {
 		return nil
 	}
 }
-
-func (x *Int) Tag() uint {
-	return TAG_INT
+func (x *Int) numTag() uint {
+	return NTAG_INT
 }
 
 func (x *Int) Equals(y interface{}) bool {
 	c, ok := y.(*Int)
 	return ok && x.n.Cmp(c.n) == 0
-}
-
-func (x *Int) AddInt(n int64) NObj {
-	z := newInt()
-	z.n.SetInt64(n)
-	z.n.Add(z.n, x.n)
-	return z
 }
 
 func (x *Int) Add(y RObj) RObj {
@@ -74,8 +66,11 @@ func (x *Int) Add(y RObj) RObj {
 		z := newRat()
 		z.n.Add(xr, yi.n)
 		return z
+	case *BinInt:
+		return yi.AddInt(x)
 	}
-	return nil
+	fmt.Printf("add: x=%v, y=%v\n", x, y)
+	panic("stop")
 }
 
 func (x *Int) Sub(y RObj) RObj {
@@ -91,7 +86,8 @@ func (x *Int) Sub(y RObj) RObj {
 		z.n.Sub(xr, yi.n)
 		return z
 	}
-	return nil
+	fmt.Printf("sub: x=%v, y=%v\n", x, y)
+	panic("stop")
 }
 
 func (x *Int) Mul(y RObj) RObj {
@@ -106,8 +102,17 @@ func (x *Int) Mul(y RObj) RObj {
 		z := newRat()
 		z.n.Mul(xr, yi.n)
 		return z.normal()
+	case *BinInt:
+		return yi.MulInt(x)
 	}
-	return nil
+	fmt.Printf("mul: x=%v, y=%v\n", x, y)
+	panic("stop")
+}
+
+func (x *Int) Mul2Exp(m uint) NObj {
+	z := newInt()
+	z.n.Lsh(x.n, m)
+	return z
 }
 
 func (x *Int) Neg() RObj {
@@ -198,15 +203,11 @@ func (x *Int) IsZero() bool {
 }
 
 func (x *Int) IsOne() bool {
-	return x.n.Cmp(one.n) == 0
+	return x.n.Sign() > 0 && x.n.BitLen() == 1
 }
 
 func (x *Int) IsMinusOne() bool {
-	if !x.n.IsInt64() {
-		return false
-	}
-	m := x.n.Int64()
-	return m == -1
+	return x.n.Sign() < 0 && x.n.BitLen() == 1
 }
 
 func (z *Int) Subst(x []RObj, lv []Level, idx int) RObj {
@@ -255,9 +256,9 @@ func (z *Int) valid() error {
 	return nil
 }
 
-func (z *Int) ToInt(n int) *Int {
-	return z
-}
+// func (z *Int) ToInt(n int) *Int {
+// 	return z
+// }
 
 func (z *Int) Float() float64 {
 	f := new(big.Float)

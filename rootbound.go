@@ -17,14 +17,17 @@ func (z *Poly) RootBound() (NObj, error) {
 		}
 	}
 	m = m.Div(z.c[len(z.c)-1].(NObj)).(NObj)
-	return m.Abs().AddInt(1), nil
+	return m.Abs().Add(one).(NObj), nil
 }
 
-func (z *Poly) rootBound2Exp() *Int {
+func (z *Poly) rootBoundBinInt() *BinInt {
 	m, _ := z.RootBound()
 	r := one
+	u := newBinInt()
+	u.n = one.n
 	for r.Cmp(m) < 0 {
 		r = r.Mul(two).(*Int)
+		u.m++
 	}
-	return r
+	return u
 }

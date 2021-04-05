@@ -394,3 +394,37 @@ func TestPolyDiff(t *testing.T) {
 		}
 	}
 }
+
+func TestSubstBinint1Var(t *testing.T) {
+	lv := Level(0)
+	for _, s := range []struct {
+		numer  int64
+		denom  uint
+		p      *Poly
+		expect *Poly
+	}{
+		{5, 0, NewPolyInts(lv, -5, -3, 2), NewPolyInts(lv, 30, 17, 2)},
+		{5, 2, NewPolyInts(lv, -5, -3, 2), NewPolyInts(lv, -90, 32, 32)},
+	} {
+		c := s.p.subst_binint_1var(NewInt(s.numer), s.denom)
+		if !c.Equals(s.expect) {
+			t.Errorf("\ninput =%v\nexpect=%v\nactual=%v\n", s.p, s.expect, c)
+		}
+	}
+
+	for _, s := range []struct {
+		numer  int64
+		denom  int
+		p      *Poly
+		expect RObj
+	}{
+		{-1, -1, NewPolyInts(lv, 1, 3, 2), zero},
+		{-1, -1, NewPolyInts(lv, -1, -3, -2), zero},
+		{-4, -3, NewPolyInts(lv, -1, -3, -2), zero},
+	} {
+		c := s.p.subst1(NewBinInt(s.numer, s.denom), lv)
+		if !c.Equals(s.expect) {
+			t.Errorf("subst2: %d*2^(%d)\ninput =%v\nexpect=%v\nactual=%v\n", s.numer, s.denom, s.p, s.expect, c)
+		}
+	}
+}

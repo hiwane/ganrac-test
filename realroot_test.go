@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -42,18 +43,21 @@ func TestDescartes(t *testing.T) {
 
 func TestConvertRange(t *testing.T) {
 	for _, s := range []struct {
-		l, r      int64
+		n         int64
+		m         int
 		p, expect []int64
 	}{
-		{1, 4, []int64{-6, 25, -27, 0, 4}, []int64{686, 245, -168, -55, -4}},
+		//		{1, 4, []int64{-6, 25, -27, 0, 4}, []int64{686, 245, -168, -55, -4}},
+		{3, 1, []int64{-6, 25, -27, 0, 4}, []int64{14850, 43830, 48426, 23738, 4356}}, // 6..8
+		{0, 2, []int64{-6, 25, -27, 0, 4}, []int64{686, -588, -168, 76, -6}},          // 0..4
 	} {
 		lv := Level(0)
 		p := NewPolyInts(lv, s.p...)
 		expect := NewPolyInts(lv, s.expect...)
 
-		q := p.convertRange(NewInt(s.l), NewInt(s.r))
+		q := p.convertRange(NewBinInt(s.n, s.m))
 		if !expect.Equals(q) {
-			t.Errorf("input=%v\nexpect=%v\nactual=%v\n", p, expect, q)
+			t.Errorf("\ninput=%v\nexpect=%v\nactual=%v\n", p, expect, q)
 		}
 	}
 }
@@ -64,11 +68,11 @@ func TestRealRoot(t *testing.T) {
 		n int // # of root
 	}{
 		// 無平方と仮定
-		{[]int64{1, 3, 2}, 2}, // CA p39
+		{[]int64{720, -1764, 1624, -735, 175, -21, 1}, 6}, // x=1,2,3,4,5,6
+		{[]int64{1, 3, 2}, 2},                             // CA p39
 		{[]int64{-2, 0, 1}, 2},
 		{[]int64{0, -2, 0, 1}, 3},
 		{[]int64{+3, -4, 1}, 2},
-		{[]int64{720, -1764, 1624, -735, 175, -21, 1}, 6}, // x=1,2,3,4,5,6
 		// {[]int64{-10, 31, 37, -124, 12}, 4},
 		// {[]int64{-2, 1, -2, 1}, 1},	// CA p182
 	} {
@@ -84,8 +88,7 @@ func TestRealRoot(t *testing.T) {
 				continue
 			}
 			if r.Len() != s.n {
-				t.Errorf("# of root: expect=%d, actual=%d\ninput=%v", s.n, r.Len(), p)
-				return
+				t.Errorf("# of root: expect=%d, actual=%d\ninput=%v\nret=%v\n", s.n, r.Len(), p, r)
 				continue
 			}
 
@@ -110,11 +113,15 @@ func TestRealRoot(t *testing.T) {
 				if sgn_l == 0 && sgn_u == 0 {
 					if !left.Equals(right) {
 						t.Errorf("[%d] p(l)=p(r)=0 but l != r: %v, %v", i, left, right)
+						continue
 					}
 				} else if sgn_l == 0 || sgn_u == 0 {
 					t.Errorf("[%d] p(l%d)p(r%d)=0: %v, %v", i, sgn_l, sgn_u, left, right)
+					continue
 				} else if sgn_l == sgn_u {
-					t.Errorf("[%d] not a iso. intv.: f(%e)=%d, f(%e)=%d\np=%v", i, left.Float(), sgn_l, right.Float(), sgn_u, p)
+					fmt.Printf("intv=%v, left=%v, ri=%v\n", intv, left, right)
+					t.Errorf("[%d] not an iso. intv.: f(%e)=%d, f(%e)=%d\np=%v\nintv=%v", i, left.Float(), sgn_l, right.Float(), sgn_u, p, intv)
+					continue
 				}
 
 				if left.Cmp(right) > 0 {

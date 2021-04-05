@@ -3,7 +3,7 @@ package ganrac
 const (
 	TAG_NONE = iota
 	TAG_STR
-	TAG_INT
+	TAG_NUM
 	TAG_POLY
 	TAG_FOF
 	TAG_LIST

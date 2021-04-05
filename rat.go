@@ -31,6 +31,10 @@ func NewRatFrac(num, den *Int) *Rat {
 	return v
 }
 
+func (x *Rat) numtag() uint {
+	return NTAG_RAT
+}
+
 func (x *Rat) Equals(y interface{}) bool {
 	c, ok := y.(*Rat)
 	return ok && x.n.Cmp(c.n) == 0
@@ -43,12 +47,6 @@ func (z *Rat) normal() RObj {
 	zi := newInt()
 	zi.n.Set(z.n.Num())
 	return zi
-}
-
-func (x *Rat) AddInt(n int64) NObj {
-	z := NewRatInt64(n, 1)
-	z.n.Add(z.n, x.n)
-	return z
 }
 
 func (x *Rat) Add(yy RObj) RObj {
@@ -97,6 +95,16 @@ func (x *Rat) Mul(yy RObj) RObj {
 		return z.normal()
 	}
 	return nil
+}
+
+func (x *Rat) Mul2Exp(m uint) NObj {
+	den := x.n.Denom()
+	num := x.n.Num()
+	xx := new(big.Int)
+	xx.Lsh(num, m)
+	z := newRat()
+	z.n.SetFrac(xx, den)
+	return z
 }
 
 func (x *Rat) Div(yy NObj) RObj {
@@ -226,11 +234,11 @@ func (z *Rat) valid() error {
 	return nil
 }
 
-func (z *Rat) ToInt(n int) *Int {
-	v := newInt()
-	v.n.Div(z.n.Num(), z.n.Denom())
-	return v
-}
+// func (z *Rat) ToInt(n int) *Int {
+// 	v := newInt()
+// 	v.n.Div(z.n.Num(), z.n.Denom())
+// 	return v
+// }
 
 func (z *Rat) Float() float64 {
 	f, _ := z.n.Float64()

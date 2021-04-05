@@ -499,6 +499,19 @@ func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
 	return p
 }
 
+func (z *Poly) subst_binint_1var(numer *Int, denom uint) RObj {
+	// 2^(denom*deg)*p(x=x + numer/2^denom)
+	// assume: z is level- lv univariate polynomial in Z[x]
+	cc := newInt()
+	cc.n.Lsh(one.n, denom)
+	q := NewPolyCoef(z.lv, numer, cc)
+	p := z.c[len(z.c)-1]
+	for i := len(z.c) - 2; i >= 0; i-- {
+		p = Add(Mul(p, q), z.c[i].(NObj).Mul2Exp(denom*uint(len(z.c)-i-1)))
+	}
+	return p
+}
+
 func (z *Poly) isUnivariate() bool {
 	for _, c := range z.c {
 		if _, ok := c.(NObj); !ok {

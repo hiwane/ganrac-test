@@ -1,19 +1,38 @@
 package ganrac
 
 // real root isolation by using Descartes rule of signs
+//
+// user binary interval
+// lower bound = (n + 0) * 2^m
+// upper bound = (n + 1) * 2^m
+
 import (
 	"fmt"
 	"sort"
 )
 
 type dcsr struct {
-	lb, rb NObj
-	m      int
-	p      *dcsr // parent
+	low   *BinInt
+	m     int
+	p     *dcsr // parent
+	point bool
 }
 
 func (p *dcsr) String() string {
-	return fmt.Sprintf("[%d:%f, %f]", p.m, p.lb.Float(), p.rb.Float())
+	upp := p.low.upperBound()
+	if p.point {
+		return fmt.Sprintf("[%d:%f*]", p.m, p.low.Float())
+	} else {
+		return fmt.Sprintf("[%d:%f, %f]", p.m, p.low.Float(), upp.Float())
+	}
+}
+
+func (p *dcsr) upperBound() *BinInt {
+	if p.point {
+		return p.low
+	} else {
+		return p.low.upperBound()
+	}
 }
 
 type dcsr_stack struct {
@@ -24,7 +43,7 @@ type dcsr_stack struct {
 
 func newDcsrStack(deg int) *dcsr_stack {
 	v := new(dcsr_stack)
-	v.v = make([]*dcsr, 0, 1)
+	v.v = make([]*dcsr, 0)
 	v.ret = make([]*dcsr, 0, deg)
 	return v
 }
@@ -45,8 +64,8 @@ func (s *dcsr_stack) push(p *dcsr) {
 	s.n++
 }
 
-func (s *dcsr_stack) addret(lb, rb NObj, n int) {
-	s.ret = append(s.ret, &dcsr{lb, rb, n, nil})
+func (s *dcsr_stack) addret(lb *BinInt, n int, point bool) {
+	s.ret = append(s.ret, &dcsr{lb, n, nil, point})
 }
 
 func (z *Poly) descartesSignRules() int {
@@ -70,53 +89,88 @@ func (z *Poly) descartesSignRules() int {
 	return np
 }
 
-func (p *Poly) convertRange(lb, ub NObj) *Poly {
+func (p *Poly) convertRange(low *BinInt) *Poly {
+	fmt.Printf("convertRange(%v..%v), ... %v\n", low, low.upperBound(), p)
 	var q *Poly
-	q = p.subst1(NewPolyCoef(p.lv, lb, one), p.lv).(*Poly)
-	q = q.subst1(NewPolyCoef(p.lv, zero, ub.Sub(lb)), p.lv).(*Poly)
+	if low.m >= 0 {
+		lb := newInt()
+		lb.n.Lsh(low.n, uint(low.m))
+		h := newInt()
+		h.n.Lsh(one.n, uint(low.m))
+		q = p.subst1(NewPolyCoef(p.lv, lb, h), p.lv).(*Poly)
+		//		fmt.Printf("Q1=%v ... (left=%v, width=%v)\n", q, lb, h)
+	} else {
+		c := new(Int)
+		c.n = low.n
+		m := uint(-low.m)
+		q = p.subst_binint_1var(c, m).(*Poly)
+		//		fmt.Printf("q0=%v\n", q)
+		for i := 0; i < len(q.c)-1; i++ {
+			q.c[i] = q.c[i].(NObj).Mul2Exp(m * uint(len(q.c)-i-1))
+		}
+
+		//		fmt.Printf("..=%v %v, %v\n", low, low.upperBound().Sub(low), NewPolyCoef(p.lv, low, low.upperBound().Sub(low)))
+		//		lb := low.ToIntRat()
+		//		rb := low.upperBound().ToIntRat()
+		//		fmt.Printf("Q0=%v\n", p.subst1(NewPolyCoef(p.lv, lb, rb.Sub(lb)), p.lv))
+		//		fmt.Printf("q1=%v\n", q)
+		//		fmt.Printf("Q1=%v\n", p.subst1(NewPolyCoef(p.lv, low, low.upperBound().Sub(low)), p.lv))
+		if err := q.valid(); err != nil {
+			panic(err)
+		}
+	}
+	if q.c[0].IsZero() {
+		qq := NewPoly(q.lv, len(q.c)-1)
+		for i := 1; i < len(q.c); i++ {
+			qq.c[i-1] = q.c[i]
+		}
+		q = qq
+	}
 	for i := 0; i < len(q.c)/2; i++ {
 		t := q.c[i]
 		q.c[i] = q.c[len(q.c)-i-1]
 		q.c[len(q.c)-i-1] = t
 	}
+	// fmt.Printf("q2=%v\n", q)
+	if err := q.valid(); err != nil {
+		panic(err)
+	}
 	q = q.subst1(NewPolyCoef(p.lv, one, one), p.lv).(*Poly)
+	// fmt.Printf("q_=%v\n", q)
+
 	return q
 }
 
-func evalRange(stack *dcsr_stack, sp *dcsr, p *Poly, lb, ub NObj) int {
-	q := p.convertRange(lb, ub)
+func evalRange(stack *dcsr_stack, sp *dcsr, p *Poly, lb *BinInt) int {
+	q := p.convertRange(lb)
 	n := q.descartesSignRules()
 	if len(q.c) != len(p.c) { // 左端点がゼロ点だった
 		n++
 	}
 	if n > 1 {
-		dc := &dcsr{lb, ub, n, sp}
+		dc := &dcsr{lb, n, sp, false}
 		stack.push(dc)
 	} else if n == 1 {
-		if len(q.c) != len(p.c) {
-			stack.addret(lb, lb, n)
-		} else {
-			stack.addret(lb, ub, n)
-		}
+		stack.addret(lb, n, len(q.c) != len(p.c))
 	}
 	return n
 }
 
 func realRootImprove(p *Poly, sp *dcsr) {
-	if sp.lb == sp.rb {
+	if sp.point {
 		return
 	}
-	var m NObj
-	m = sp.lb.Add(sp.rb).Div(two).(NObj) // 中点
+	m := sp.low.midBinIntv() // 中点
 	v := p.subst1(m, p.lv)
 	sgn := v.Sign()
 	if sgn == sp.m {
-		sp.lb = m
+		sp.low = m
 	} else if sgn != 0 {
-		sp.rb = m
+		sp.low = sp.low.halveIntv() // 左端点はそのままで区間幅を半分に
 	} else {
-		sp.lb = m
-		sp.rb = m
+		// 点になった.
+		sp.low = m
+		sp.point = true
 	}
 }
 
@@ -125,30 +179,31 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 		return nil, fmt.Errorf("not a unirariate polynomial")
 	}
 
-	rb := p.rootBound2Exp() // bint に変更したい @TODO
+	rb := p.rootBoundBinInt() // bint に変更したい @TODO
 
+	/////////////////////////////////////
+	// 準備
+	/////////////////////////////////////
 	stack := newDcsrStack(len(p.c))
 	// x=0 は事前に取り除く.
 	i := 0
 	for ; p.c[i].IsZero(); i++ {
 	}
 	if i > 0 {
-		stack.addret(zero, zero, i)
+		stack.addret(newBinInt(), i, true)
 		q := NewPoly(p.lv, len(p.c)-i)
 		copy(q.c, p.c[i:])
 		p = q
 	}
-
-	// p = sqrt(p)
 
 	// x < 0 の処理
 	q := p.subst1(NewPolyInts(p.lv, 0, -1), p.lv).(*Poly)
 	nn := q.descartesSignRules()
 	if nn > 0 {
 		if nn == 1 {
-			stack.addret(rb.Neg().(NObj), zero, nn)
+			stack.addret(rb.Neg().(*BinInt), nn, false)
 		} else {
-			dc := &dcsr{rb.Neg().(NObj), zero, nn, nil}
+			dc := &dcsr{rb.Neg().(*BinInt), nn, nil, false}
 			stack.push(dc)
 		}
 	}
@@ -156,69 +211,78 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 	// x > 0 の処理
 	np := p.descartesSignRules()
 	if np > 0 {
+		z := newBinInt()
+		z.m = rb.m
 		if np == 1 {
-			stack.addret(zero, rb, np)
+			stack.addret(z, np, false)
 		} else {
-			dc := &dcsr{zero, rb, np, nil}
+			dc := &dcsr{z, np, nil, false}
 			stack.push(dc)
 		}
 	}
 
+	/////////////////////////////////////
+	// 本番
+	/////////////////////////////////////
 	counter := 0
 	for stack.n > 0 { // 各区間の実根の個数が 1 になるまで分割
 		counter += 1
 		sp := stack.pop()
-		mid := sp.lb.Add(sp.rb).Div(NewInt(2)).(NObj)
+		mid := sp.low.midBinIntv()
 
-		// 区間の左半分
-		n := evalRange(stack, sp, p, sp.lb, mid)
+		// 区間の左半分 (low, mid)
+		low := newBinInt()
+		low.n.Mul(sp.low.n, two.n)
+		low.m = sp.low.m - 1
+		n := evalRange(stack, sp, p, low)
 		if n == 1 && sp.m == 2 {
-			// 確定
-			if p.subst1(mid, p.lv).Sign() == 0 {
-				stack.addret(mid, mid, n)
-			} else {
-				stack.addret(mid, sp.rb, n)
-			}
+			// 全体で 2 個だった, 左半分で 1個見つかったので右半分 1個確定
+			stack.addret(mid, n, p.subst1(mid, p.lv).Sign() == 0)
 		} else {
 			// 区間の右半分
-			evalRange(stack, sp, p, mid, sp.rb)
+			evalRange(stack, sp, p, mid)
 		}
 	}
 
-	// 端点が 0 は困る
+	/////////////////////////////////////
+	// 後処理.
+	/////////////////////////////////////
+	// 端点がゼロ点は困る
 	for _, r := range stack.ret {
-		if r.lb.Equals(r.rb) {
+		if r.point {
 			// ゼロ点
 			r.m = 0
-			r.lb = r.rb
 			continue
 		}
 
-		sgn := p.subst1(r.lb, p.lv).Sign()
-		sgnr := p.subst1(r.rb, p.lv).Sign()
+		sgn := p.subst1(r.low, p.lv).Sign()
+		ub := r.low.upperBound()
+		sgnr := p.subst1(ub, p.lv).Sign()
 		var lb NObj
 		if sgn != 0 {
 			r.m = sgn // 左端点の符号を設定
-			if r.lb.IsZero() {
-				lb = r.lb
+			if r.low.IsZero() {
+				lb = r.low
 			}
 		} else {
 			r.m = -sgnr
-			lb = r.lb
+			lb = r.low
 		}
-		for r.lb == lb {
+		for r.low == lb {
 			realRootImprove(p, r)
 		}
 
-		for (sgnr == 0 || r.rb.IsZero()) && r.lb != r.rb {
+		// 右端がゼロ点か x=0
+		for (sgnr == 0 || r.low.Sign() < 0 && r.low.n.BitLen() == 1) && !r.point {
 			realRootImprove(p, r)
-			sgnr = p.subst1(r.rb, p.lv).Sign()
+			ub := r.low.upperBound()
+			sgnr = p.subst1(ub, p.lv).Sign()
 		}
 	}
 
 	ret := stack.ret
 	sort.Slice(ret, func(i, j int) bool {
-		return ret[i].lb.Cmp(ret[j].lb) < 0
+		return ret[i].low.Cmp(ret[j].low) < 0
 	})
 
 	// テスト
@@ -238,7 +302,7 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 				}
 				panic("gey")
 			}
-			if !r.lb.IsZero() {
+			if !r.low.IsZero() {
 				sgn *= -1
 			}
 		}
@@ -246,15 +310,23 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 
 	// 重複を除去
 	for i := 1; i < len(ret); i++ {
-		for ret[i-1].rb.Cmp(ret[i].lb) >= 0 {
+		ub := ret[i-1].upperBound()
+		j := 0
+		for ub.Cmp(ret[i].low) >= 0 {
 			realRootImprove(p, ret[i-1])
 			realRootImprove(p, ret[i])
+			ub = ret[i-1].upperBound()
+			j++
+			if j >= 10 {
+				panic("stop")
+			}
 		}
 	}
 
 	r := make([]interface{}, len(ret))
 	for i := 0; i < len(ret); i++ {
-		r[i] = NewList([]interface{}{ret[i].lb, ret[i].rb})
+		ub := ret[i].upperBound()
+		r[i] = NewList([]interface{}{ret[i].low, ub})
 	}
 
 	return NewList(r), nil
