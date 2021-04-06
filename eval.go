@@ -211,7 +211,7 @@ func (g *Ganrac) evalStackNvar(stack *pStack, node pNode) (interface{}, error) {
 	case call:
 		return g.callFunction(node.str, args)
 	case list:
-		return NewList(args), nil
+		return NewList(args...), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
 }

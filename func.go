@@ -35,6 +35,21 @@ Examples
   > deg(0, y);
   -1
 `}, // deg(F, x)
+		{"discrim", 2, 2, funcOXDiscrim, true, "(poly)* discriminant.", `
+Args
+========
+  poly: polynomial
+  var : a variable in poly
+
+Examples
+========
+  > discrim(2*x^2-3*x-3, x);
+  33
+  > discrim(a*x^2+b*x+c, x);
+  -4*c*a+b^2
+  > discrim(a*x^2+b*x+c, y);
+  0
+`},
 		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2): fof1 is equivalent to fof2", ""},
 		{"ex", 2, 2, funcExists, false, "(vars, FOF): existential quantifier.", `
 Args
@@ -46,7 +61,8 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
-		// {"fctr", 1, 1, funcFctr, false, "(poly)* factorize polynomial over the rationals.", ""},
+		{"fctr", 1, 1, funcOXFctr, true, "(poly)* factorize polynomial over the rationals.", ""},
+		{"gb", 1, 1, funcOXGB, true, "(poly-list)* groebner basis", ""},
 		{"help", 0, 1, nil, false, "(): show help", ""},
 		{"igcd", 2, 2, funcIGCD, false, "(int1, int2): The integer greatest common divisor", ""},
 		{"impl", 2, 2, funcImpl, false, "(fof1, fof2): fof1 impies fof2", ""},
@@ -263,8 +279,42 @@ func funcOXFunc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 	return gob, nil
 }
 
+func funcOXDiscrim(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	c, ok := args[1].(*Poly)
+	if !ok || !c.isVar() {
+		return nil, fmt.Errorf("%s(2nd arg): expected var: %v", name, args[1])
+	}
+
+	switch p := args[0].(type) {
+	case *Poly:
+		return g.ox.Discrim(p, c.lv), nil
+	case NObj:
+		return zero, nil
+	default:
+		return nil, fmt.Errorf("%s(1st arg): expected poly: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+}
+
+func funcOXFctr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(*Poly)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected poly: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+
+	return g.ox.Factor(f0), nil
+}
+
+func funcOXGB(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f0, ok := args[0].(*List)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected poly-list: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+
+	return g.ox.GB(f0, uint(len(varlist))), nil
+}
+
 ////////////////////////////////////////////////////////////
-// OpenXM
+// util
 ////////////////////////////////////////////////////////////
 func funcSleep(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	c, ok := args[0].(*Int)
@@ -428,18 +478,18 @@ func funcRootBound(g *Ganrac, name string, args []interface{}) (interface{}, err
 func funcIndets(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	b := make([]bool, len(varlist))
 	p, ok := args[0].(indeter)
-	ret := make([]interface{}, 0, len(b))
 	if !ok {
-		return NewList(ret), nil
+		return NewList(), nil
 	}
 	p.Indets(b)
 
+	ret := make([]interface{}, 0, len(b))
 	for i := 0; i < len(b); i++ {
 		if b[i] {
 			ret = append(ret, NewPolyVar(Level(i)))
 		}
 	}
-	return NewList(ret), nil
+	return NewList(ret...), nil
 }
 
 ////////////////////////////////////////////////////////////

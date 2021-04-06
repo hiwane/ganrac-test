@@ -21,7 +21,7 @@ func TestBuiltinFuncTable(t *testing.T) {
 func TestHelpExamples(t *testing.T) {
 	g := NewGANRAC()
 	for _, bf := range g.builtin_func_table {
-		if bf.ox {
+		if bf.ox && g.ox == nil {
 			continue
 		}
 

@@ -99,7 +99,7 @@ func (q *Poly) subsXinv() *Poly {
 	}
 	qq := NewPoly(q.lv, len(q.c)-m)
 	for i := m; i < len(q.c); i++ {
-		qq.c[i-m] = q.c[len(q.c) - 1 - i + m]
+		qq.c[i-m] = q.c[len(q.c)-1-i+m]
 	}
 	return qq
 }
@@ -317,11 +317,11 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 		}
 	}
 
-	r := make([]interface{}, len(ret))
+	r := NewList()
 	for i := 0; i < len(ret); i++ {
 		ub := ret[i].upperBound()
-		r[i] = NewList([]interface{}{ret[i].low, ub})
+		r.Append(NewList(ret[i].low, ub))
 	}
 
-	return NewList(r), nil
+	return r, nil
 }

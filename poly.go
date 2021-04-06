@@ -530,6 +530,20 @@ func (z *Poly) Indets(b []bool) {
 	}
 }
 
+func (z *Poly) maxVar() Level {
+	lv := z.lv + 1
+	for i := 0; i < len(z.c); i++ {
+		switch c := z.c[i].(type) {
+		case *Poly:
+			m := c.maxVar()
+			if m+1 > lv {
+				lv = m + 1
+			}
+		}
+	}
+	return lv
+}
+
 func (z *Poly) isMono() bool {
 	for i := len(z.c) - 2; i >= 0; i-- {
 		if !z.c[i].IsZero() {
@@ -582,6 +596,7 @@ func (z *Poly) hasSameTerm(pp RObj, lowest bool) bool {
 }
 
 func (z *Poly) diff(lv Level) RObj {
+	// 微分
 	if z.lv < lv {
 		p := NewPoly(z.lv, len(z.c))
 		for i, c := range z.c {

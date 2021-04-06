@@ -70,11 +70,29 @@ func (z *List) Append(a GObj) {
 	z.v = append(z.v, a)
 }
 
-func NewList(args []interface{}) *List {
+func NewList(args ...interface{}) *List {
 	lst := new(List)
 	lst.v = make([]GObj, len(args))
 	for i := 0; i < len(args); i++ {
 		lst.v[i] = args[i].(GObj)
 	}
 	return lst
+}
+
+func (z *List) getiPoly(i int) *Poly {
+	// i は正しいと仮定
+	p, _ := z.Geti(i)
+	return p.(*Poly)
+}
+
+func (z *List) getiList(i int) *List {
+	// i は正しいと仮定
+	p, _ := z.Geti(i)
+	return p.(*List)
+}
+
+func (z *List) getiInt(i int) *Int {
+	// i は正しいと仮定
+	p, _ := z.Geti(i)
+	return p.(*Int)
 }

@@ -178,7 +178,13 @@ func (ox *OpenXM) Init() error {
 	ox.cw.Flush()
 	ox.logger.Printf(" --> write.<cd>1\n")
 	ox.logger.Printf("ox_init() finished")
-	return nil
+
+	err = ox.ExecFunction("load", "gr")
+	if err != nil {
+		ox.logger.Printf(" --> load failed %v\n", err)
+		return err
+	}
+	return err
 }
 
 func (ox *OpenXM) PushOXCommand(sm_command int32) error {
@@ -233,17 +239,8 @@ func (ox *OpenXM) PushOxCMO(vv interface{}) error {
 		ox.logger.Printf("%s(oxtag) failed: %s", fname, err.Error())
 		return err
 	}
-	var lvmap map[Level]int32
-	switch v := vv.(type) {
-	case *Poly:
-		lvmap, err = ox.sendCMORecPoly(v)
-		if err != nil {
-			ox.logger.Printf("%s(recpoly) failed: %s", fname, err.Error())
-			return err
-		}
-	}
 
-	err = ox.sendCMO(vv, lvmap)
+	err = ox.sendCMO(vv, nil)
 	if err != nil {
 		ox.logger.Printf("%s(cmo) failed: %s", fname, err.Error())
 		return err
@@ -257,13 +254,25 @@ func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 	const fname = "sendCMO"
 	switch v := vv.(type) {
 	case int32:
-		return ox.sendCMOInt32(v)
+		if v == 0 {
+			return ox.sendCMOZero()
+		} else {
+			return ox.sendCMOInt32(v)
+		}
 	case *big.Int:
-		return ox.sendCMOZZ(v)
+		if v.Sign() == 0 {
+			return ox.sendCMOZero()
+		} else {
+			return ox.sendCMOZZ(v)
+		}
 	case *big.Rat:
 		return ox.sendCMOQQ(v)
 	case *Int:
-		return ox.sendCMOZZ(v.n)
+		if v.Sign() == 0 {
+			return ox.sendCMOZero()
+		} else {
+			return ox.sendCMOZZ(v.n)
+		}
 	case *Rat:
 		return ox.sendCMOQQ(v.n)
 	case string:
@@ -273,6 +282,15 @@ func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 	case *List:
 		return ox.sendCMOList(v)
 	case *Poly:
+		if lvmap == nil {
+			var err error
+			lvmap, err = ox.sendCMORecPoly(v)
+			if err != nil {
+				ox.logger.Printf("%s(recpoly) failed: %s", fname, err.Error())
+				return err
+			}
+		}
+
 		return ox.sendCMOPoly(v, lvmap)
 	}
 
@@ -342,7 +360,7 @@ func (ox *OpenXM) sendCMOPoly(p *Poly, lvmap map[Level]int32) error {
 		return err
 	}
 
-	var cnt int32 = 1 // 非ゼロ項数
+	var cnt int32 = 1 // 非ゼロ項数. 主係数非ゼロは確定
 	for i := 0; i < len(p.c)-1; i++ {
 		if !p.c[i].IsZero() {
 			cnt++
@@ -374,6 +392,16 @@ func (ox *OpenXM) sendCMOString(s string) error {
 	err = ox.dataWrite(&m)
 	err = ox.dataWrite(b)
 	return err
+}
+
+func (ox *OpenXM) sendCMOZero() error {
+	const fname = "sendCMOZero"
+	err := ox.sendCMOTag(CMO_ZERO)
+	if err != nil {
+		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		return err
+	}
+	return nil
 }
 
 func (ox *OpenXM) sendCMOInt32(n int32) error {
@@ -497,7 +525,7 @@ func (ox *OpenXM) toGObj(p interface{}) GObj {
 	case string:
 		return NewString(cc)
 	default:
-		panic(fmt.Sprintf("unsupported %v", p))
+		panic(fmt.Sprintf("unsupported `%v`", p))
 	}
 }
 
@@ -552,7 +580,7 @@ func (ox *OpenXM) recvCMOList() (*List, error) {
 		return nil, err
 	}
 
-	ret := NewList([]interface{}{})
+	ret := NewList()
 	for i := int(m); i > 0; i-- {
 		o, err := ox.recvCMO(nil)
 		if err != nil {
@@ -734,6 +762,13 @@ func (ox *OpenXM) recvCMO(ringdef *List) (interface{}, error) {
 			ss += fmt.Sprintf(" %08x", xx)
 		}
 		ox.logger.Printf("%s() %s", fname, ss)
+	case CMO_ERROR2:
+		v, err := ox.recvCMO(nil)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("CMO_ERROR2 `%v`", v)
+
 	}
 
 	return 1, nil

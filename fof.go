@@ -22,6 +22,7 @@ type Fof interface {
 	Not() Fof
 	hasFreeVar(lv Level) bool
 	hasVar(lv Level) bool
+	maxVar() Level
 	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
 	Subst(xs []RObj, lvs []Level) Fof
 	valid() error // for DEBUG. 実装として適切な形式になっているか
@@ -224,6 +225,54 @@ func (p *ForAll) hasVar(lv Level) bool {
 
 func (p *Exists) hasVar(lv Level) bool {
 	return p.fml.hasVar(lv)
+}
+
+func (p *Atom) maxVar() Level {
+	lv := Level(0)
+	for _, pp := range p.p {
+		m := pp.maxVar()
+		if m > lv {
+			lv = m
+		}
+	}
+	return lv
+}
+
+func (p *AtomT) maxVar() Level {
+	return Level(0)
+}
+func (p *AtomF) maxVar() Level {
+	return Level(0)
+}
+
+func (p *FmlAnd) maxVar() Level {
+	lv := Level(0)
+	for _, f := range p.fml {
+		m := f.maxVar()
+		if m > lv {
+			lv = m
+		}
+	}
+	return lv
+}
+
+func (p *FmlOr) maxVar() Level {
+	lv := Level(0)
+	for _, f := range p.fml {
+		m := f.maxVar()
+		if m > lv {
+			lv = m
+		}
+	}
+	return lv
+}
+
+func (p *ForAll) maxVar() Level {
+	return p.fml.maxVar()
+}
+
+func (p *Exists) maxVar() Level {
+	return p.fml.maxVar()
 }
 
 func (p *Atom) fofTag() uint {
