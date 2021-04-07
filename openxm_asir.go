@@ -32,6 +32,12 @@ func (ox *OpenXM) Discrim(p *Poly, lv Level) RObj {
 	return nil
 }
 
+func (ox *OpenXM) Resultant(p *Poly, q *Poly, lv Level) RObj {
+	ox.ExecFunction("res", NewPolyVar(lv), p, q)
+	qq, _ := ox.PopCMO()
+	return ox.toGObj(qq).(RObj)
+}
+
 func (ox *OpenXM) GB(p *List, v uint) *List {
 	// グレブナー基底
 	var err error

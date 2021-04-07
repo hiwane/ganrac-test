@@ -1,5 +1,7 @@
 package ganrac
 
+import "io"
+
 const (
 	TAG_NONE = iota
 	TAG_STR
@@ -7,6 +9,7 @@ const (
 	TAG_POLY
 	TAG_FOF
 	TAG_LIST
+	TAG_CAD
 )
 
 // ganrac object
@@ -25,4 +28,8 @@ type indeter interface {
 
 type equaler interface {
 	Equals(v interface{}) bool
+}
+
+type dumper interface {
+	dump(b io.Writer) // for debug print
 }

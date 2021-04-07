@@ -16,6 +16,7 @@ type Fof interface {
 	GObj
 	indeter
 	equaler // 等価まではやらない. 形として同じもの
+	dumper
 	simpler
 	fofTag() uint
 	IsQff() bool
@@ -25,9 +26,8 @@ type Fof interface {
 	maxVar() Level
 	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
 	Subst(xs []RObj, lvs []Level) Fof
-	valid() error // for DEBUG. 実装として適切な形式になっているか
-	write(b io.Writer)
-	dump(b io.Writer) // for debug print
+	valid() error      // for DEBUG. 実装として適切な形式になっているか
+	write(b io.Writer) // String() の補助
 	Deg(lv Level) int
 	FmlLess(a Fof) bool
 	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof

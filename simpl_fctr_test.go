@@ -80,7 +80,7 @@ func TestSimplFctr(t *testing.T) {
 	y := NewPolyVar(1)
 	z := NewPolyVar(2)
 
-	for _, s := range []struct {
+	for i, s := range []struct {
 		input  Fof
 		expect Fof
 	}{
@@ -123,7 +123,7 @@ func TestSimplFctr(t *testing.T) {
 		}, {
 			NewAtom(x.powi(3).Mul(NewInt(5)), EQ),
 			NewAtom(x, EQ),
-		}, {
+		}, { // 13
 			NewAtom(x.powi(3).Mul(y.powi(4)), LE),
 			NewFmlOr(NewAtom(y, EQ), NewAtom(x, LE)),
 		}, {
@@ -189,7 +189,7 @@ func TestSimplFctr(t *testing.T) {
 			fmt.Printf("output")
 			output.dump(os.Stdout)
 			fmt.Printf("\n")
-			t.Errorf("input =%v\nexpect=%v\nactual=%v", s.input, output, s.expect)
+			t.Errorf("i=%d\ninput =%v\nexpect=%v\nactual=%v", i, s.input, s.expect, output)
 			continue
 		}
 	}

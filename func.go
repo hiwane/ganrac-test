@@ -3,6 +3,7 @@ package ganrac
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -50,6 +51,7 @@ Examples
   > discrim(a*x^2+b*x+c, y);
   0
 `},
+		{"dump", 1, 1, funcDump, false, "(obj):", ""},
 		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2): fof1 is equivalent to fof2", ""},
 		{"ex", 2, 2, funcExists, false, "(vars, FOF): existential quantifier.", `
 Args
@@ -379,7 +381,7 @@ func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 	rlv = rlv[:j]
 
 	sort.SliceStable(rlv, func(i, j int) bool {
-		return rlv[i].lv < rlv[j].lv
+		return rlv[i].lv > rlv[j].lv
 	})
 
 	rr := make([]RObj, len(rlv))
@@ -511,6 +513,16 @@ func funcIGCD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 ////////////////////////////////////////////////////////////
 // system
 ////////////////////////////////////////////////////////////
+
+func funcDump(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	switch f := args[0].(type) {
+	case dumper:
+		var b strings.Builder
+		f.dump(&b)
+		return NewString(b.String()), nil
+	}
+	return nil, fmt.Errorf("%s not implemented", name) // @TODO
+}
 
 func funcLoad(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("%s not implemented", name) // @TODO

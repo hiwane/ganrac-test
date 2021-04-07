@@ -96,8 +96,8 @@ func TestPolyAddLv(t *testing.T) {
 	var ep *Poly
 	a = NewPolyInts(0, 2, 3, 4)
 	b = NewPolyInts(1, 5, 6, 7)
-	ep = NewPolyInts(0, 2, 3, 4)
-	ep.c[0] = NewPolyInts(1, 7, 6, 7)
+	ep = NewPolyInts(1, -1, 6, 7)
+	ep.c[0] = NewPolyInts(0, 7, 3, 4)
 
 	c = a.Add(b)
 	if !ep.Equals(c) {
@@ -150,6 +150,10 @@ func TestPolyMulLv(t *testing.T) {
 	ep.c[0] = NewPolyInts(1, 21, 33)
 	ep.c[1] = NewPolyInts(1, 35, 55)
 	ep.c[2] = NewPolyInts(1, 42, 66)
+
+	ep = NewPoly(1, 2) //   5*(11y+7)x + 3*(11y+7)
+	ep.c[0] = NewPolyInts(0, 21, 35, 42)
+	ep.c[1] = NewPolyInts(0, 33, 55, 66)
 
 	c = a.Mul(b)
 	if !ep.Equals(c) {
@@ -307,16 +311,16 @@ func TestSubstFrac(t *testing.T) {
 			NewInt(5), NewInt(7),
 			NewInt(228),
 		}, {
-			NewPolyCoef(0,
+			NewPolyCoef(2,
 				NewPolyInts(1, 0, 3),
 				NewPolyInts(1, -7, 5, -3),
-				NewPolyCoef(1, NewInt(5), NewPolyInts(2, 1, 2, 3, 4, 5))),
+				NewPolyCoef(1, NewInt(5), NewPolyInts(0, 1, 2, 3, 4, 5))),
 			1,
 			NewInt(5), NewInt(7),
-			NewPolyCoef(0,
+			NewPolyCoef(2,
 				NewInt(105),
 				NewInt(-243),
-				NewPolyInts(2, 280, 70, 105, 140, 175)),
+				NewPolyInts(0, 280, 70, 105, 140, 175)),
 		},
 	} {
 		d := s.p.Deg(s.lv)
@@ -368,19 +372,19 @@ func TestPolyDiff(t *testing.T) {
 			0,
 			NewPolyInts(0, 3, 2),
 		}, {
-			NewPolyCoef(0,
-				NewPolyInts(1, 2, 3, 4),
-				NewPolyInts(1, -3, -5, -6),
-				NewPolyInts(1, -2, 11)),
-			0,
-			NewPolyCoef(0,
-				NewPolyInts(1, -3, -5, -6),
-				NewPolyInts(1, -4, 22)),
-		}, {
-			NewPolyCoef(0,
-				NewPolyInts(1, 0, 1),
-				NewInt(1)),
+			NewPolyCoef(1,
+				NewPolyInts(0, 2, 3, 4),
+				NewPolyInts(0, -3, -5, -6),
+				NewPolyInts(0, -2, 11)),
 			1,
+			NewPolyCoef(1,
+				NewPolyInts(0, -3, -5, -6),
+				NewPolyInts(0, -4, 22)),
+		}, {
+			NewPolyCoef(1,
+				NewPolyInts(0, 0, 1),
+				NewInt(1)),
+			0,
 			NewInt(1),
 		},
 	} {

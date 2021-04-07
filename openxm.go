@@ -286,7 +286,7 @@ func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 			var err error
 			lvmap, err = ox.sendCMORecPoly(v)
 			if err != nil {
-				ox.logger.Printf("%s(recpoly) failed: %s", fname, err.Error())
+				ox.logger.Printf(" --> %s(recpoly) failed: %s", fname, err.Error())
 				return err
 			}
 		}
@@ -294,29 +294,29 @@ func (ox *OpenXM) sendCMO(vv interface{}, lvmap map[Level]int32) error {
 		return ox.sendCMOPoly(v, lvmap)
 	}
 
-	return fmt.Errorf("%s(): unsupported cmo %v", fname, vv)
+	return fmt.Errorf(" --> %s(): unsupported cmo %v", fname, vv)
 }
 
 func (ox *OpenXM) sendCMOList(v *List) error {
 	const fname = "sendCMOList"
-	ox.logger.Printf("%s(cmotag) start", fname)
+	ox.logger.Printf(" --> %s(cmotag) start", fname)
 	err := ox.sendCMOTag(CMO_LIST)
 	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		ox.logger.Printf(" --> %s(cmotag) failed: %s", fname, err.Error())
 		return err
 	}
 	var m int32 = int32(v.Len())
 	err = ox.dataWrite(&m)
 	if err != nil {
-		ox.logger.Printf("%s(len:%d) failed: %s", fname, m, err.Error())
+		ox.logger.Printf(" --> %s(len:%d) failed: %s", fname, m, err.Error())
 		return err
 	}
 	for i := 0; i < v.Len(); i++ {
 		o, _ := v.Geti(i)
-		ox.logger.Printf("%s(cmotag:%d)", fname, i)
+		ox.logger.Printf(" --> %s(cmotag) v[%d]=%v", fname, i, o)
 		err := ox.sendCMO(o, nil)
 		if err != nil {
-			ox.logger.Printf("%s(%d) failed: %s", fname, i, err.Error())
+			ox.logger.Printf(" --> %s(%d) failed: %s", fname, i, err.Error())
 			return err
 		}
 	}
@@ -335,16 +335,16 @@ func (ox *OpenXM) sendCMORecPoly(p *Poly) (map[Level]int32, error) {
 
 	var cnt int32 = 0
 	lvmap := make(map[Level]int32, len(varlist))
-	for i := 0; i < len(varlist); i++ {
+	for i := len(b) - 1; i >= 0; i-- {
 		if b[i] {
 			lvmap[Level(i)] = cnt
 			cnt++
 		}
 	}
-	ox.logger.Printf("%s() cnt=%d\n", fname, cnt)
+	ox.logger.Printf(" --> %s() cnt=%d\n", fname, cnt)
 	ox.sendCMOTag(CMO_LIST)
 	err = ox.dataWrite(&cnt)
-	for i := int32(0); cnt > 0; i++ {
+	for i := len(b) - 1; i >= 0; i-- {
 		if b[i] {
 			ox.sendCMOString(varlist[i].v)
 			cnt--
@@ -366,7 +366,7 @@ func (ox *OpenXM) sendCMOPoly(p *Poly, lvmap map[Level]int32) error {
 			cnt++
 		}
 	}
-	ox.logger.Printf("sendCMOPoly() #mono=%d\n", cnt)
+	ox.logger.Printf(" --> sendCMOPoly() #mono=%d, p.lv=%d -> %d\n", cnt, p.lv, lvmap[p.lv])
 	err = ox.dataWrite(&cnt)
 	err = ox.dataWrite(lvmap[p.lv])
 	for i := int32(len(p.c) - 1); cnt > 0; i-- {
@@ -383,12 +383,12 @@ func (ox *OpenXM) sendCMOString(s string) error {
 	const fname = "sendCMOString"
 	err := ox.sendCMOTag(CMO_STRING)
 	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		ox.logger.Printf(" --> %s(cmotag) failed: %s", fname, err.Error())
 		return err
 	}
 	b := []byte(s)
 	var m int32 = int32(len(b))
-	// ox.logger.Printf("%s() m=%d, s=%s", fname, m, s)
+	// ox.logger.Printf(" --> %s() m=%d, s=%s", fname, m, s)
 	err = ox.dataWrite(&m)
 	err = ox.dataWrite(b)
 	return err
@@ -398,7 +398,7 @@ func (ox *OpenXM) sendCMOZero() error {
 	const fname = "sendCMOZero"
 	err := ox.sendCMOTag(CMO_ZERO)
 	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		ox.logger.Printf(" --> %s(cmotag) failed: %s", fname, err.Error())
 		return err
 	}
 	return nil
@@ -409,13 +409,13 @@ func (ox *OpenXM) sendCMOInt32(n int32) error {
 	const fname = "sendCMOInt32"
 	err := ox.sendCMOTag(CMO_INT32)
 	if err != nil {
-		ox.logger.Printf("%s(%d,cmotag) failed: %s", fname, n, err.Error())
+		ox.logger.Printf(" --> %s(%d,cmotag) failed: %s", fname, n, err.Error())
 		return err
 	}
 	err = ox.dataWrite(&n)
 	// ox.logger.Printf(" --> write CMOint32[%d]", n)
 	if err != nil {
-		ox.logger.Printf("%s(%d,body) failed: %s", fname, n, err.Error())
+		ox.logger.Printf(" --> %s(%d,body) failed: %s", fname, n, err.Error())
 		return err
 	}
 	return nil
@@ -449,13 +449,13 @@ func (ox *OpenXM) send_bigint(z *big.Int) error {
 	}
 	err := ox.dataWrite(&m)
 	if err != nil {
-		ox.logger.Printf("%s(len:%d) failed: %s", fname, m, err.Error())
+		ox.logger.Printf(" --> %s(len:%d) failed: %s", fname, m, err.Error())
 		return err
 	}
 	for i := 0; i < len(bb); i++ {
 		err = ox.dataWrite(bb[i])
 		if err != nil {
-			ox.logger.Printf("%s(body:%d/%d:%08x) failed: %s", fname, i, m, b[i], err.Error())
+			ox.logger.Printf(" --> %s(body:%d/%d:%08x) failed: %s", fname, i, m, b[i], err.Error())
 			return err
 		}
 	}
@@ -466,7 +466,7 @@ func (ox *OpenXM) sendCMOQQ(z *big.Rat) error {
 	const fname = "sendCMOQQ"
 	err := ox.sendCMOTag(CMO_QQ)
 	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		ox.logger.Printf(" --> %s(cmotag) failed: %s", fname, err.Error())
 		return err
 	}
 	ox.send_bigint(z.Num())
@@ -477,7 +477,7 @@ func (ox *OpenXM) sendCMOZZ(z *big.Int) error {
 	const fname = "sendCMOZZ"
 	err := ox.sendCMOTag(CMO_ZZ)
 	if err != nil {
-		ox.logger.Printf("%s(cmotag) failed: %s", fname, err.Error())
+		ox.logger.Printf(" --> %s(cmotag) failed: %s", fname, err.Error())
 		return err
 	}
 	return ox.send_bigint(z)
@@ -538,31 +538,33 @@ func (ox *OpenXM) recvCMOPoly1Var(ringdef *List) (*Poly, error) {
 	if err != nil {
 		return nil, err
 	}
-	var pp []RObj = nil
+	p, _ := ringdef.Geti(int(lv))
+	plv := p.(*Poly).lv
+
+	// asir, openxm とは再帰表現での保持方法が逆.
+	// LV の昇順→降順
+	var ret RObj = zero
 	for m > 0 {
 		m--
 		exp, _ := ox.dataReadInt32()
 		coef, _ := ox.recvCMO(ringdef)
-		if pp == nil {
-			pp = make([]RObj, exp+1)
-			for i := int32(0); i < exp; i++ {
-				pp[i] = zero
-			}
-		}
 		c, ok := ox.toGObj(coef).(RObj)
 		if ok {
-			pp[exp] = c
+			if exp == 0 {
+				ret = Add(ret, c)
+			} else {
+				ret = Add(ret, Mul(c, newPolyVarn(plv, int(exp))))
+			}
 		}
 	}
-	p, _ := ringdef.Geti(int(lv))
-	return NewPolyCoef(p.(*Poly).lv, pp...), err
+	return ret.(*Poly), err
 }
 func (ox *OpenXM) recvCMORPoly() (*Poly, error) {
 	ringdef, err := ox.recvCMO(nil)
 	if err != nil {
 		return nil, err
 	}
-	ox.logger.Printf("ringdef=%v", ringdef)
+	ox.logger.Printf(" ..  ringdef=%v", ringdef)
 	coef, err := ox.recvCMO(ringdef.(*List))
 	if err != nil {
 		return nil, err

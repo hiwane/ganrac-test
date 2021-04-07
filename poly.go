@@ -19,6 +19,16 @@ func NewPolyVar(lv Level) *Poly {
 	return varlist[lv].p
 }
 
+func newPolyVarn(lv Level, deg int) *Poly {
+	// return x[lv]^deg
+	p := NewPoly(lv, deg+1)
+	for i := 0; i < deg; i++ {
+		p.c[i] = zero
+	}
+	p.c[deg] = one
+	return p
+}
+
 func NewPoly(lv Level, deg_1 int) *Poly {
 	p := new(Poly)
 	p.c = make([]RObj, deg_1)
@@ -61,7 +71,7 @@ func (z *Poly) valid() error {
 			return err
 		}
 		if cp, ok := c.(*Poly); ok {
-			if cp.lv <= z.lv {
+			if cp.lv >= z.lv {
 				return fmt.Errorf("invalid level z=%d, coef[%d][%v]", z.lv, i, cp)
 			}
 		}
@@ -89,7 +99,7 @@ func (z *Poly) Equals(x interface{}) bool {
 func (z *Poly) Deg(lv Level) int {
 	if lv == z.lv {
 		return len(z.c) - 1
-	} else if lv < z.lv {
+	} else if lv > z.lv {
 		return 0
 	}
 	m := 0
@@ -106,23 +116,27 @@ func (z *Poly) Deg(lv Level) int {
 	return m
 }
 
-func (z *Poly) Coef(lv Level, d uint) RObj {
+func (z *Poly) Coef(lv Level, deg uint) RObj {
 	if lv == z.lv {
-		if d >= uint(len(z.c)) {
+		if deg >= uint(len(z.c)) {
 			return zero
 		} else {
-			return z.c[d]
+			return z.c[deg]
 		}
-	} else if lv < z.lv {
-		return zero
+	} else if lv > z.lv {
+		if deg == 0 {
+			return z
+		} else {
+			return zero
+		}
 	}
 	r := NewPoly(z.lv, len(z.c))
 	for i, c := range z.c {
 		p, ok := c.(*Poly)
 		if ok {
-			r.c[i] = p.Coef(lv, d)
+			r.c[i] = p.Coef(lv, deg)
 		} else {
-			if d == 0 {
+			if deg == 0 {
 				r.c[i] = c
 			} else {
 				r.c[i] = zero
@@ -143,7 +157,7 @@ func (z *Poly) Tag() uint {
 }
 
 func (z *Poly) hasVar(lv Level) bool {
-	if z.lv > lv {
+	if z.lv < lv {
 		return false
 	} else if z.lv == lv {
 		return true
@@ -288,11 +302,11 @@ func (x *Poly) Add(y RObj) RObj {
 		return z
 	}
 	p, _ := y.(*Poly)
-	if p.lv > x.lv {
+	if p.lv < x.lv {
 		z := x.copy()
 		z.c[0] = p.Add(z.c[0])
 		return z
-	} else if p.lv < x.lv {
+	} else if p.lv > x.lv {
 		z := p.copy()
 		z.c[0] = x.Add(z.c[0])
 		return z
@@ -342,13 +356,13 @@ func (x *Poly) Mul(yy RObj) RObj {
 		return z
 	}
 	y, _ := yy.(*Poly)
-	if y.lv > x.lv {
+	if y.lv < x.lv {
 		z := NewPoly(x.lv, len(x.c))
 		for i := 0; i < len(x.c); i++ {
 			z.c[i] = y.Mul(x.c[i])
 		}
 		return z
-	} else if y.lv < x.lv {
+	} else if y.lv > x.lv {
 		z := NewPoly(y.lv, len(y.c))
 		for i := 0; i < len(y.c); i++ {
 			z.c[i] = x.Mul(y.c[i])
@@ -422,12 +436,12 @@ func (x *Poly) Pow(y *Int) RObj {
 func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 	// lvs: sorted
 
-	for ; idx < len(xs) && z.lv > lvs[idx]; idx++ {
+	for ; idx < len(xs) && z.lv < lvs[idx]; idx++ {
 	}
 	if idx == len(xs) {
 		return z
 	}
-	if z.lv < lvs[idx] {
+	if z.lv > lvs[idx] {
 		p := NewPoly(z.lv, len(z.c))
 		for i := 0; i < len(z.c); i++ {
 			p.c[i] = z.c[i].Subst(xs, lvs, idx)
@@ -456,7 +470,7 @@ func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
 	// dens = [1, den, ..., den^d]
 	// d = len(dens) - 1
 	// z(x[lv]=num/den) * den^d
-	if z.lv < lv {
+	if z.lv > lv {
 		p := make([]RObj, len(z.c))
 		for i := 0; i < len(z.c); i++ {
 			switch zc := z.c[i].(type) {
@@ -480,7 +494,7 @@ func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
 		}
 
 		return ret
-	} else if z.lv > lv {
+	} else if z.lv < lv {
 		vv := z.Mul(dens[len(dens)-1])
 		if err := vv.valid(); err != nil {
 			panic("!")
@@ -531,17 +545,7 @@ func (z *Poly) Indets(b []bool) {
 }
 
 func (z *Poly) maxVar() Level {
-	lv := z.lv + 1
-	for i := 0; i < len(z.c); i++ {
-		switch c := z.c[i].(type) {
-		case *Poly:
-			m := c.maxVar()
-			if m+1 > lv {
-				lv = m + 1
-			}
-		}
-	}
-	return lv
+	return z.lv + 1
 }
 
 func (z *Poly) isMono() bool {
@@ -597,7 +601,7 @@ func (z *Poly) hasSameTerm(pp RObj, lowest bool) bool {
 
 func (z *Poly) diff(lv Level) RObj {
 	// 微分
-	if z.lv < lv {
+	if z.lv > lv {
 		p := NewPoly(z.lv, len(z.c))
 		for i, c := range z.c {
 			if cp, ok := c.(*Poly); ok {
@@ -613,7 +617,7 @@ func (z *Poly) diff(lv Level) RObj {
 			}
 		}
 		return p.c[0]
-	} else if z.lv > lv {
+	} else if z.lv < lv {
 		return z
 	}
 
