@@ -432,3 +432,50 @@ func TestSubstBinint1Var(t *testing.T) {
 		}
 	}
 }
+
+func TestSdiv(t *testing.T) {
+	for _, s := range []struct {
+		x, y   *Poly
+		expect RObj
+	}{
+		{
+			NewPolyInts(0, 6, 11, 6, 1), // x=z*y
+			NewPolyInts(0, 3, 1),        // y
+			NewPolyInts(0, 2, 3, 1),     // z
+		}, {
+			NewPolyInts(0, 6, 9, 3), // x=z*y
+			NewPolyInts(0, 2, 3, 1), // y
+			NewInt(3),
+		}, {
+			NewPolyCoef(2, NewPolyVar(0), NewPolyCoef(1, zero, NewPolyVar(0))), // x*y*z+x
+			NewPolyCoef(2, one, NewPolyVar(1)),                                 // (y*z+1)
+			NewPolyVar(0),
+		}, {
+			NewPolyCoef(2, NewPolyVar(1), NewPolyCoef(1, zero, NewPolyVar(0))), // x*y*z+y
+			NewPolyCoef(2, one, NewPolyVar(0)),                                 // (x*z+1)
+			NewPolyVar(1),
+		},
+	} {
+		q := s.x.sdiv(s.y)
+		if q == nil || !q.Equals(s.expect) {
+			t.Errorf("\ninputx=%v\ninputy=%v\nexpect=%v\noutput=%v", s.x, s.y, s.expect, q)
+			continue
+		}
+
+		if qqq, ok := s.expect.(*Poly); ok && qqq.lv == s.x.lv {
+			q = s.x.sdiv(s.expect.(*Poly))
+			if q == nil || !q.Equals(s.y) {
+				t.Errorf("\ninputx=%v\ninputy=%v\nexpect=%v\noutput=%v", s.x, s.y, s.expect, q)
+				continue
+			}
+		}
+
+		q = s.y.Mul(s.expect)
+		if q == nil || !q.Equals(s.x) {
+			t.Errorf("\ninputx=%v\ninputy=%v\nexpect=%v\noutput=%v", s.x, s.y, s.expect, q)
+			continue
+		}
+
+	}
+
+}

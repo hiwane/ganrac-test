@@ -130,7 +130,8 @@ func (x *BinInt) Mul2Exp(m uint) NObj {
 }
 
 func (x *BinInt) Div(yy NObj) RObj {
-	panic("not implemented")
+	z := x.ToIntRat()
+	return z.Div(yy)
 }
 
 func (x *BinInt) Pow(r *Int) RObj {

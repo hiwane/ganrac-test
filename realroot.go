@@ -272,6 +272,11 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 			ub := r.low.upperBound()
 			sgnr = p.subst1(ub, p.lv).Sign()
 		}
+
+		// 精度十分?
+		for !r.point && r.low.m > prec {
+			realRootImprove(p, r)
+		}
 	}
 
 	ret := stack.ret

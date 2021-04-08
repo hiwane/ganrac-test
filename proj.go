@@ -9,7 +9,6 @@ import (
 func (cad *CAD) addPolyIrr(q *Poly, isInput bool) *ProjFactor {
 	// assume: lc(q) > 0, irreducible
 	proj_factors := cad.proj[q.lv]
-	fmt.Printf("addPolyIrr[%d]=%v\n", q.lv, q)
 	for _, pf := range proj_factors.pf {
 		if pf.p.Equals(q) {
 			if isInput {
@@ -40,7 +39,6 @@ func (cad *CAD) addPoly(q *Poly, isInput bool) *ProjLink {
 	pl := newProjLink()
 	pl.sgn = 1
 	fctr := cad.g.ox.Factor(q)
-	fmt.Printf("cad.addPoly(%v,%v) %v\n", q, isInput, fctr)
 	cc, _ := fctr.Geti(0)
 	if cc0, _ := cc.(*List).Geti(0); cc0.(RObj).Sign() < 0 {
 		pl.sgn *= -1
@@ -53,7 +51,6 @@ func (cad *CAD) addPoly(q *Poly, isInput bool) *ProjLink {
 			poly = poly.Neg().(*Poly)
 			pl.sgn *= -1
 		}
-		fmt.Printf("cad.addPoly() %v\n", poly)
 		pf := cad.addPolyIrr(poly, isInput)
 		pl.addPoly(pf, uint(fctri.getiInt(1).Int64()))
 	}
@@ -87,17 +84,24 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 	}
 
 	// sort してインデックスをつける
+	// @TODO ソートする.
 	for lv := len(cad.proj) - 1; lv >= 0; lv-- {
 		pj := cad.proj[lv]
-		fmt.Printf("====== lv=%d, %d\n", lv, len(pj.pf))
 		for i, pf := range pj.pf {
-			pf.index = i
+			pf.index = uint(i)
 			ss := ' '
 			if pf.input {
 				ss = 'i'
 			}
 			fmt.Printf("[%d,%2d,%c,%d] %v\n", lv, i, ss, pf.p.lv, pf.p)
 		}
+	}
+
+	// 最下層の coeff だけ設定しておく.
+	coef := make([]*ProjLink, 1)
+	coef[0] = cad.get_projlink_num(1)
+	for _, pf := range cad.proj[0].pf {
+		pf.coeff = coef
 	}
 
 	return nil
@@ -122,11 +126,11 @@ func proj_mcallum(cad *CAD, lv Level) {
 
 func (cad *CAD) get_projlink_num(sign int) *ProjLink {
 	if sign > 0 {
-		return cad.pl[1]
+		return cad.pl4const[1]
 	} else if sign < 0 {
-		return cad.pl[2]
+		return cad.pl4const[2]
 	} else {
-		return cad.pl[0]
+		return cad.pl4const[0]
 	}
 }
 
@@ -136,13 +140,11 @@ func proj_mcallum_coeff(cad *CAD, pf *ProjFactor) {
 		c := pf.p.c[i]
 		if c.IsNumeric() {
 			pf.coeff[i] = cad.get_projlink_num(c.Sign())
-			fmt.Printf("coef%d: %v\n", i, c)
 			if !c.IsZero() {
 				return
 			}
 		} else {
 			pf.coeff[i] = cad.addProjRObj(c)
-			fmt.Printf("coef%d: %v\n", i, c)
 		}
 	}
 	// GB で vanish チェック
@@ -157,7 +159,6 @@ func proj_mcallum_coeff(cad *CAD, pf *ProjFactor) {
 
 func proj_mcallum_discrim(cad *CAD, pf *ProjFactor) {
 	dd := cad.g.ox.Discrim(pf.p, pf.p.lv)
-	fmt.Printf("discrim(%v)=%v\n", pf.p, dd)
 	pf.discrim = cad.addProjRObj(dd)
 }
 
@@ -169,4 +170,11 @@ func gbHasZeros(gb *List) bool {
 	v, _ := gb.Geti(0)
 	p, _ := v.(RObj)
 	return p.IsNumeric()
+}
+
+func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) bool {
+	if pfs.resultant == nil {
+		return false
+	}
+	return true
 }

@@ -81,18 +81,19 @@ func NewList(args ...interface{}) *List {
 
 func (z *List) getiPoly(i int) *Poly {
 	// i は正しいと仮定
-	p, _ := z.Geti(i)
-	return p.(*Poly)
+	return z.geti(i).(*Poly)
 }
 
 func (z *List) getiList(i int) *List {
 	// i は正しいと仮定
-	p, _ := z.Geti(i)
-	return p.(*List)
+	return z.geti(i).(*List)
 }
 
 func (z *List) getiInt(i int) *Int {
 	// i は正しいと仮定
-	p, _ := z.Geti(i)
-	return p.(*Int)
+	return z.geti(i).(*Int)
+}
+
+func (z *List) geti(i int) GObj {
+	return z.v[i]
 }

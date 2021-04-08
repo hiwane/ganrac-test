@@ -33,3 +33,7 @@ type equaler interface {
 type dumper interface {
 	dump(b io.Writer) // for debug print
 }
+
+type printer interface {
+	Print(b io.Writer, args []interface{}) error
+}

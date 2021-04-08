@@ -24,8 +24,7 @@ func (ox *OpenXM) Discrim(p *Poly, lv Level) RObj {
 	// 主係数で割る
 	switch pc := p.c[n].(type) {
 	case *Poly:
-		return q // @TODO
-		//		return q.sdiv(pc)
+		return q.(*Poly).sdiv(pc)
 	case NObj:
 		return q.Div(pc)
 	}

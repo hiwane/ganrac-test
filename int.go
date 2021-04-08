@@ -70,7 +70,7 @@ func (x *Int) Add(y RObj) RObj {
 		return yi.AddInt(x)
 	}
 	fmt.Printf("add: x=%v, y=%v\n", x, y)
-	panic("stop")
+	panic("not implememted")
 }
 
 func (x *Int) Sub(y RObj) RObj {
@@ -87,7 +87,7 @@ func (x *Int) Sub(y RObj) RObj {
 		return z
 	}
 	fmt.Printf("sub: x=%v, y=%v\n", x, y)
-	panic("stop")
+	panic("not implememted")
 }
 
 func (x *Int) Mul(y RObj) RObj {
@@ -146,7 +146,7 @@ func (x *Int) Div(yy NObj) RObj {
 		z.n.Mul(xr, yr)
 		return z.normal()
 	}
-	return nil // @TODO
+	panic("not implemented") // @TODO
 }
 
 func (x *Int) Pow(y *Int) RObj {

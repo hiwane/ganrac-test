@@ -395,6 +395,119 @@ func (x *Poly) Div(y NObj) RObj {
 	return z
 }
 
+func (x *Poly) leadingTerm() *Poly {
+
+	p := NewPoly(x.lv, len(x.c))
+	for i := 0; i < len(x.c)-1; i++ {
+		p.c[i] = zero
+	}
+	p.c[len(p.c)-1] = x.c[len(x.c)-1]
+
+	q := p
+	for {
+		switch c := q.c[len(q.c)-1].(type) {
+		case NObj:
+			return p
+		case *Poly:
+			cq := NewPoly(c.lv, len(c.c))
+			for i := 0; i < len(cq.c)-1; i++ {
+				cq.c[i] = zero
+			}
+			cq.c[len(cq.c)-1] = c.c[len(c.c)-1]
+			q.c[len(q.c)-1] = cq
+			q = cq
+		default:
+			panic("unknown")
+		}
+	}
+}
+
+func sdivlt(x, y *Poly) RObj {
+	// return lt(y)/lt(x) if lt(y) is a factor of lt(x)
+	// return nil otherwise
+	if x.lv != y.lv || len(x.c) < len(y.c) {
+		return nil
+	}
+	var zret *Poly
+
+	if len(x.c) != len(y.c) {
+		zret = NewPoly(x.lv, len(x.c)-len(y.c)+1)
+		for i := 0; i < len(zret.c)-1; i++ {
+			zret.c[i] = zero
+		}
+		zret.c[len(zret.c)-1] = one
+
+	}
+	z := zret
+
+	for j := len(x.c); j >= 0; j-- {
+
+		switch yp := y.c[len(y.c)-1].(type) {
+		case NObj:
+			c := x.c[len(x.c)-1].Div(yp)
+			if z == nil {
+				return c
+			}
+			z.c[len(z.c)-1] = c
+			return zret
+		case *Poly:
+			switch xp := x.c[len(x.c)-1].(type) {
+			case *Poly:
+				ybak := y
+				x = xp
+				y = yp
+				var c *Poly
+				if x.lv < y.lv || len(x.c) < len(y.c) {
+					return nil
+				} else if x.lv > y.lv {
+					c = NewPoly(x.lv, len(x.c))
+					y = ybak
+				} else if len(x.c) == len(y.c) {
+					continue
+				} else {
+					c = NewPoly(x.lv, len(x.c)-len(y.c)+1)
+				}
+				for i := 0; i < len(c.c)-1; i++ {
+					c.c[i] = zero
+				}
+				c.c[len(c.c)-1] = one
+				if z == nil {
+					zret = c
+				} else {
+					z.c[len(z.c)-1] = c
+				}
+				z = c
+			default:
+				fmt.Printf("unexpected: xp=%v, yp=%v\n", xp, yp)
+				return nil
+			}
+		}
+	}
+	panic("toooooo")
+}
+
+func (x *Poly) sdiv(y *Poly) RObj {
+	// assume: y is a factor of x
+	var ret RObj = zero
+	for i := len(x.c); i >= 0; i-- {
+		m := sdivlt(x, y)
+		if m == nil {
+			return nil
+		}
+		ret = Add(ret, m)
+		xx := x.Sub(y.Mul(m))
+		if xx.IsNumeric() {
+			if xx.IsZero() {
+				return ret
+			} else {
+				return nil
+			}
+		}
+		x = xx.(*Poly)
+	}
+	panic("toooooo")
+}
+
 func (x *Poly) powi(y int64) RObj {
 	return x.Pow(NewInt(y))
 }
@@ -463,6 +576,10 @@ func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 }
 
 func (z *Poly) subst1(x RObj, lv Level) RObj {
+	return z.Subst([]RObj{x}, []Level{lv}, 0)
+}
+
+func (z *Poly) subst_noden(x RObj, lv Level) RObj {
 	return z.Subst([]RObj{x}, []Level{lv}, 0)
 }
 

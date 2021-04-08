@@ -93,7 +93,7 @@ func TestRealRoot(t *testing.T) {
 			qq.Neg().(*Poly),
 			qq.subst1(NewPolyInts(lv, 0, -1), lv).(*Poly),
 		} {
-			r, err := p.RealRootIsolation(1)
+			r, err := p.RealRootIsolation(10)
 			if err != nil {
 				t.Errorf("err %v\ninput=%p", err, p)
 				continue
