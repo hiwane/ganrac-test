@@ -479,3 +479,32 @@ func TestSdiv(t *testing.T) {
 	}
 
 }
+
+func TestPolMul2Exp(t *testing.T) {
+	s := NewPolyCoef(0,
+		NewInt(7),
+		NewRatInt64(3, 5),
+		NewBinInt(3, -10),
+		NewInt(13),
+	)
+
+	var p, q RObj
+	p = s.mul_2exp(0)
+	q = s
+	if !p.Equals(q) {
+		t.Errorf("m=1\ns=%v\np=%v\nq=%v\n", s, p, q)
+	}
+
+	p = s.mul_2exp(1)
+	q = s.Mul(NewInt(2))
+	if !p.Equals(q) {
+		t.Errorf("m=2\ns=%v\np=%v\nq=%v\n", s, p, q)
+	}
+
+	p = s.mul_2exp(3)
+	q = s.Mul(NewInt(8))
+
+	if !p.Equals(q) {
+		t.Errorf("m=8\ns=%v\np=%v\nq=%v\n", s, p, q)
+	}
+}

@@ -173,8 +173,18 @@ func gbHasZeros(gb *List) bool {
 }
 
 func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) bool {
+	// 射影因子の符号で，共通因子を持つか調べる.
+	// true なら，もつ可能性がある.
+	// @TODO 主係数がおちたときに，共通因子もたなくてもゼロ
 	if pfs.resultant == nil {
 		return false
 	}
-	return true
+
+	if i < j {
+		b, _ := pfs.resultant[j][i].evalSign(c)
+		return b == 0
+	} else {
+		b, _ := pfs.resultant[i][j].evalSign(c)
+		return b == 0
+	}
 }

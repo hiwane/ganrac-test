@@ -327,14 +327,18 @@ func (x *Poly) Add(y RObj) RObj {
 		for i := dmin; i < len(q.c); i++ {
 			z.c[i] = q.c[i]
 		}
-		for i := len(q.c) - 1; i > 0; i-- {
-			if !z.c[i].IsZero() {
-				z.c = z.c[:i+1]
-				return z
-			}
-		}
-		return z.c[0]
+		return z.normalize()
 	}
+}
+
+func (z *Poly) normalize() RObj {
+	for i := len(z.c) - 1; i > 0; i-- {
+		if !z.c[i].IsZero() {
+			z.c = z.c[:i+1]
+			return z
+		}
+	}
+	return z.c[0]
 }
 
 func (z *Poly) Sub(y RObj) RObj {
@@ -579,11 +583,8 @@ func (z *Poly) subst1(x RObj, lv Level) RObj {
 	return z.Subst([]RObj{x}, []Level{lv}, 0)
 }
 
-func (z *Poly) subst_noden(x RObj, lv Level) RObj {
-	return z.Subst([]RObj{x}, []Level{lv}, 0)
-}
-
 func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
+	// VS からの呼び出しを仮定.
 	// dens = [1, den, ..., den^d]
 	// d = len(dens) - 1
 	// z(x[lv]=num/den) * den^d
@@ -630,7 +631,58 @@ func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {
 	return p
 }
 
+func (z *Poly) mul_2exp(m uint) RObj {
+	// assume: z in Z[X]
+	p := NewPoly(z.lv, len(z.c))
+	for i, cc := range z.c {
+		p.c[i] = cc.mul_2exp(m)
+	}
+	return p
+}
+
+func (z *Poly) subst_num_2exp(num RObj, den uint, lv Level, deg int) RObj {
+	// z(x = num / 2^den)
+	if z.lv > lv {
+		p := make([]RObj, len(z.c))
+		for i := 0; i < len(z.c); i++ {
+			switch zc := z.c[i].(type) {
+			case *Poly:
+				p[i] = zc.subst_num_2exp(num, den, lv, deg)
+			case *Int:
+				p[i] = zc.mul_2exp(den * uint(deg))
+			default:
+				fmt.Printf("panic! %v\n", zc)
+			}
+		}
+		x := NewPolyVar(z.lv)
+		xn := x
+		ret := p[0]
+		for i := 1; i < len(p); i++ {
+			ret = Add(ret, xn.Mul(p[i]))
+			xn = xn.Mul(x).(*Poly)
+		}
+		if err := ret.valid(); err != nil {
+			panic("!")
+		}
+
+		return ret
+	} else if z.lv < lv {
+		return z.mul_2exp(den * uint(deg))
+	}
+
+	dd := deg - len(z.c) // かさ上げ
+	p := z.c[len(z.c)-1].mul_2exp(den * uint(dd+1))
+	for i := len(z.c) - 2; i >= 0; i-- {
+		p = Add(z.c[i].mul_2exp(den*uint(dd+len(z.c)-i)), Mul(p, num))
+	}
+	if err := p.valid(); err != nil {
+		panic("! @TODO")
+	}
+	return p
+}
+
 func (z *Poly) subst_binint_1var(numer *Int, denom uint) RObj {
+	// called from realroot()
 	// 2^(denom*deg)*p(x=x + numer/2^denom)
 	// assume: z is level- lv univariate polynomial in Z[x]
 	cc := newInt()

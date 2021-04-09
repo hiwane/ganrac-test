@@ -16,6 +16,7 @@ type NObj interface {
 	Cmp(x NObj) int
 	CmpAbs(x NObj) int
 	Abs() NObj
+	subst_poly(p *Poly, lv Level) RObj
 
 	// ToInt(n int) *Int // 整数に丸める.
 }

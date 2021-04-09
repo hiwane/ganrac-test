@@ -386,7 +386,7 @@ func funcCADprint(g *Ganrac, name string, args []interface{}) (interface{}, erro
 func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	switch cc := args[0].(type) {
 	case printer:
-		return nil, cc.Print(os.Stdout, args[1:])
+		return nil, cc.Print(os.Stdout, args[1:]...)
 	default:
 		return nil, fmt.Errorf("unsupported object is specified")
 	}

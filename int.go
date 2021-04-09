@@ -222,6 +222,19 @@ func (z *Int) Cmp(xx NObj) int {
 		zr := new(big.Int)
 		zr.Mul(z.n, x.n.Denom())
 		return zr.Cmp(x.n.Num())
+	case *BinInt:
+		if x.m > 0 {
+			xr := new(big.Int)
+			xr.Lsh(x.n, uint(x.m))
+			return z.n.Cmp(xr)
+		} else if x.m == 0 {
+			return z.n.Cmp(x.n)
+		} else {
+			zr := new(big.Int)
+			zr.Lsh(z.n, uint(-x.m))
+			return zr.Cmp(x.n)
+		}
+
 	}
 	panic("unknown")
 }
@@ -302,5 +315,15 @@ func (x *Int) Gcd(y *Int) *Int {
 	}
 	v := new(Int)
 	v.n = r2
+	return v
+}
+
+func (x *Int) subst_poly(p *Poly, lv Level) RObj {
+	return p.Subst([]RObj{x}, []Level{lv}, 0)
+}
+
+func (x *Int) mul_2exp(m uint) RObj {
+	v := newInt()
+	v.n.Lsh(x.n, m)
 	return v
 }

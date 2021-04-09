@@ -295,3 +295,25 @@ func (x *BinInt) halveIntv() *BinInt {
 	z.m = x.m - 1
 	return z
 }
+
+func (x *BinInt) subst_poly(p *Poly, lv Level) RObj {
+	if x.m > 0 {
+		xx := newInt()
+		xx.n.Lsh(x.n, uint(x.m))
+		return p.Subst([]RObj{x}, []Level{lv}, 0)
+	} else if x.m < 0 {
+		deg := p.Deg(lv)
+		return p.subst_num_2exp(NewIntZ(x.n), uint(-x.m), lv, deg)
+	} else {
+		xx := new(Int)
+		xx.n = x.n
+		return p.Subst([]RObj{x}, []Level{lv}, 0)
+	}
+}
+
+func (x *BinInt) mul_2exp(m uint) RObj {
+	v := newBinInt()
+	v.n = x.n
+	v.m = x.m + int(m)
+	return v
+}

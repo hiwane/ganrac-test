@@ -9,6 +9,15 @@ type ProjectionAlgo int
 
 type sign_t int8
 
+const (
+	t_undef  = -1 // まだ評価していない
+	t_false  = 0
+	t_true   = 1
+	t_other  = 2 // 兄弟の情報で親の真偽値が確定したのでもう評価しない
+	q_forall = t_false
+	q_exists = t_true
+)
+
 type Intv struct {
 	l, u NObj
 }
@@ -99,11 +108,11 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 		switch f := c.fml.(type) {
 		case *ForAll:
 			qq = f.q
-			qval = 0
+			qval = q_forall
 			c.fml = f.fml
 		case *Exists:
 			qq = f.q
-			qval = 1
+			qval = q_exists
 			c.fml = f.fml
 		default:
 			goto _NEXT
@@ -194,7 +203,7 @@ func NewCell(cad *CAD, parent *Cell, idx uint) *Cell {
 	cell.parent = parent
 	cell.index = idx
 	cell.ex_deg = 1
-	cell.truth = -1
+	cell.truth = t_undef
 	if parent == nil {
 		cell.lv = -1
 	} else {
@@ -225,7 +234,7 @@ func (cs *cellStack) pop() *Cell {
 	return cell
 }
 
-func (cad *CAD) Print(b io.Writer, args []interface{}) error {
+func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
 	if len(args) == 0 {
 		fmt.Fprintf(b, "input=%v\n", cad.fml)
 		return nil
@@ -238,7 +247,7 @@ func (cad *CAD) Print(b io.Writer, args []interface{}) error {
 	switch s.s {
 	case "proj":
 	case "cells", "cell", "signature":
-		cad.root.Print(b, args)
+		cad.root.Print(b, args...)
 	default:
 		return fmt.Errorf("invalid argument")
 	}
@@ -267,9 +276,18 @@ func (cell *Cell) printMultiplicity(b io.Writer) {
 		fmt.Fprintf(b, "%c%d", ch, cell.multiplicity[j])
 		ch = ','
 	}
+	fmt.Fprintf(b, ")")
 }
 
-func (cell *Cell) Print(b io.Writer, args []interface{}) error {
+func (cell *Cell) stringTruth() string {
+	if cell.truth < 0 {
+		return "?"
+	}
+	return []string{"f", "t", "."}[cell.truth]
+
+}
+
+func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 	s := "cell"
 	if len(args) > 0 {
 		s2, ok := args[0].(*String)
@@ -297,13 +315,15 @@ func (cell *Cell) Print(b io.Writer, args []interface{}) error {
 		}
 		fmt.Fprintf(b, "signature(%v) :: %v\n", cell.Index(), args)
 		for i, c := range cell.children {
-			fmt.Fprintf(b, "%2d,", i)
-			if c.truth < 0 {
-				fmt.Fprintf(b, " :")
+			fmt.Fprintf(b, "%2d,%s,", i, c.stringTruth())
+			if c.children == nil {
+				fmt.Fprintf(b, "  ")
 			} else {
-				fmt.Fprintf(b, "%c:", "ft"[c.truth])
+				fmt.Fprintf(b, "%2d", len(c.children))
 			}
+			fmt.Fprintf(b, " ")
 			c.printSignature(b)
+			fmt.Fprintf(b, " ")
 			c.printMultiplicity(b)
 			fmt.Fprintf(b, " [% e,% e]", c.intv.l.Float(), c.intv.u.Float())
 			if c.defpoly != nil {
@@ -324,8 +344,10 @@ func (cell *Cell) Print(b io.Writer, args []interface{}) error {
 		fmt.Fprintf(b, "# of children=%d\n", num)
 		fmt.Fprintf(b, "truth value  =%d\n", cell.truth)
 		fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
-		fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.l, cell.intv.u)
-		fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.l.Float(), cell.intv.u.Float())
+		if cell.intv.l != nil {
+			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.l, cell.intv.u)
+			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.l.Float(), cell.intv.u.Float())
+		}
 	case "cells":
 		if cell.children == nil {
 			return fmt.Errorf("invalid argument [no child]")

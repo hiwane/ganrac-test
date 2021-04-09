@@ -19,6 +19,7 @@ type RObj interface {
 	IsMinusOne() bool
 	IsNumeric() bool
 	valid() error
+	mul_2exp(m uint) RObj
 }
 
 type RObjSample struct {
@@ -92,4 +93,8 @@ func (z *RObjSample) Subst(x []RObj, lv []Level, idx int) RObj {
 
 func (z *RObjSample) valid() error {
 	return nil
+}
+
+func (z *RObjSample) mul_2exp(m uint) RObj {
+	return z
 }

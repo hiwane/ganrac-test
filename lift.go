@@ -2,13 +2,65 @@ package ganrac
 
 import (
 	"fmt"
+	"os"
 )
+
+func (cell *Cell) set_truth_value_from_children(cad *CAD) {
+	// 子供の真偽値から自分の真偽値を決める.
+	if cad.q[cell.lv+1] < 0 {
+		panic("gao")
+	}
+
+	cell.truth = 1 - cad.q[cell.lv+1]
+	for _, c := range cell.children {
+		if cad.q[cell.lv+1] == c.truth {
+			cell.truth = c.truth
+			break
+		}
+	}
+}
+
+func (cell *Cell) set_truth_other() {
+	// 自分の真偽値が確定したから，
+	// 子供の真偽値を other に設定してしまう.
+	for _, c := range cell.children {
+		if c.truth < 0 {
+			c.truth = t_other
+			if c.children != nil {
+				c.set_truth_other()
+			}
+		}
+	}
+
+}
+
+func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
+	// 自分の真偽値が確定したから，
+	// 決められるなら親と
+	// 子供の真偽値を other に設定してしまう.
+
+	// 親の真偽値設定
+	c := cell
+	for ; c.lv >= 0 && cad.q[c.lv] == cell.truth; c = c.parent {
+		c.parent.truth = cell.truth
+	}
+
+	c.set_truth_other()
+}
 
 func (cad *CAD) Lift(index ...int) error {
 	if len(index) == 0 {
 		for !cad.stack.empty() {
 			cell := cad.stack.pop()
-			cell.lift(cad)
+			if cell.truth >= 0 {
+				continue
+			} else if cell.children != nil {
+				// 子供の真偽値が確定した.
+				cell.set_truth_value_from_children(cad)
+				continue
+			} else {
+				cell.lift(cad)
+			}
 		}
 		return nil
 	}
@@ -85,32 +137,31 @@ func (cell *Cell) lift(cad *CAD) error {
 	for _, c = range cs {
 		switch c.evalTruth(cad.fml, cad).(type) {
 		case *AtomT:
-			c.truth = 1
+			c.truth = t_true
 		case *AtomF:
-			c.truth = 0
+			c.truth = t_false
 		}
 	}
 	if cad.q[cell.lv+1] >= 0 {
 		qx := cad.q[cell.lv+1]
 		for _, c = range cs {
 			if c.truth == qx {
+				// exists なら true があった.
+				// forall なら false があった
 				cell.truth = qx
 
-				for {
-					cell = cell.parent
-					if cad.q[cell.lv+1] != qx {
-						break
-					}
-					cell.truth = qx
-				}
-
+				//.... さらに親に伝播?
+				cell.set_parent_and_truth_other(cad)
 				return nil
 			}
 		}
+
+		// quantifier なら親の真偽値に影響する
+		cad.stack.push(cell)
 	}
 
-	// section から
-	// @TODO ほんとは拡大次数が高いものからいれたい
+	// section を追加
+	// @TODO ほんとは拡大次数が高い=計算量が大きそうなものからいれたい
 	for i := 1; i < len(cs); i += 2 {
 		if cs[i].truth < 0 {
 			cad.stack.push(cs[i])
@@ -203,6 +254,9 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 
 				// 共通根をもつ可能性があるか?
 				if dup && cad.proj[cs[i].lv].hasCommonRoot(cs[i].parent, cs[j].index, cs[i].index) {
+					cs[i].parent.Print(os.Stdout)
+					cs[i].Print(os.Stdout)
+					cs[j].Print(os.Stdout)
 					panic("not implemented")
 					// multiplicity のマージ
 				}
@@ -225,6 +279,7 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	// returns (roots, sign(lc(p)))
 	cs := make([]*Cell, 0, len(p.c)-1)
+	fmt.Printf("root_iso: %v\n", p)
 	fctrs := cad.g.ox.Factor(p)
 	for i := fctrs.Len() - 1; i > 0; i-- {
 		ff := fctrs.getiList(i)
@@ -233,8 +288,15 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 		if len(q.c) == 2 {
 			c := NewCell(cad, cell, pf.index)
 			rat := NewRatFrac(q.c[0].(*Int), q.c[1].(*Int).Neg().(*Int))
-			c.intv.l = rat
-			c.intv.u = rat
+			if rat.n.IsInt() {
+				ci := new(Int)
+				ci.n = rat.n.Num()
+				c.intv.l = ci
+				c.intv.u = ci
+			} else {
+				c.intv.l = rat
+				c.intv.u = rat
+			}
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
 		} else {
@@ -321,8 +383,9 @@ func (cell *Cell) improveIsoIntv() {
 
 	switch l := cell.intv.l.(type) {
 	case *BinInt:
+		// binint ということは, realroot の出力であり，１変数多項式
 		m := l.midBinIntv()
-		v := cell.defpoly.subst_noden(m, cell.defpoly.lv)
+		v := m.subst_poly(cell.defpoly, cell.defpoly.lv)
 		if v.Sign() < 0 && cell.sgn_of_left < 0 || v.Sign() > 0 && cell.sgn_of_left > 0 {
 			cell.intv.l = m
 			cell.intv.u = m.upperBound()
@@ -342,21 +405,57 @@ func (cell *Cell) improveIsoIntv() {
 
 func (cell *Cell) subst_sample_points(cad *CAD, pf *ProjFactor) (RObj, bool, sign_t) {
 	p := pf.p
-	c := cell
 	is_q := true
-	for c != cad.root {
-		if c.ex_deg == 1 || c.defpoly == nil {
-			pp := p.subst1(c.intv.l, Level(c.lv))
+
+	fmt.Printf("p=%v, cell=%v\n", p, cell.Index())
+	if cell.de || cell.defpoly != nil {
+		// projection factor の情報から，ゼロ値を決める
+		pp := NewPoly(p.lv, len(p.c))
+		up := false
+		for i := 0; i < len(p.c); i++ {
+			if pf.coeff[i] == nil {
+				pp.c[i] = p.c[i]
+			} else if s, _ := pf.coeff[i].evalSign(cell); s == 0 {
+				pp.c[i] = zero
+				up = true
+			} else {
+				pp.c[i] = p.c[i]
+			}
+		}
+		if up {
+			switch pq := pp.normalize().(type) {
+			case NObj:
+				return pq, is_q, sign_t(pq.Sign())
+			case *Poly:
+				p = pq
+			}
+		}
+	}
+
+	for c := cell; c != cad.root; c = c.parent {
+		if c.defpoly == nil {
+			pp := c.intv.l.subst_poly(p, Level(c.lv))
+			fmt.Printf("pq=%v\n", pp)
 			switch px := pp.(type) {
 			case *Poly:
 				p = px
 			case NObj:
 				return px, is_q, sign_t(px.Sign())
 			}
-		} else {
-			panic("unimplemented")
 		}
-		c = c.parent
+	}
+	for c := cell; c != cad.root; c = c.parent {
+		if !p.hasVar(Level(c.lv)) {
+			continue
+		}
+		pp := c.intv.l.subst_poly(p, Level(c.lv))
+		fmt.Printf("pi=%v\n", pp)
+		switch px := pp.(type) {
+		case *Poly:
+			p = px
+		case NObj:
+			return px, is_q, sign_t(px.Sign())
+		}
 	}
 
 	return p, is_q, sign_t(p.Sign())

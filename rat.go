@@ -244,3 +244,36 @@ func (z *Rat) Float() float64 {
 	f, _ := z.n.Float64()
 	return f
 }
+
+func (x *Rat) subst_poly(p *Poly, lv Level) RObj {
+	deg := p.Deg(lv)
+	if deg == 0 {
+		return p
+	}
+
+	dd := new(Int)
+	dd.n = x.n.Denom()
+
+	dens := make([]RObj, deg+1)
+	dens[0] = one
+	dens[1] = dd
+
+	for i := 1; i < deg; i++ {
+		dens[i+1] = dens[i].Mul(dd)
+	}
+
+	num := new(Int)
+	num.n = x.n.Num()
+
+	return p.subst_frac(num, dens, lv)
+}
+
+func (x *Rat) mul_2exp(m uint) RObj {
+	v := newRat()
+	num := new(big.Int)
+	den := x.n.Denom()
+
+	num.Lsh(x.n.Num(), m)
+	v.n.SetFrac(num, den)
+	return v
+}

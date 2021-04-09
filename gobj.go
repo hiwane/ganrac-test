@@ -35,5 +35,5 @@ type dumper interface {
 }
 
 type printer interface {
-	Print(b io.Writer, args []interface{}) error
+	Print(b io.Writer, args ...interface{}) error
 }

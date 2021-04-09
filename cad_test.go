@@ -30,6 +30,16 @@ func TestCADeasy(t *testing.T) {
 				NewQuantifier(true, []Level{0},
 					NewAtom(x.Sub(y), EQ))),
 			1,
+		}, {
+			NewQuantifier(false, []Level{0, 1},
+				NewFmlAnd(NewAtom(x.Mul(x).Add(y.Mul(y)).Add(NewInt(-9)), LE),
+					NewAtom(x.Mul(x).Add(NewInt(-5)), GT))),
+			1,
+		}, {
+			NewQuantifier(false, []Level{0, 1},
+				NewFmlAnd(NewAtom(NewPolyInts(0, -2, 0, 1), EQ),
+					NewAtom(NewPolyCoef(1, NewInt(-1), NewPolyInts(0, -2, 0, 1)), EQ))),
+			0,
 		},
 	} {
 		cad, err := NewCAD(s.input, g)

@@ -524,6 +524,8 @@ func (ox *OpenXM) toGObj(p interface{}) GObj {
 		return bb
 	case string:
 		return NewString(cc)
+	case int, int64:
+		panic(fmt.Sprintf("unsupported intx `%v`", p))
 	default:
 		panic(fmt.Sprintf("unsupported `%v`", p))
 	}
@@ -773,7 +775,7 @@ func (ox *OpenXM) recvCMO(ringdef *List) (interface{}, error) {
 
 	}
 
-	return 1, nil
+	panic(fmt.Sprintf("unsupported: cmo=%d", tag))
 }
 
 func (ox *OpenXM) PopOXTag() (int32, int32, error) {

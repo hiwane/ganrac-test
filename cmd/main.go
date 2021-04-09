@@ -104,7 +104,7 @@ func main() {
 		p, err := g.Eval(strings.NewReader(string(line)))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %s\n", err)
-			break
+			continue
 		}
 		if p != nil {
 			fmt.Println(p)

@@ -72,3 +72,71 @@ func TestBinIntBase(t *testing.T) {
 		t.Errorf("input=%v,s=%v", b, s)
 	}
 }
+
+func TestBinIntSubst(t *testing.T) {
+	NewGANRAC()
+	for _, s := range []struct {
+		input  *Poly
+		num    int64
+		den    int
+		lv     Level
+		expect RObj
+	}{
+		{
+			NewPolyInts(0, 2, 3, 4, 5),
+			7, 0, 0,
+			NewInt(1934),
+		}, {
+			NewPolyCoef(1,
+				NewInt(5),
+				NewPolyInts(0, 2, 3),
+				NewPolyInts(0, 5, 7, -3)),
+			7, -2, 0,
+			NewPolyInts(1, 80, 116, 129),
+		}, {
+			NewPolyInts(0, 2, 3),
+			7, -2, 0,
+			NewInt(29),
+		}, {
+			NewPolyInts(0, 2, 3, 4, 5),
+			7, -2, 0,
+			NewInt(2963),
+		}, {
+			NewPolyCoef(1,
+				NewInt(5),
+				NewPolyInts(0, 2, 3),
+				NewPolyInts(0, 5, 7, -3)),
+			7, -2, 0,
+			NewPolyInts(1, 80, 116, 129),
+		}, {
+			NewPolyCoef(2,
+				NewInt(5),
+				NewPolyInts(1, 2, 3, 4, 5, 6),
+				NewPolyInts(0, -2, 7, 11),
+				NewPolyCoef(1, NewPolyInts(0, -5, 3, 2),
+					NewInt(-13),
+					NewPolyInts(0, 3, 1))),
+			7, -2, 1,
+			NewPolyCoef(2,
+				NewInt(1280),
+				NewInt(26258),
+				NewPolyInts(0, -512, 1792, 2816),
+				NewPolyInts(0, -4752, 1552, 512)),
+		},
+	} {
+		b := NewBinInt(s.num, s.den)
+		o := b.subst_poly(s.input, s.lv)
+		if !o.Equals(s.expect) {
+			t.Errorf("lv=%d\ninput =%v\nx=%v*2^(%d) => `%v`\nexpect=%v\noutput=%v", s.lv, s.input, s.num, s.den, b, s.expect, o)
+			return
+		}
+
+		q := b.ToIntRat()
+		o = q.subst_poly(s.input, s.lv)
+		if !o.Equals(s.expect) {
+			t.Errorf("lv=%d\ninput =%v\nx=%v*2^(%d)\nexpect=%v\noutput=%v", s.lv, s.input, s.num, s.den, s.expect, o)
+			continue
+		}
+
+	}
+}

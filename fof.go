@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var op2str = []string{"@false@", "<", "=", "<=", ">", "!=", ">=", "@true@"}
+var op2str = []string{"@false@", "<", "==", "<=", ">", "!=", ">=", "@true@"}
 
 var trueObj = new(AtomT)
 var falseObj = new(AtomF)
