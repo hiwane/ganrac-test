@@ -109,12 +109,6 @@ func (x *Int) Mul(y RObj) RObj {
 	panic("stop")
 }
 
-func (x *Int) Mul2Exp(m uint) NObj {
-	z := newInt()
-	z.n.Lsh(x.n, m)
-	return z
-}
-
 func (x *Int) Neg() RObj {
 	z := newInt()
 	z.n.Neg(x.n)
@@ -326,4 +320,11 @@ func (x *Int) mul_2exp(m uint) RObj {
 	v := newInt()
 	v.n.Lsh(x.n, m)
 	return v
+}
+
+func (x *Int) toIntv(prec uint) RObj {
+	z := newInterval(prec)
+	z.lv.SetInt(x.n)
+	z.uv.SetInt(x.n)
+	return z
 }

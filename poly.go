@@ -178,7 +178,7 @@ func (z *Poly) Sign() int {
 
 func (z *Poly) String() string {
 	var b strings.Builder
-	z.write(&b, false)
+	z.write(&b, false, "*")
 	return b.String()
 }
 
@@ -196,7 +196,7 @@ func (z *Poly) dump(b io.Writer) {
 	fmt.Fprintf(b, "))")
 }
 
-func (z *Poly) write(b io.Writer, out_sgn bool) {
+func (z *Poly) write(b io.Writer, out_sgn bool, mul string) {
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if s := z.c[i].Sign(); s == 0 {
 			continue
@@ -224,7 +224,7 @@ func (z *Poly) write(b io.Writer, out_sgn bool) {
 				}
 			} else if p, ok := z.c[i].(*Poly); ok {
 				if p.isMono() {
-					p.write(b, i != len(z.c)-1)
+					p.write(b, i != len(z.c)-1, mul)
 					if i > 0 {
 						fmt.Fprintf(b, "*")
 					}
@@ -234,10 +234,10 @@ func (z *Poly) write(b io.Writer, out_sgn bool) {
 					}
 					if i > 0 {
 						fmt.Fprintf(b, "(")
-						p.write(b, false)
+						p.write(b, false, mul)
 						fmt.Fprintf(b, ")*")
 					} else {
-						p.write(b, false)
+						p.write(b, false, mul)
 					}
 				}
 			}
@@ -249,6 +249,50 @@ func (z *Poly) write(b io.Writer, out_sgn bool) {
 			}
 		}
 	}
+}
+
+func (p *Poly) write_tex(b io.Writer) {
+	p.write(b, false, " ")
+}
+
+func (p *Poly) write_src(b io.Writer) {
+	if p.isUnivariate() {
+		bints := true
+		for _, cc := range p.c {
+			if c, ok := cc.(*Int); !ok || !c.IsInt64() {
+				bints = false
+				break
+			}
+		}
+		if bints {
+			fmt.Fprintf(b, "NewPolyInts(%d", p.lv)
+			for _, cc := range p.c {
+				c := cc.(*Int).Int64()
+				fmt.Fprintf(b, ",%d", c)
+			}
+			fmt.Fprintf(b, ")")
+			return
+		}
+
+	}
+
+	fmt.Fprintf(b, "NewPolyCoef(%d", p.lv)
+	for _, cc := range p.c {
+		fmt.Fprintf(b, ",")
+		switch c := cc.(type) {
+		case *Poly:
+			c.write_src(b)
+		case *Int:
+			if c.n.IsInt64() {
+				fmt.Fprintf(b, "NewInt(%d)", c.Int64())
+			} else {
+				fmt.Fprintf(b, "ParseInt(\"%v\")", c)
+			}
+		default:
+			panic("nooooo")
+		}
+	}
+	fmt.Fprintf(b, ")")
 }
 
 func (z *Poly) isVar() bool {
@@ -690,7 +734,7 @@ func (z *Poly) subst_binint_1var(numer *Int, denom uint) RObj {
 	q := NewPolyCoef(z.lv, numer, cc)
 	p := z.c[len(z.c)-1]
 	for i := len(z.c) - 2; i >= 0; i-- {
-		p = Add(Mul(p, q), z.c[i].(NObj).Mul2Exp(denom*uint(len(z.c)-i-1)))
+		p = Add(Mul(p, q), z.c[i].(NObj).mul_2exp(denom*uint(len(z.c)-i-1)))
 	}
 	return p
 }
@@ -811,4 +855,12 @@ func (f *Poly) diffConst(g *Poly) (int, bool) {
 	b := g.LeadinfCoef().Abs()
 
 	return f.Mul(b).Sub(g.Mul(a)).Sign(), true
+}
+
+func (f *Poly) toIntv(prec uint) RObj {
+	p := NewPoly(f.lv, len(f.c))
+	for i, c := range f.c {
+		p.c[i] = c.toIntv(prec)
+	}
+	return p
 }

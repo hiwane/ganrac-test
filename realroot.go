@@ -118,7 +118,7 @@ func (p *Poly) convertRange(low *BinInt) *Poly {
 		m := uint(-low.m)
 		q = p.subst_binint_1var(c, m).(*Poly)
 		for i := 0; i < len(q.c)-1; i++ {
-			q.c[i] = q.c[i].(NObj).Mul2Exp(m * uint(len(q.c)-i-1))
+			q.c[i] = q.c[i].(NObj).mul_2exp(m * uint(len(q.c)-i-1))
 		}
 
 		if err := q.valid(); err != nil {

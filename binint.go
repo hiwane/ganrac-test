@@ -122,13 +122,6 @@ func (x *BinInt) Mul(yy RObj) RObj {
 	panic("not implemented")
 }
 
-func (x *BinInt) Mul2Exp(m uint) NObj {
-	z := new(BinInt)
-	z.n = x.n
-	z.m = x.m + int(m)
-	return z
-}
-
 func (x *BinInt) Div(yy NObj) RObj {
 	z := x.ToIntRat()
 	return z.Div(yy)
@@ -316,4 +309,17 @@ func (x *BinInt) mul_2exp(m uint) RObj {
 	v.n = x.n
 	v.m = x.m + int(m)
 	return v
+}
+
+func (x *BinInt) setToBigFloat(y *big.Float) {
+	y.SetInt(x.n)
+	exp := y.MantExp(y)
+	y.SetMantExp(y, exp+x.m)
+}
+
+func (x *BinInt) toIntv(prec uint) RObj {
+	z := newInterval(prec)
+	x.setToBigFloat(z.lv)
+	x.setToBigFloat(z.uv)
+	return z
 }

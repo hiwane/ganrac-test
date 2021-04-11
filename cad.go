@@ -18,7 +18,8 @@ const (
 	q_exists = t_true
 )
 
-type Intv struct {
+type qIntrval struct {
+	// int, rat, binint が入ると想定
 	l, u NObj
 }
 
@@ -32,8 +33,9 @@ type Cell struct {
 	children     []*Cell
 	index        uint
 	defpoly      *Poly
-	intv         Intv
-	ex_deg       int // 拡大次数
+	intv         qIntrval  // 有理数=defpoly=nil か，bin-interval
+	nintv        *Interval // 数値計算
+	ex_deg       int       // 拡大次数
 	signature    []sign_t
 	multiplicity []int8
 	lv           int8

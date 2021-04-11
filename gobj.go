@@ -35,5 +35,7 @@ type dumper interface {
 }
 
 type printer interface {
+	// func.go の print() 関数からの呼び出しを想定.
+	// write() は通常表示用
 	Print(b io.Writer, args ...interface{}) error
 }

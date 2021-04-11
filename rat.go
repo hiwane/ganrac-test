@@ -97,16 +97,6 @@ func (x *Rat) Mul(yy RObj) RObj {
 	return nil
 }
 
-func (x *Rat) Mul2Exp(m uint) NObj {
-	den := x.n.Denom()
-	num := x.n.Num()
-	xx := new(big.Int)
-	xx.Lsh(num, m)
-	z := newRat()
-	z.n.SetFrac(xx, den)
-	return z
-}
-
 func (x *Rat) Div(yy NObj) RObj {
 	switch y := yy.(type) {
 	case *Int:
@@ -276,4 +266,11 @@ func (x *Rat) mul_2exp(m uint) RObj {
 	num.Lsh(x.n.Num(), m)
 	v.n.SetFrac(num, den)
 	return v
+}
+
+func (x *Rat) toIntv(prec uint) RObj {
+	z := newInterval(prec)
+	z.lv.SetRat(x.n)
+	z.uv.SetRat(x.n)
+	return z
 }

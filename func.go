@@ -69,6 +69,7 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
+		{"example", 0, 1, funcExample, false, "([name]): example.", ""},
 		{"fctr", 1, 1, funcOXFctr, true, "(poly)* factorize polynomial over the rationals.", ""},
 		{"gb", 1, 1, funcOXGB, true, "(poly-list)* groebner basis", ""},
 		{"help", 0, 1, nil, false, "(): show help", ""},
@@ -325,6 +326,26 @@ func funcOXGB(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 ////////////////////////////////////////////////////////////
 // CAD
 ////////////////////////////////////////////////////////////
+func funcExample(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	c, ok := args[0].(*String)
+	if !ok {
+		return nil, fmt.Errorf("%s() expected string", name)
+	}
+
+	ex := GetExampleFof(c.s)
+	if ex == nil {
+		return nil, fmt.Errorf("%s() invalid 1st arg %s", name, c.s)
+	}
+
+	ll := NewList()
+	ll.Append(ex.Input)
+	ll.Append(ex.Output)
+	ll.Append(NewString(ex.Ref))
+	ll.Append(NewString(ex.DOI))
+
+	return ll, nil
+}
+
 func funcCADinit(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	c, ok := args[0].(Fof)
 	if !ok {
@@ -387,6 +408,30 @@ func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 	switch cc := args[0].(type) {
 	case printer:
 		return nil, cc.Print(os.Stdout, args[1:]...)
+	case Fof:
+		if len(args) > 2 {
+			return nil, fmt.Errorf("invalid # of arg")
+		}
+		t := "org"
+		if len(args) == 2 {
+			s, ok := args[1].(*String)
+			if !ok {
+				return nil, fmt.Errorf("invalid 2nd arg")
+			}
+			t = s.s
+		}
+		switch t {
+		case "org":
+			cc.write(os.Stdout)
+		case "tex":
+			cc.write_tex(os.Stdout)
+		case "src":
+			cc.write_src(os.Stdout)
+		default:
+			return nil, fmt.Errorf("invalid 2nd arg")
+
+		}
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("unsupported object is specified")
 	}

@@ -338,17 +338,105 @@ func (cell *Cell) root_iso_i(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 }
 
 func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
-	pp, isQ, sgn := cell.subst_sample_points(cad, pf)
-	switch p := pp.(type) {
-	case *Poly:
-		if isQ {
-			// fctr.
-			return cell.root_iso_q(cad, pf, p), sgn
+
+	p := pf.p
+
+	if cell.de || cell.defpoly != nil {
+		// projection factor の情報から，ゼロ値を決める
+		pp := NewPoly(p.lv, len(p.c))
+		up := false
+		for i := 0; i < len(p.c); i++ {
+			if pf.coeff[i] == nil {
+				pp.c[i] = p.c[i]
+			} else if s, _ := pf.coeff[i].evalSign(cell); s == 0 {
+				pp.c[i] = zero
+				up = true
+			} else {
+				pp.c[i] = p.c[i]
+			}
 		}
-	case NObj:
-		return make([]*Cell, 0, 0), sgn
+		if up {
+			switch pq := pp.normalize().(type) {
+			case NObj:
+				return []*Cell{}, sign_t(pq.Sign())
+			case *Poly:
+				p = pq
+			}
+		}
 	}
+
+	for c := cell; c != cad.root; c = c.parent {
+		if c.defpoly == nil {
+			pp := c.intv.l.subst_poly(p, Level(c.lv))
+			fmt.Printf("pq=%v\n", pp)
+			switch px := pp.(type) {
+			case *Poly:
+				p = px
+			case NObj:
+				return []*Cell{}, sign_t(px.Sign())
+			}
+		}
+	}
+
+	fmt.Printf("p=%v, pf=%v\n", p, pf.p)
+	if p.isUnivariate() && p.lv == pf.p.lv {
+		// 他の変数が全部消えた.
+		return cell.root_iso_q(cad, pf, p), sign_t(p.Sign())
+	} else if p.lv != pf.p.lv {
+		// 主変数が消えて定数になった.
+		if pf.coeff[0] != nil {
+			s, _ := pf.coeff[0].evalSign(cell)
+			return []*Cell{}, s
+		}
+
+		// 定数の符号を決定する.
+		panic("not implemented")
+	}
+
+	for prec := uint(53); ; prec += uint(53) {
+		c, s, err := cell.make_cells_i(cad, pf, p, prec)
+		if err == nil {
+			return c, s
+		}
+
+		// セルの分離区間を改善
+	}
+}
+
+func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
+	if cell.nintv != nil && cell.nintv.Prec() >= prec {
+		return cell.nintv.clonePrec(prec)
+	}
+	if cell.defpoly == nil {
+		return cell.intv.l.toIntv(prec).(*Interval)
+	}
+	if cell.intv.l != nil {
+		// binary interval
+		z := newInterval(prec)
+		cell.intv.l.(*BinInt).setToBigFloat(z.lv)
+		cell.intv.u.(*BinInt).setToBigFloat(z.uv)
+		cell.nintv = z
+		return z
+	}
+
 	panic("unimplemented")
+}
+
+func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint) ([]*Cell, sign_t, error) {
+	pp := p.toIntv(prec).(*Poly)
+	for c := cell; c != cad.root; c = c.parent {
+		if !p.hasVar(Level(c.lv)) {
+			continue
+		}
+		x := cell.getNumIsoIntv(prec)
+		pp = pp.subst1(x, Level(c.lv)).(*Poly)
+	}
+
+	if !pp.isUnivariate() {
+		panic("invalid")
+	}
+
+	return []*Cell{}, sign_t(pp.Sign()), nil
 }
 
 func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
@@ -401,62 +489,4 @@ func (cell *Cell) improveIsoIntv() {
 	}
 
 	panic("unimplemented")
-}
-
-func (cell *Cell) subst_sample_points(cad *CAD, pf *ProjFactor) (RObj, bool, sign_t) {
-	p := pf.p
-	is_q := true
-
-	fmt.Printf("p=%v, cell=%v\n", p, cell.Index())
-	if cell.de || cell.defpoly != nil {
-		// projection factor の情報から，ゼロ値を決める
-		pp := NewPoly(p.lv, len(p.c))
-		up := false
-		for i := 0; i < len(p.c); i++ {
-			if pf.coeff[i] == nil {
-				pp.c[i] = p.c[i]
-			} else if s, _ := pf.coeff[i].evalSign(cell); s == 0 {
-				pp.c[i] = zero
-				up = true
-			} else {
-				pp.c[i] = p.c[i]
-			}
-		}
-		if up {
-			switch pq := pp.normalize().(type) {
-			case NObj:
-				return pq, is_q, sign_t(pq.Sign())
-			case *Poly:
-				p = pq
-			}
-		}
-	}
-
-	for c := cell; c != cad.root; c = c.parent {
-		if c.defpoly == nil {
-			pp := c.intv.l.subst_poly(p, Level(c.lv))
-			fmt.Printf("pq=%v\n", pp)
-			switch px := pp.(type) {
-			case *Poly:
-				p = px
-			case NObj:
-				return px, is_q, sign_t(px.Sign())
-			}
-		}
-	}
-	for c := cell; c != cad.root; c = c.parent {
-		if !p.hasVar(Level(c.lv)) {
-			continue
-		}
-		pp := c.intv.l.subst_poly(p, Level(c.lv))
-		fmt.Printf("pi=%v\n", pp)
-		switch px := pp.(type) {
-		case *Poly:
-			p = px
-		case NObj:
-			return px, is_q, sign_t(px.Sign())
-		}
-	}
-
-	return p, is_q, sign_t(p.Sign())
 }

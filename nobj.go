@@ -1,10 +1,11 @@
 package ganrac
 
 const (
-	NTAG_NONE   uint = 0
-	NTAG_INT    uint = 1
-	NTAG_RAT    uint = 2
-	NTAG_BININT uint = 3
+	NTAG_NONE = iota
+	NTAG_INT
+	NTAG_RAT
+	NTAG_BININT
+	NTAG_INTERVAL
 )
 
 // numeric
@@ -12,7 +13,6 @@ type NObj interface {
 	RObj
 	numTag() uint
 	Float() float64
-	Mul2Exp(m uint) NObj
 	Cmp(x NObj) int
 	CmpAbs(x NObj) int
 	Abs() NObj

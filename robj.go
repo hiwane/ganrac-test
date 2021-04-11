@@ -20,6 +20,7 @@ type RObj interface {
 	IsNumeric() bool
 	valid() error
 	mul_2exp(m uint) RObj
+	toIntv(prec uint) RObj
 }
 
 type RObjSample struct {
@@ -96,5 +97,9 @@ func (z *RObjSample) valid() error {
 }
 
 func (z *RObjSample) mul_2exp(m uint) RObj {
+	return z
+}
+
+func (z *RObjSample) toIntv(prec uint) RObj {
 	return z
 }

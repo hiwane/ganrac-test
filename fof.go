@@ -28,6 +28,8 @@ type Fof interface {
 	Subst(xs []RObj, lvs []Level) Fof
 	valid() error      // for DEBUG. 実装として適切な形式になっているか
 	write(b io.Writer) // String() の補助
+	write_src(b io.Writer)
+	write_tex(b io.Writer)
 	Deg(lv Level) int
 	FmlLess(a Fof) bool
 	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
@@ -551,11 +553,25 @@ func (p *AtomT) write(b io.Writer) {
 	fmt.Fprintf(b, p.String())
 }
 
+func (p *AtomT) write_src(b io.Writer) {
+	fmt.Fprintf(b, "trueObj")
+}
+func (p *AtomT) write_tex(b io.Writer) {
+	fmt.Fprintf(b, "\\ltrue")
+}
+
 func (p *AtomF) String() string {
 	return "false"
 }
 func (p *AtomF) write(b io.Writer) {
 	fmt.Fprintf(b, p.String())
+}
+
+func (p *AtomF) write_src(b io.Writer) {
+	fmt.Fprintf(b, "falseObj")
+}
+func (p *AtomF) write_tex(b io.Writer) {
+	fmt.Fprintf(b, "\\lfalse")
 }
 
 func (p *Atom) String() string {
@@ -577,6 +593,51 @@ func (p *Atom) write(b io.Writer) {
 	}
 }
 
+func (p *Atom) write_src(b io.Writer) {
+	if len(p.p) == 1 {
+		fmt.Fprintf(b, "NewAtom(")
+		p.p[0].write_src(b)
+	} else {
+		fmt.Fprintf(b, "NewAtoms([]RObj{")
+		for i, f := range p.p {
+			if i != 0 {
+				fmt.Fprintf(b, ",")
+			}
+			f.write_src(b)
+		}
+		fmt.Fprintf(b, "}")
+	}
+	fmt.Fprintf(b, ", ")
+	switch p.op {
+	case LT:
+		fmt.Fprintf(b, "LT")
+	case EQ:
+		fmt.Fprintf(b, "EQ")
+	case LE:
+		fmt.Fprintf(b, "LE")
+	case GT:
+		fmt.Fprintf(b, "GT")
+	case GE:
+		fmt.Fprintf(b, "GE")
+	case NE:
+		fmt.Fprintf(b, "NE")
+	}
+	fmt.Fprintf(b, ")")
+}
+
+func (p *Atom) write_tex(b io.Writer) {
+	if len(p.p) == 1 {
+		p.p[0].write_tex(b)
+	} else {
+		for _, f := range p.p {
+			fmt.Fprintf(b, "(")
+			f.write_tex(b)
+			fmt.Fprintf(b, ")")
+		}
+	}
+	fmt.Fprintf(b, " %s 0", []string{"@false@", "<", "=", "\\leq", ">", "\\neq", "\\ge", "@true@"}[p.op])
+}
+
 func writeFmlAndOr(b io.Writer, fmls []Fof, op string) {
 	for i, f := range fmls {
 		if i != 0 {
@@ -591,6 +652,58 @@ func writeFmlAndOr(b io.Writer, fmls []Fof, op string) {
 			f.write(b)
 		}
 	}
+}
+
+func (p *FmlAnd) write_tex(b io.Writer) {
+	for i, f := range p.fml {
+		if i != 0 {
+			fmt.Fprintf(b, " \\land ")
+		}
+
+		if _, ok := f.(*FmlOr); ok {
+			fmt.Fprintf(b, "(")
+			f.write_tex(b)
+			fmt.Fprintf(b, ")")
+		} else {
+			f.write_tex(b)
+		}
+	}
+}
+
+func (p *FmlAnd) write_src(b io.Writer) {
+	fmt.Fprintf(b, "newFmlAnds(")
+	for i, f := range p.fml {
+		if i != 0 {
+			fmt.Fprintf(b, ",")
+		}
+		f.write_src(b)
+	}
+	fmt.Fprintf(b, ")")
+}
+
+func (p *FmlOr) write_tex(b io.Writer) {
+	for i, f := range p.fml {
+		if i != 0 {
+			fmt.Fprintf(b, " \\lor ")
+		}
+
+		if _, ok := f.(*FmlOr); ok {
+			f.write_tex(b)
+		} else {
+			f.write_tex(b)
+		}
+	}
+}
+
+func (p *FmlOr) write_src(b io.Writer) {
+	fmt.Fprintf(b, "newFmlOrs(")
+	for i, f := range p.fml {
+		if i != 0 {
+			fmt.Fprintf(b, ",")
+		}
+		f.write_src(b)
+	}
+	fmt.Fprintf(b, ")")
 }
 
 func (p *FmlAnd) write(b io.Writer) {
@@ -625,6 +738,46 @@ func writeFmlQ(b io.Writer, lvs []Level, fml Fof, q string) {
 	}
 	fmt.Fprintf(b, "], ")
 	fml.write(b)
+	fmt.Fprintf(b, ")")
+}
+
+func (p *ForAll) write_tex(b io.Writer) {
+	for _, lv := range p.q {
+		fmt.Fprintf(b, "\\forall %s ", varlist[lv].v)
+	}
+	p.fml.write_tex(b)
+
+}
+func (p *ForAll) write_src(b io.Writer) {
+	fmt.Fprintf(b, "NewQuantifier(true, []Level{")
+	for i, lv := range p.q {
+		if i != 0 {
+			fmt.Fprintf(b, ",")
+		}
+		fmt.Fprintf(b, "%d", lv)
+	}
+	fmt.Fprintf(b, "}, ")
+	p.fml.write_src(b)
+	fmt.Fprintf(b, ")")
+}
+
+func (p *Exists) write_tex(b io.Writer) {
+	for _, lv := range p.q {
+		fmt.Fprintf(b, "\\exists %s ", varlist[lv].v)
+	}
+	p.fml.write_tex(b)
+
+}
+func (p *Exists) write_src(b io.Writer) {
+	fmt.Fprintf(b, "NewQuantifier(false, []Level{")
+	for i, lv := range p.q {
+		if i != 0 {
+			fmt.Fprintf(b, ",")
+		}
+		fmt.Fprintf(b, "%d", lv)
+	}
+	fmt.Fprintf(b, "}, ")
+	p.fml.write_src(b)
 	fmt.Fprintf(b, ")")
 }
 
