@@ -300,7 +300,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
 		} else {
-			roots, _ := q.RealRootIsolation(+30)
+			roots, _ := q.RealRootIsolation(+30) // DEBUG用に大きい値を設定中
 			sgn := sign_t(1)
 			if len(q.c)%2 == 0 {
 				sgn = -1
@@ -337,6 +337,54 @@ func (cell *Cell) root_iso_i(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	return cs
 }
 
+func (cell *Cell) reduce(p *Poly) RObj {
+	// 次数を下げる.
+	for c := cell; c.lv >= 0; c = c.parent {
+		if c.defpoly != nil {
+			if _, ok := c.defpoly.c[len(c.defpoly.c)-1].(NObj); !ok {
+				// 正規化されていない
+				continue
+			}
+			q := p.reduce(c.defpoly)
+			if qq, ok := q.(*Poly); ok {
+				p = qq
+			} else {
+				return q
+			}
+		}
+	}
+	return p
+}
+
+func (cell *Cell) make_cells_try1(cad *CAD, pf *ProjFactor, pr RObj) (*Poly, []*Cell, sign_t) {
+	// returns (p, c, s)
+	// 子供セルが作れたら， p=nil, s=pfに cell 代入したときの主係数の符号
+	// 子供セルが作れなかったら p != nil, (c,s) は使わない
+	fmt.Printf("make_cells_try1() pr=%v, pf=%v\n", pr, pf.p)
+	switch p := pr.(type) {
+	case *Poly:
+		if p.isUnivariate() && p.lv == pf.p.lv {
+			// 他の変数が全部消えた.
+			return nil, cell.root_iso_q(cad, pf, p), sign_t(p.Sign())
+		} else if p.lv != pf.p.lv {
+			// 主変数が消えて定数になった.
+			if pf.coeff[0] != nil {
+				s, _ := pf.coeff[0].evalSign(cell)
+				return nil, []*Cell{}, s
+			}
+
+			cell.reduce(p)
+
+			// 定数の符号を決定する.
+			panic("not implemented")
+		}
+		return p, nil, 0
+	case NObj:
+		return nil, []*Cell{}, sign_t(p.Sign())
+	}
+	panic("invalid")
+}
+
 func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 
 	p := pf.p
@@ -366,6 +414,7 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 	}
 
 	for c := cell; c != cad.root; c = c.parent {
+		// 有理数代入
 		if c.defpoly == nil {
 			pp := c.intv.l.subst_poly(p, Level(c.lv))
 			fmt.Printf("pq=%v\n", pp)
@@ -378,28 +427,30 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 		}
 	}
 
-	fmt.Printf("p=%v, pf=%v\n", p, pf.p)
-	if p.isUnivariate() && p.lv == pf.p.lv {
-		// 他の変数が全部消えた.
-		return cell.root_iso_q(cad, pf, p), sign_t(p.Sign())
-	} else if p.lv != pf.p.lv {
-		// 主変数が消えて定数になった.
-		if pf.coeff[0] != nil {
-			s, _ := pf.coeff[0].evalSign(cell)
-			return []*Cell{}, s
-		}
+	p, c, s := cell.make_cells_try1(cad, pf, p)
+	if p == nil {
+		return c, s
+	}
 
-		// 定数の符号を決定する.
-		panic("not implemented")
+	// とりあえず簡単化してみる
+	p, c, s = cell.make_cells_try1(cad, pf, cell.reduce(p))
+	if p == nil {
+		return c, s
 	}
 
 	for prec := uint(53); ; prec += uint(53) {
 		c, s, err := cell.make_cells_i(cad, pf, p, prec)
-		if err == nil {
+		if err != nil && false {
 			return c, s
 		}
 
+		// 区間にゼロを含むなら.... 記号演算でチェック
+
 		// セルの分離区間を改善
+		cell.Print(os.Stdout)
+		panic("not implemented")
+
+		// 精度が足りなかったか無平方でなかったか.
 	}
 }
 
@@ -434,6 +485,17 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint) ([]
 
 	if !pp.isUnivariate() {
 		panic("invalid")
+	}
+
+	for _, c := range pp.c {
+		if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
+			return nil, 0, fmt.Errorf("coef contains zero.")
+		}
+	}
+
+	_, err := pp.iRealRoot(prec)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return []*Cell{}, sign_t(pp.Sign()), nil

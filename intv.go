@@ -17,9 +17,11 @@ func (z *Interval) String() string {
 
 func newInterval(prec uint) *Interval {
 	f := new(Interval)
+	f.lv = new(big.Float)
 	f.lv.SetMode(big.ToNegativeInf)
 	f.lv.SetPrec(prec)
-	f.uv.SetMode(big.ToNegativeInf)
+	f.uv = new(big.Float)
+	f.uv.SetMode(big.ToPositiveInf)
 	f.uv.SetPrec(prec)
 	return f
 }

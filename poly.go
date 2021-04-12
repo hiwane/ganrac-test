@@ -443,8 +443,20 @@ func (x *Poly) Div(y NObj) RObj {
 	return z
 }
 
-func (x *Poly) leadingTerm() *Poly {
+func (p *Poly) leadingCoef() NObj {
+	for {
+		switch q := p.c[len(p.c)-1].(type) {
+		case *Poly:
+			p = q
+		case NObj:
+			return q
+		default:
+			panic("invalid")
+		}
+	}
+}
 
+func (x *Poly) leadingTerm() *Poly {
 	p := NewPoly(x.lv, len(x.c))
 	for i := 0; i < len(x.c)-1; i++ {
 		p.c[i] = zero
@@ -863,4 +875,103 @@ func (f *Poly) toIntv(prec uint) RObj {
 		p.c[i] = c.toIntv(prec)
 	}
 	return p
+}
+
+func (p *Poly) _reduce(q *Poly) RObj {
+	if p.lv < q.lv {
+		return p
+	} else if p.lv > q.lv {
+		pp := NewPoly(p.lv, len(p.c))
+		for i := 0; i < len(p.c); i++ {
+			switch c := p.c[i].(type) {
+			case *Poly:
+				pp.c[i] = c._reduce(q)
+			default:
+				pp.c[i] = p.c[i]
+			}
+		}
+		return pp.normalize()
+	}
+
+	lc := q.c[len(q.c)-1].(NObj)
+	for i := 0; p.lv == q.lv && len(p.c) >= len(q.c); i++ {
+		cc := p.c[len(p.c)-1].Div(lc)
+		qq := NewPoly(p.lv, len(p.c))
+		df := len(p.c) - len(q.c)
+		for i := 0; i < df; i++ {
+			qq.c[i] = zero
+		}
+		for i := 0; i < len(q.c); i++ {
+			qq.c[i+df] = q.c[i].Mul(cc)
+		}
+		pp := p.Sub(qq)
+		if ppp, ok := pp.(*Poly); ok {
+			p = ppp
+		} else {
+			return pp
+		}
+		if i > 100 {
+			panic("err") // DEBUG
+		}
+	}
+	return p
+}
+
+func (p *Poly) reduce(q *Poly) RObj {
+	// q を使って可能な限り簡単化する.
+	// assume: lc(q) in Z, lv(p) >= lv(q)
+	d := p.Deg(q.lv)
+	if d == 0 {
+		return p
+	}
+	d = d - q.Deg(q.lv)
+	if d < 0 {
+		return p
+	}
+	var c NObj
+	switch cc := q.c[len(q.c)-1].(type) {
+	case NObj:
+		c = cc.Abs()
+	default:
+		return p
+	}
+	c = c.Pow(NewInt(int64(d + 1))).(NObj)
+	p = p.Mul(c).(*Poly)
+
+	switch pp := p._reduce(q).(type) {
+	case *Poly:
+		return pp.primpart()
+	default:
+		return pp
+	}
+}
+
+func (p *Poly) content(k *Int) *Int {
+	for i, cc := range p.c {
+		switch c := cc.(type) {
+		case *Poly:
+			k = c.content(k)
+		case *Int:
+			if c.Equals(zero) {
+				p.c[i] = zero
+			} else if k == nil {
+				k = c
+			} else {
+				k = k.Gcd(c)
+			}
+		case *BinInt:
+			panic(fmt.Sprintf("unexpected binint %v", c))
+		case *Rat:
+			panic(fmt.Sprintf("unexpected rat %v", c))
+		default:
+			panic(fmt.Sprintf("unexpected %v", c))
+		}
+	}
+	return k
+}
+
+func (p *Poly) primpart() *Poly {
+	// assume: p in Z[X]
+	c := p.content(nil)
+	return p.Div(c).(*Poly)
 }

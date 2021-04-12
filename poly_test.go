@@ -508,3 +508,29 @@ func TestPolMul2Exp(t *testing.T) {
 		t.Errorf("m=8\ns=%v\np=%v\nq=%v\n", s, p, q)
 	}
 }
+
+func TestPolReduce(t *testing.T) {
+	for _, s := range []struct {
+		x, y   *Poly
+		expect RObj
+	}{
+		{
+			NewPolyCoef(1, NewPolyInts(0, -2, 0, 3), NewPolyInts(0, -5, 1, 3)),
+			NewPolyInts(0, -2, 0, 3),
+			NewPolyCoef(1, zero, NewPolyInts(0, -3, 1)),
+		}, {
+			NewPolyCoef(1, NewPolyInts(0, -5, 1, 3), NewPolyInts(0, -2, 0, 3)),
+			NewPolyInts(0, -2, 0, 3),
+			NewPolyInts(0, -3, 1),
+		}, {
+			NewPolyCoef(1, NewPolyInts(0, 0, 0, 2), NewPolyInts(0, 1, 0, 1)),
+			NewPolyInts(0, -2, 0, 3),
+			NewPolyInts(1, 4, 5),
+		},
+	} {
+		o := s.x.reduce(s.y)
+		if !o.Equals(s.expect) {
+			t.Errorf("\nx=%v\ny=%v\nexpect=%v\nactual=%v", s.x, s.y, s.expect, o)
+		}
+	}
+}
