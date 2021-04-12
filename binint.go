@@ -319,7 +319,7 @@ func (x *BinInt) setToBigFloat(y *big.Float) {
 
 func (x *BinInt) toIntv(prec uint) RObj {
 	z := newInterval(prec)
-	x.setToBigFloat(z.lv)
-	x.setToBigFloat(z.uv)
+	x.setToBigFloat(z.inf)
+	x.setToBigFloat(z.sup)
 	return z
 }

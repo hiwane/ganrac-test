@@ -20,7 +20,7 @@ const (
 
 type qIntrval struct {
 	// int, rat, binint が入ると想定
-	l, u NObj
+	inf, sup NObj
 }
 
 type AtomProj struct {
@@ -327,7 +327,7 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			c.printSignature(b)
 			fmt.Fprintf(b, " ")
 			c.printMultiplicity(b)
-			fmt.Fprintf(b, " [% e,% e]", c.intv.l.Float(), c.intv.u.Float())
+			fmt.Fprintf(b, " [% e,% e]", c.intv.inf.Float(), c.intv.sup.Float())
 			if c.defpoly != nil {
 				fmt.Fprintf(b, " %.30v", c.defpoly)
 			}
@@ -346,9 +346,9 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		fmt.Fprintf(b, "# of children=%d\n", num)
 		fmt.Fprintf(b, "truth value  =%d\n", cell.truth)
 		fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
-		if cell.intv.l != nil {
-			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.l, cell.intv.u)
-			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.l.Float(), cell.intv.u.Float())
+		if cell.intv.inf != nil {
+			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.inf, cell.intv.sup)
+			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.inf.Float(), cell.intv.sup.Float())
 		}
 	case "cells":
 		if cell.children == nil {

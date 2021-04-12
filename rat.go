@@ -270,7 +270,7 @@ func (x *Rat) mul_2exp(m uint) RObj {
 
 func (x *Rat) toIntv(prec uint) RObj {
 	z := newInterval(prec)
-	z.lv.SetRat(x.n)
-	z.uv.SetRat(x.n)
+	z.inf.SetRat(x.n)
+	z.sup.SetRat(x.n)
 	return z
 }

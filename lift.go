@@ -212,27 +212,27 @@ func (cad *CAD) addSector(parent *Cell, cs []*Cell) []*Cell {
 	ret := make([]*Cell, len(cs)*2+1)
 	ret[0] = NewCell(cad, parent, 0)
 	if len(cs) == 0 {
-		ret[0].intv.l = zero
-		ret[0].intv.u = zero
+		ret[0].intv.inf = zero
+		ret[0].intv.sup = zero
 		return ret
 	}
 
-	ret[0].intv.l = cs[0].intv.l.Sub(one).(NObj)
-	ret[0].intv.u = ret[0].intv.l
+	ret[0].intv.inf = cs[0].intv.inf.Sub(one).(NObj)
+	ret[0].intv.sup = ret[0].intv.inf
 	ret[1] = cs[0]
 	cs[0].index = 1
 	for i := 1; i < len(cs); i++ {
 		ret[2*i] = NewCell(cad, parent, uint(2*i))
-		m := cs[i-1].intv.u.Add(cs[i].intv.l).Div(two).(NObj)
-		ret[2*i].intv.l = m
-		ret[2*i].intv.u = m
+		m := cs[i-1].intv.sup.Add(cs[i].intv.inf).Div(two).(NObj)
+		ret[2*i].intv.inf = m
+		ret[2*i].intv.sup = m
 		cs[i].index = uint(2*i + 1)
 		ret[2*i+1] = cs[i]
 	}
 	n := len(ret) - 1
 	ret[n] = NewCell(cad, parent, uint(n))
-	ret[n].intv.l = cs[len(cs)-1].intv.u.Add(one).(NObj)
-	ret[n].intv.u = ret[n].intv.l
+	ret[n].intv.inf = cs[len(cs)-1].intv.sup.Add(one).(NObj)
+	ret[n].intv.sup = ret[n].intv.inf
 	return ret
 }
 
@@ -242,9 +242,9 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 	for i := 0; i < len(cs); i++ {
 		for j := 0; j < i; j++ {
 			for {
-				if cs[j].intv.u.Cmp(cs[i].intv.l) < 0 {
+				if cs[j].intv.sup.Cmp(cs[i].intv.inf) < 0 {
 					break
-				} else if cs[i].intv.u.Cmp(cs[j].intv.l) < 0 {
+				} else if cs[i].intv.sup.Cmp(cs[j].intv.inf) < 0 {
 					// cs[i] < cs[j]
 					c := cs[i]
 					cs[i] = cs[j]
@@ -291,11 +291,11 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			if rat.n.IsInt() {
 				ci := new(Int)
 				ci.n = rat.n.Num()
-				c.intv.l = ci
-				c.intv.u = ci
+				c.intv.inf = ci
+				c.intv.sup = ci
 			} else {
-				c.intv.l = rat
-				c.intv.u = rat
+				c.intv.inf = rat
+				c.intv.sup = rat
 			}
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
@@ -311,8 +311,8 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			for i := 0; i < roots.Len(); i++ {
 				rr := roots.getiList(i)
 				c := NewCell(cad, cell, pf.index)
-				c.intv.l = rr.geti(0).(NObj)
-				c.intv.u = rr.geti(1).(NObj)
+				c.intv.inf = rr.geti(0).(NObj)
+				c.intv.sup = rr.geti(1).(NObj)
 				c.sgn_of_left = sgn
 				sgn *= -1
 				c.multiplicity[pf.index] = r
@@ -416,7 +416,7 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 	for c := cell; c != cad.root; c = c.parent {
 		// 有理数代入
 		if c.defpoly == nil {
-			pp := c.intv.l.subst_poly(p, Level(c.lv))
+			pp := c.intv.inf.subst_poly(p, Level(c.lv))
 			fmt.Printf("pq=%v\n", pp)
 			switch px := pp.(type) {
 			case *Poly:
@@ -459,13 +459,13 @@ func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 		return cell.nintv.clonePrec(prec)
 	}
 	if cell.defpoly == nil {
-		return cell.intv.l.toIntv(prec).(*Interval)
+		return cell.intv.inf.toIntv(prec).(*Interval)
 	}
-	if cell.intv.l != nil {
+	if cell.intv.inf != nil {
 		// binary interval
 		z := newInterval(prec)
-		cell.intv.l.(*BinInt).setToBigFloat(z.lv)
-		cell.intv.u.(*BinInt).setToBigFloat(z.uv)
+		cell.intv.inf.(*BinInt).setToBigFloat(z.inf)
+		cell.intv.sup.(*BinInt).setToBigFloat(z.sup)
 		cell.nintv = z
 		return z
 	}
@@ -531,21 +531,21 @@ func (cell *Cell) improveIsoIntv() {
 		return
 	}
 
-	switch l := cell.intv.l.(type) {
+	switch l := cell.intv.inf.(type) {
 	case *BinInt:
 		// binint ということは, realroot の出力であり，１変数多項式
 		m := l.midBinIntv()
 		v := m.subst_poly(cell.defpoly, cell.defpoly.lv)
 		if v.Sign() < 0 && cell.sgn_of_left < 0 || v.Sign() > 0 && cell.sgn_of_left > 0 {
-			cell.intv.l = m
-			cell.intv.u = m.upperBound()
+			cell.intv.inf = m
+			cell.intv.sup = m.upperBound()
 		} else if v.Sign() != 0 {
-			cell.intv.l = l.halveIntv()
-			cell.intv.u = m
+			cell.intv.inf = l.halveIntv()
+			cell.intv.sup = m
 		} else {
 			cell.defpoly = nil
-			cell.intv.u = l
-			cell.intv.u = m
+			cell.intv.inf = l
+			cell.intv.sup = m
 		}
 		return
 	}

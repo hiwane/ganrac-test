@@ -7,29 +7,29 @@ import (
 )
 
 type Interval struct {
-	lv *big.Float // lower value
-	uv *big.Float // upper value
+	inf *big.Float // lower value
+	sup *big.Float // upper value
 }
 
 func (z *Interval) String() string {
-	return fmt.Sprintf("[%s,%s]", z.lv.String(), z.uv.String())
+	return fmt.Sprintf("[%s,%s]", z.inf.String(), z.sup.String())
 }
 
 func newInterval(prec uint) *Interval {
 	f := new(Interval)
-	f.lv = new(big.Float)
-	f.lv.SetMode(big.ToNegativeInf)
-	f.lv.SetPrec(prec)
-	f.uv = new(big.Float)
-	f.uv.SetMode(big.ToPositiveInf)
-	f.uv.SetPrec(prec)
+	f.inf = new(big.Float)
+	f.inf.SetMode(big.ToNegativeInf)
+	f.inf.SetPrec(prec)
+	f.sup = new(big.Float)
+	f.sup.SetMode(big.ToPositiveInf)
+	f.sup.SetPrec(prec)
 	return f
 }
 
 func NewIntervalInt64(n int64, prec uint) *Interval {
 	z := newInterval(prec)
-	z.lv.SetInt64(n)
-	z.uv.SetInt64(n)
+	z.inf.SetInt64(n)
+	z.sup.SetInt64(n)
 	return z
 }
 
@@ -38,32 +38,32 @@ func (z *Interval) clonePrec(prec uint) *Interval {
 		return z
 	}
 	x := newInterval(prec)
-	x.lv.Set(z.lv)
-	x.uv.Set(z.uv)
+	x.inf.Set(z.inf)
+	x.sup.Set(z.sup)
 	return x
 }
 
 func (z *Interval) SetPrec(prec uint) {
-	z.lv.SetPrec(prec)
-	z.uv.SetPrec(prec)
+	z.inf.SetPrec(prec)
+	z.sup.SetPrec(prec)
 }
 
 func (z *Interval) Prec() uint {
-	return z.lv.Prec()
+	return z.inf.Prec()
 }
 
 func (c *Interval) ContainsZero() bool {
-	lsgn := c.lv.Sign()
-	usgn := c.uv.Sign()
+	lsgn := c.inf.Sign()
+	usgn := c.sup.Sign()
 
 	return lsgn <= 0 && usgn >= 0
 }
 
 func MaxPrec(x, y *Interval) uint {
-	if x.lv.Prec() <= y.lv.Prec() {
-		return x.lv.Prec()
+	if x.inf.Prec() <= y.inf.Prec() {
+		return x.inf.Prec()
 	} else {
-		return y.lv.Prec()
+		return y.inf.Prec()
 	}
 }
 
@@ -73,82 +73,82 @@ func (x *Interval) Tag() uint {
 
 func (x *Interval) Neg() RObj {
 	z := newInterval(x.Prec())
-	z.uv.Neg(x.lv)
-	z.lv.Neg(x.uv)
+	z.sup.Neg(x.inf)
+	z.inf.Neg(x.sup)
 	return z
 }
 
 func (x *Interval) Add(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
-	z.lv.Add(x.lv, y.lv)
-	z.uv.Add(x.uv, y.uv)
+	z.inf.Add(x.inf, y.inf)
+	z.sup.Add(x.sup, y.sup)
 	return z
 }
 
 func (x *Interval) Sub(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
-	z.lv.Add(x.lv, y.lv)
-	z.uv.Add(x.uv, y.uv)
+	z.inf.Add(x.inf, y.inf)
+	z.sup.Add(x.sup, y.sup)
 	return z
 }
 
 func (x *Interval) Mul(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
-	if x.lv.Sign() >= 0 {
-		if y.lv.Sign() >= 0 {
-			z.lv.Mul(x.lv, y.lv)
-			z.uv.Mul(x.uv, y.uv)
-		} else if y.uv.Sign() <= 0 {
+	if x.inf.Sign() >= 0 {
+		if y.inf.Sign() >= 0 {
+			z.inf.Mul(x.inf, y.inf)
+			z.sup.Mul(x.sup, y.sup)
+		} else if y.sup.Sign() <= 0 {
 			// x >= 0, y <= 0
-			z.lv.Mul(x.uv, y.lv)
-			z.uv.Mul(x.lv, y.uv)
+			z.inf.Mul(x.sup, y.inf)
+			z.sup.Mul(x.inf, y.sup)
 		} else {
-			z.lv.Mul(x.uv, y.lv)
-			z.uv.Mul(x.uv, y.uv)
+			z.inf.Mul(x.sup, y.inf)
+			z.sup.Mul(x.sup, y.sup)
 		}
-	} else if x.uv.Sign() <= 0 {
-		if y.lv.Sign() >= 0 {
-			z.lv.Mul(x.lv, y.uv)
-			z.uv.Mul(x.uv, y.lv)
-		} else if y.uv.Sign() <= 0 {
+	} else if x.sup.Sign() <= 0 {
+		if y.inf.Sign() >= 0 {
+			z.inf.Mul(x.inf, y.sup)
+			z.sup.Mul(x.sup, y.inf)
+		} else if y.sup.Sign() <= 0 {
 			// [-xl, -xu] * [-yl, -yu] => [xu*yu, xl*yl]
-			z.lv.Mul(x.uv, y.uv)
-			z.uv.Mul(x.lv, y.lv)
+			z.inf.Mul(x.sup, y.sup)
+			z.sup.Mul(x.inf, y.inf)
 		} else {
 			// [-xl, -xu] * [-yl, +yu] => [xu*yu, xl*yl]
-			z.lv.Mul(x.lv, y.uv)
-			z.uv.Mul(x.lv, y.lv)
+			z.inf.Mul(x.inf, y.sup)
+			z.sup.Mul(x.inf, y.inf)
 		}
 	} else {
-		if y.lv.Sign() >= 0 {
+		if y.inf.Sign() >= 0 {
 			// [-xl, xu] * [yl, yu]
-			z.lv.Mul(x.lv, y.uv)
-			z.uv.Mul(x.uv, y.uv)
-		} else if y.uv.Sign() <= 0 {
+			z.inf.Mul(x.inf, y.sup)
+			z.sup.Mul(x.sup, y.sup)
+		} else if y.sup.Sign() <= 0 {
 			// [-xl, xu] * [-yl, -yu]
 			// [-xl, xu] * (-yl, -yu]
-			z.lv.Mul(x.uv, y.lv)
-			z.uv.Mul(x.lv, y.lv)
+			z.inf.Mul(x.sup, y.inf)
+			z.sup.Mul(x.inf, y.inf)
 		} else {
 			// [-xl, +xu] * [-yl, +yu] => [min(-xl*yu,-xu,yl), max(xl*yl,xu*yu)]
 			u := new(big.Float)
-			u.SetPrec(z.lv.Prec())
+			u.SetPrec(z.inf.Prec())
 			u.SetMode(big.ToNegativeInf)
-			u.Mul(x.lv, y.uv)
-			z.lv.Mul(x.uv, y.lv)
-			cmp := u.Cmp(z.lv)
+			u.Mul(x.inf, y.sup)
+			z.inf.Mul(x.sup, y.inf)
+			cmp := u.Cmp(z.inf)
 			if cmp < 0 {
-				z.lv.Set(u)
+				z.inf.Set(u)
 			}
 			u.SetMode(big.ToPositiveInf)
-			u.Mul(x.lv, y.lv)
-			z.uv.Mul(x.uv, y.uv)
-			cmp = u.Cmp(z.uv)
+			u.Mul(x.inf, y.inf)
+			z.sup.Mul(x.sup, y.sup)
+			cmp = u.Cmp(z.sup)
 			if cmp > 0 {
-				z.uv.Set(u)
+				z.sup.Set(u)
 			}
 		}
 	}
@@ -165,9 +165,9 @@ func (x *Interval) Pow(yy *Int) RObj {
 }
 
 func (x *Interval) Sign() int {
-	if x.lv.Sign() > 0 {
+	if x.inf.Sign() > 0 {
 		return 1
-	} else if x.uv.Sign() < 0 {
+	} else if x.sup.Sign() < 0 {
 		return -1
 	} else {
 		return 0
@@ -175,7 +175,7 @@ func (x *Interval) Sign() int {
 }
 
 func (x *Interval) IsZero() bool {
-	return x.lv.Sign() >= 0 && x.uv.Sign() <= 0
+	return x.inf.Sign() >= 0 && x.sup.Sign() <= 0
 }
 
 func (x *Interval) IsOne() bool {
@@ -191,7 +191,7 @@ func (x *Interval) IsNumeric() bool {
 }
 
 func (x *Interval) valid() error {
-	if x.lv.Cmp(x.uv) > 0 {
+	if x.inf.Cmp(x.sup) > 0 {
 		return fmt.Errorf("lv > uv")
 	}
 	return nil

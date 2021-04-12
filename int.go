@@ -324,7 +324,7 @@ func (x *Int) mul_2exp(m uint) RObj {
 
 func (x *Int) toIntv(prec uint) RObj {
 	z := newInterval(prec)
-	z.lv.SetInt(x.n)
-	z.uv.SetInt(x.n)
+	z.inf.SetInt(x.n)
+	z.sup.SetInt(x.n)
 	return z
 }
