@@ -33,6 +33,17 @@ func NewIntervalInt64(n int64, prec uint) *Interval {
 	return z
 }
 
+func NewIntervalFloat(n *big.Float, prec uint) *Interval {
+	z := newInterval(prec)
+	z.SetFloat(n)
+	return z
+}
+
+func (z *Interval) SetFloat(n *big.Float) {
+	z.inf.Set(n)
+	z.sup.Set(n)
+}
+
 func (z *Interval) clonePrec(prec uint) *Interval {
 	if prec == z.Prec() {
 		return z
@@ -83,14 +94,56 @@ func (x *Interval) Add(yy RObj) RObj {
 	z := newInterval(MaxPrec(x, y))
 	z.inf.Add(x.inf, y.inf)
 	z.sup.Add(x.sup, y.sup)
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
 	return z
 }
 
 func (x *Interval) Sub(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
-	z.inf.Add(x.inf, y.inf)
-	z.sup.Add(x.sup, y.sup)
+	z.sup.Sub(x.sup, y.inf)
+	z.inf.Sub(x.inf, y.sup)
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
+	return z
+}
+
+func (x *Interval) AddFloat(y *big.Float) *Interval {
+	z := newInterval(x.Prec())
+	z.inf = z.inf.Add(x.inf, y)
+	z.sup = z.sup.Add(x.sup, y)
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
+	return z
+}
+
+func (x *Interval) SubFloat(y *big.Float) *Interval {
+	z := newInterval(x.Prec())
+	z.inf = z.inf.Sub(x.inf, y)
+	z.sup = z.sup.Sub(x.sup, y)
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
+	return z
+}
+
+func (x *Interval) MulFloat(y *big.Float) *Interval {
+	z := newInterval(x.Prec())
+	if y.Sign() >= 0 {
+		z.inf = z.inf.Mul(x.inf, y)
+		z.sup = z.sup.Mul(x.sup, y)
+	} else {
+		z.sup = z.sup.Mul(x.inf, y)
+		z.inf = z.inf.Mul(x.sup, y)
+	}
+
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
 	return z
 }
 
@@ -151,6 +204,48 @@ func (x *Interval) Mul(yy RObj) RObj {
 				z.sup.Set(u)
 			}
 		}
+	}
+
+	if true {
+		k := new(big.Float)
+		k.SetPrec(z.Prec())
+		k.SetMode(big.ToPositiveInf)
+		k.Mul(x.inf, y.inf)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("1")
+		}
+		k.Mul(x.inf, y.sup)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("2")
+		}
+		k.Mul(x.sup, y.inf)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("3")
+		}
+		k.Mul(x.sup, y.sup)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("4")
+		}
+		k.SetMode(big.ToNegativeInf)
+		k.Mul(x.inf, y.inf)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("5")
+		}
+		k.Mul(x.inf, y.sup)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("6")
+		}
+		k.Mul(x.sup, y.inf)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("7")
+		}
+		k.Mul(x.sup, y.sup)
+		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
+			panic("8")
+		}
+	}
+	if err := z.valid(); err != nil {
+		panic(err.Error())
 	}
 
 	return z
