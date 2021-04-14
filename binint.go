@@ -313,8 +313,7 @@ func (x *BinInt) mul_2exp(m uint) RObj {
 
 func (x *BinInt) setToBigFloat(y *big.Float) {
 	y.SetInt(x.n)
-	exp := y.MantExp(y)
-	y.SetMantExp(y, exp+x.m)
+	y.SetMantExp(y, x.m)
 }
 
 func (x *BinInt) toIntv(prec uint) RObj {

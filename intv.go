@@ -12,7 +12,7 @@ type Interval struct {
 }
 
 func (z *Interval) String() string {
-	return fmt.Sprintf("[%s,%s]", z.inf.String(), z.sup.String())
+	return fmt.Sprintf("[%e,%e]", z.inf, z.sup)
 }
 
 func newInterval(prec uint) *Interval {
@@ -42,6 +42,16 @@ func NewIntervalFloat(n *big.Float, prec uint) *Interval {
 func (z *Interval) SetFloat(n *big.Float) {
 	z.inf.Set(n)
 	z.sup.Set(n)
+}
+
+func (z *Interval) SetInt64(n int64) {
+	z.inf.SetInt64(n)
+	z.sup.SetInt64(n)
+}
+
+func (z *Interval) SetFloat64(n float64) {
+	z.inf.SetFloat64(n)
+	z.sup.SetFloat64(n)
 }
 
 func (z *Interval) clonePrec(prec uint) *Interval {
@@ -147,6 +157,24 @@ func (x *Interval) MulFloat(y *big.Float) *Interval {
 	return z
 }
 
+func (x *Interval) MulInt64(y int64) *Interval {
+	z := newInterval(x.Prec())
+	yy := new(big.Float)
+	yy.SetInt64(y)
+	if y >= 0 {
+		z.inf = z.inf.Mul(x.inf, yy)
+		z.sup = z.sup.Mul(x.sup, yy)
+	} else {
+		z.sup = z.sup.Mul(x.inf, yy)
+		z.inf = z.inf.Mul(x.sup, yy)
+	}
+
+	if err := z.valid(); err != nil {
+		panic(err.Error())
+	}
+	return z
+}
+
 func (x *Interval) Mul(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
@@ -182,7 +210,6 @@ func (x *Interval) Mul(yy RObj) RObj {
 			z.sup.Mul(x.sup, y.sup)
 		} else if y.sup.Sign() <= 0 {
 			// [-xl, xu] * [-yl, -yu]
-			// [-xl, xu] * (-yl, -yu]
 			z.inf.Mul(x.sup, y.inf)
 			z.sup.Mul(x.inf, y.inf)
 		} else {
@@ -209,39 +236,19 @@ func (x *Interval) Mul(yy RObj) RObj {
 	if true {
 		k := new(big.Float)
 		k.SetPrec(z.Prec())
-		k.SetMode(big.ToPositiveInf)
-		k.Mul(x.inf, y.inf)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("1")
-		}
-		k.Mul(x.inf, y.sup)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("2")
-		}
-		k.Mul(x.sup, y.inf)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("3")
-		}
-		k.Mul(x.sup, y.sup)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("4")
-		}
-		k.SetMode(big.ToNegativeInf)
-		k.Mul(x.inf, y.inf)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("5")
-		}
-		k.Mul(x.inf, y.sup)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("6")
-		}
-		k.Mul(x.sup, y.inf)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("7")
-		}
-		k.Mul(x.sup, y.sup)
-		if !(z.inf.Cmp(k) <= 0 && k.Cmp(z.sup) <= 0) {
-			panic("8")
+		for _, xx := range []*big.Float{x.inf, x.sup} {
+			for _, yy := range []*big.Float{y.inf, y.sup} {
+				k.SetMode(big.ToPositiveInf)
+				k.Mul(xx, yy)
+				if k.Cmp(z.sup) > 0 {
+					panic("1")
+				}
+
+				k.SetMode(big.ToNegativeInf)
+				if z.inf.Cmp(k) > 0 {
+					panic("2")
+				}
+			}
 		}
 	}
 	if err := z.valid(); err != nil {
@@ -260,6 +267,8 @@ func (x *Interval) Pow(yy *Int) RObj {
 }
 
 func (x *Interval) Sign() int {
+	// sign()=0 はゼロではなく，未知..
+	// ゼロかどうかは IsZero() を利用せよ
 	if x.inf.Sign() > 0 {
 		return 1
 	} else if x.sup.Sign() < 0 {

@@ -68,6 +68,10 @@ func (x *Int) Add(y RObj) RObj {
 		return z
 	case *BinInt:
 		return yi.AddInt(x)
+	case *Interval:
+		if x.IsZero() {
+			return zero.toIntv(1)
+		}
 	}
 	fmt.Printf("add: x=%v, y=%v\n", x, y)
 	panic("not implememted")

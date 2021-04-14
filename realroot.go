@@ -168,12 +168,8 @@ func realRootImprove(p *Poly, sp *dcsr) {
 	}
 }
 
-func (p *Poly) RealRootIsolation(prec int) (*List, error) {
-	if !p.isUnivariate() {
-		return nil, fmt.Errorf("not a unirariate polynomial")
-	}
-
-	rb := p.rootBoundBinInt() // bint に変更したい @TODO
+func (p *Poly) realRootIsolation(prec int) []*dcsr {
+	rb := p.rootBoundBinInt()
 
 	/////////////////////////////////////
 	// 準備
@@ -321,6 +317,16 @@ func (p *Poly) RealRootIsolation(prec int) (*List, error) {
 			}
 		}
 	}
+
+	return ret
+}
+
+func (p *Poly) RealRootIsolation(prec int) (*List, error) {
+	if !p.isUnivariate() {
+		return nil, fmt.Errorf("not a unirariate polynomial")
+	}
+
+	ret := p.realRootIsolation(prec)
 
 	r := NewList()
 	for i := 0; i < len(ret); i++ {

@@ -300,7 +300,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
 		} else {
-			roots, _ := q.RealRootIsolation(+30) // DEBUG用に大きい値を設定中
+			roots := q.realRootIsolation(+30) // DEBUG用に大きい値を設定中
 			sgn := sign_t(1)
 			if len(q.c)%2 == 0 {
 				sgn = -1
@@ -308,11 +308,15 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			if q.Sign() < 0 {
 				sgn *= -1
 			}
-			for i := 0; i < roots.Len(); i++ {
-				rr := roots.getiList(i)
+			for i := 0; i < len(roots); i++ {
+				rr := roots[i]
 				c := NewCell(cad, cell, pf.index)
-				c.intv.inf = rr.geti(0).(NObj)
-				c.intv.sup = rr.geti(1).(NObj)
+				c.intv.inf = rr.low
+				if rr.point { // fctr しているからこのルートは通らないはず.
+					c.intv.sup = rr.low
+				} else {
+					c.intv.sup = rr.low.upperBound()
+				}
 				c.sgn_of_left = sgn
 				sgn *= -1
 				c.multiplicity[pf.index] = r

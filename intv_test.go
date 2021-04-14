@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFunc(t *testing.T) {
+func TestIntvOp(t *testing.T) {
 
 	pairs := [][]int{{0, 2}, {0, 3}, {1, 2}, {1, 3}}
 	u := new(big.Float)
@@ -101,5 +101,32 @@ func TestFunc(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestIntvSubst(t *testing.T) {
+	NewGANRAC()
+	prec := uint(20)
+	lv := Level(0)
+
+	// [10] F;
+	// -x^3-1301*x^2-301300*x-300000
+	// [11] subst(F,x,x-1001.778320);
+	// -x^3+1704.33*x^2-705352*x+1.24896e+06
+	// [12] subst(F,x,3.595703*x-1001.778320);
+	// -46.4891*x^3+22035.5*x^2-2.53624e+06*x+1.24896e+06
+
+	p := NewPolyInts(lv, -300000, -301300, -1301, -1).toIntv(prec).(*Poly)
+
+	low := newInterval(prec)
+	low.SetFloat64(-1001.778320)
+
+	oneone := newInterval(prec)
+	oneone.SetInt64(1)
+
+	q := p.subst1(NewPolyCoef(lv, low, oneone), lv).(*Poly)
+	if q.c[0].Sign() <= 0 {
+		t.Errorf("why?")
+		return
 	}
 }

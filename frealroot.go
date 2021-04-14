@@ -4,6 +4,7 @@ package ganrac
 // real root isolation of a univariate polynomial with big.Float coeffient
 import (
 	"math/big"
+	"sort"
 )
 
 type iKraw struct {
@@ -225,18 +226,11 @@ func (kraw *iKraw) rootbound() *big.Float {
 	return t
 }
 
-func FRealRoot(prec uint, poly []*big.Float, rand float64) []*Interval {
-	// poly: univariate polynomial
-	kraw := newIKraw(prec, poly)
-	bound := kraw.rootbound()
-	bound.Add(bound, big.NewFloat(rand))
+func (kraw *iKraw) fRealRoot(x *Interval) []*Interval {
 
-	x := newInterval(prec)
-	x.inf.Neg(bound)
-	x.sup.Set(bound)
 	kraw.push(x)
 
-	ans := make([]*Interval, 0, len(poly)-1)
+	ans := make([]*Interval, 0, len(kraw.d)-1)
 
 	for !kraw.empty() {
 		x = kraw.pop()
@@ -297,5 +291,23 @@ func FRealRoot(prec uint, poly []*big.Float, rand float64) []*Interval {
 		kraw.push(x2)
 	}
 
+	sort.Slice(ans, func(i, j int) bool {
+		return ans[i].inf.Cmp(ans[j].inf) <= 0
+	})
+
 	return ans
+}
+
+func FRealRoot(prec uint, poly []*big.Float, rand float64) []*Interval {
+	// poly: univariate polynomial
+	// return: real root isolation
+	kraw := newIKraw(prec, poly)
+	bound := kraw.rootbound()
+	bound.Add(bound, big.NewFloat(rand))
+
+	x := newInterval(prec)
+	x.inf.Neg(bound)
+	x.sup.Set(bound)
+
+	return kraw.fRealRoot(x)
 }

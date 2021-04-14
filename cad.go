@@ -34,7 +34,7 @@ type Cell struct {
 	index        uint
 	defpoly      *Poly
 	intv         qIntrval  // 有理数=defpoly=nil か，bin-interval
-	nintv        *Interval // 数値計算
+	nintv        *Interval // 数値計算. defpoly=multivariate, de=true
 	ex_deg       int       // 拡大次数
 	signature    []sign_t
 	multiplicity []int8

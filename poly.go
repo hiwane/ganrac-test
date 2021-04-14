@@ -198,11 +198,12 @@ func (z *Poly) dump(b io.Writer) {
 
 func (z *Poly) write(b io.Writer, out_sgn bool, mul string) {
 	for i := len(z.c) - 1; i >= 0; i-- {
-		if s := z.c[i].Sign(); s == 0 {
+		if z.c[i].IsZero() {
 			continue
 		} else {
+			s := z.c[i].Sign()
 			if z.c[i].IsNumeric() {
-				if s > 0 {
+				if s >= 0 {
 					if i != len(z.c)-1 || out_sgn {
 						fmt.Fprintf(b, "+")
 					}
@@ -428,7 +429,11 @@ func (x *Poly) Mul(yy RObj) RObj {
 		xiyy := y.Mul(x.c[i])
 		xiy, _ := xiyy.(*Poly)
 		for j := len(xiy.c) - 1; j >= 0; j-- {
-			z.c[i+j] = Add(z.c[i+j], xiy.c[j])
+			if z.c[i+j] == zero {
+				z.c[i+j] = xiy.c[j]
+			} else {
+				z.c[i+j] = Add(z.c[i+j], xiy.c[j])
+			}
 		}
 	}
 
