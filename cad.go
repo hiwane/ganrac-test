@@ -67,6 +67,22 @@ type ProjLink struct {
 	projs        ProjFactors
 }
 
+type CADStat struct {
+	fctr         int
+	qrealroot    int
+	irealroot    int
+	irealroot_ok int
+	sqrt         int
+	sqrt_ok      int
+	discriminant int
+	resultant    int
+	cell         int
+	true_cell    int
+	false_cell   int
+	precision    int
+	lift         int
+}
+
 type CAD struct {
 	fml      Fof            // qff
 	q        []int8         // quantifier
@@ -75,10 +91,26 @@ type CAD struct {
 	stack    *cellStack
 	root     *Cell
 	g        *Ganrac
+	stat     CADStat
 }
 
 func qeCAD(fml Fof) Fof {
 	return fml
+}
+
+func (stat CADStat) Print(b io.Writer) {
+	fmt.Fprintf(b, "CAD stat....\n")
+	fmt.Fprintf(b, "===========\n")
+	fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
+	fmt.Fprintf(b, " - # of lifting         : %d\n", stat.lift)
+	fmt.Fprintf(b, "CA stat....\n")
+	fmt.Fprintf(b, "===========\n")
+	fmt.Fprintf(b, " - discrim on proj      : %d\n", stat.discriminant)
+	fmt.Fprintf(b, " - resultant on proj    : %d\n", stat.resultant)
+	fmt.Fprintf(b, " - factorization over Z : %d\n", stat.fctr)
+	fmt.Fprintf(b, " - real root in Z[x]    : %d\n", stat.qrealroot)
+	fmt.Fprintf(b, " - real root in intv[x] : %d / %d\n", stat.irealroot_ok, stat.irealroot)
+
 }
 
 func (c *CAD) Tag() uint {
@@ -247,6 +279,8 @@ func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
 	}
 
 	switch s.s {
+	case "stat":
+		cad.stat.Print(b)
 	case "proj":
 	case "cells", "cell", "signature":
 		cad.root.Print(b, args...)

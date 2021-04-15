@@ -118,7 +118,8 @@ func proj_mcallum(cad *CAD, lv Level) {
 	for i := 0; i < len(pj.pf); i++ {
 		pj.resultant[i] = make([]*ProjLink, i)
 		for j := 0; j < i; j++ {
-			dd := cad.g.ox.Discrim(pj.pf[i].p, pj.pf[j].p.lv)
+			dd := cad.g.ox.Resultant(pj.pf[i].p, pj.pf[j].p, lv)
+			cad.stat.resultant++
 			pj.resultant[i][j] = cad.addProjRObj(dd)
 		}
 	}
@@ -159,6 +160,7 @@ func proj_mcallum_coeff(cad *CAD, pf *ProjFactor) {
 
 func proj_mcallum_discrim(cad *CAD, pf *ProjFactor) {
 	dd := cad.g.ox.Discrim(pf.p, pf.p.lv)
+	cad.stat.discriminant++
 	pf.discrim = cad.addProjRObj(dd)
 }
 

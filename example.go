@@ -14,6 +14,7 @@ type qeExTable struct {
 
 var qeExampleTable []qeExTable = []qeExTable{
 	{"adam1", exAdam1},
+	{"pl01", exPL01},
 }
 
 func GetExampleFof(name string) *QeExample {
@@ -47,5 +48,14 @@ func exAdam1() *QeExample {
 			NewInt(1)), LT)))
 	q.Ref = "Adam W. Strzebonski. Cylindrical Algebraic Decomposition using validated numerics. 2006"
 	q.DOI = "10.1016/j.jsc.2006.06.004"
+	return q
+}
+
+func exPL01() *QeExample {
+	q := new(QeExample)
+	q.Output = NewAtom(NewPolyInts(0, 0, 1), LE)
+	q.Input = NewQuantifier(true, []Level{1, 2}, newFmlOrs(NewAtom(NewPolyInts(1, 1, 1), LT), NewAtom(NewPolyInts(1, -1, 1), GT), NewAtom(NewPolyInts(2, 1, 1), LT), NewAtom(NewPolyInts(2, -1, 1), GT), NewAtom(NewPolyCoef(2, NewPolyInts(0, 1, -1), NewInt(0), NewPolyInts(1, 0, 0, -3, 0, 1), NewInt(0), NewPolyInts(1, 0, 0, 1)), GE)))
+	q.Ref = "P. Parrilo and S. Lall. Semidefinite Programming Relaxation and Algebraic Optimization in Control."
+	q.DOI = ""
 	return q
 }

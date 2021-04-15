@@ -102,6 +102,7 @@ func (cell *Cell) Index() []uint {
 
 func (cell *Cell) lift(cad *CAD) error {
 	fmt.Printf("lift (%v)\n", cell.Index())
+	cad.stat.lift++
 	ciso := make([][]*Cell, len(cad.proj[cell.lv+1].pf))
 	signs := make([]sign_t, len(ciso))
 	cs := make([]*Cell, 0)
@@ -111,7 +112,7 @@ func (cell *Cell) lift(cad *CAD) error {
 	}
 
 	// merge して
-	cad.cellsort(cs, true)
+	cs = cad.cellsort(cs, true)
 
 	// sector 作って
 	cs = cad.addSector(cell, cs)
@@ -145,12 +146,15 @@ func (cell *Cell) lift(cad *CAD) error {
 	for _, c = range cs {
 		switch c.evalTruth(cad.fml, cad).(type) {
 		case *AtomT:
+			cad.stat.true_cell++
 			c.truth = t_true
 		case *AtomF:
+			cad.stat.false_cell++
 			c.truth = t_false
 		default:
 			undefined = true
 		}
+		cad.stat.cell++
 	}
 	if cad.q[cell.lv+1] >= 0 {
 		qx := cad.q[cell.lv+1]
@@ -257,6 +261,7 @@ func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
 
 func (cad *CAD) addSector(parent *Cell, cs []*Cell) []*Cell {
 	// @TODO 整数を優先するとか
+	// @TODO 葉である場合には，サンプル点不要
 	ret := make([]*Cell, len(cs)*2+1)
 	ret[0] = NewCell(cad, parent, 0)
 	if len(cs) == 0 {
@@ -335,10 +340,18 @@ func (cad *CAD) cellcmp(c, d *Cell) (int, bool) {
 	return 0, false
 }
 
-func (cad *CAD) cellsort(cs []*Cell, dup bool) {
+func (cell *Cell) fusion(c *Cell) {
+	for k := 0; k < len(cell.multiplicity); k++ {
+		cell.multiplicity[k] += c.multiplicity[k]
+	}
+	// cs[j] はもういらない
+	c.multiplicity = nil
+}
+
+func (cad *CAD) cellsort(cs []*Cell, dup bool) []*Cell {
 	// dup: 同じ根を表現する可能性がある場合は true
 	// @TODO とりま bubble sort.
-	for i := 0; i < len(cs); i++ {
+	for i := len(cs) - 1; i >= 0; i-- {
 		for j := 0; j < i; j++ {
 			for {
 				if s, ok := cad.cellcmp(cs[j], cs[i]); s < 0 {
@@ -355,7 +368,29 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 
 				// 共通根をもつ可能性があるか?
 				if dup && cad.proj[cs[i].lv].hasCommonRoot(cs[i].parent, cs[j].index, cs[i].index) {
+					if cs[i].defpoly == nil || cs[j].defpoly == nil {
+						if cs[i].defpoly == nil && cs[j].defpoly == nil && cs[i].intv.inf.Equals(cs[j].intv.inf) {
+							cs[i].fusion(cs[j])
+							c := cs[j]
+							for k := j + 1; k < len(cs); k++ {
+								cs[k-1] = cs[k]
+							}
+							cs[len(cs)-1] = c
+							goto _RETRY
+
+						}
+					} else if cs[i].defpoly.Equals(cs[j].defpoly) {
+						// 一致した.
+						cs[i].fusion(cs[j])
+						c := cs[j]
+						for k := j + 1; k < len(cs); k++ {
+							cs[k-1] = cs[k]
+						}
+						cs[len(cs)-1] = c
+						goto _RETRY
+					}
 					cs[i].parent.Print(os.Stdout)
+					cs[i].parent.Print(os.Stdout, "signature")
 					cs[i].Print(os.Stdout)
 					cs[j].Print(os.Stdout)
 					panic("not implemented")
@@ -367,7 +402,15 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 				cs[j].improveIsoIntv()
 			}
 		}
+	_RETRY:
 	}
+
+	for i := len(cs) - 1; i >= 0; i-- {
+		if cs[i].multiplicity != nil {
+			return cs[:i+1]
+		}
+	}
+	return cs
 
 	// @Print
 	// for i := 0; i < len(cs); i++ {
@@ -381,6 +424,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	// returns (roots, sign(lc(p)))
 	cs := make([]*Cell, 0, len(p.c)-1)
 	fctrs := cad.g.ox.Factor(p)
+	cad.stat.fctr++
 	fmt.Printf("root_iso(%v,%d): %v -> %v\n", cell.Index(), pf.index, p, fctrs)
 	for i := fctrs.Len() - 1; i > 0; i-- {
 		ff := fctrs.getiList(i)
@@ -401,7 +445,8 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
 		} else {
-			roots := q.realRootIsolation(+30) // @TODO DEBUG用に大きい値を設定中
+			roots := q.realRootIsolation(-30) // @TODO DEBUG用に大きい値を設定中
+			cad.stat.qrealroot++
 			sgn := sign_t(1)
 			if len(q.c)%2 == 0 {
 				sgn = -1
@@ -432,7 +477,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	}
 
 	// sort...
-	cad.cellsort(cs, false)
+	cs = cad.cellsort(cs, false)
 
 	return cs
 }
@@ -527,7 +572,6 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 		// 有理数代入
 		if c.defpoly == nil {
 			pp := c.intv.inf.subst_poly(p, Level(c.lv))
-			fmt.Printf("pq=%v\n", pp)
 			switch px := pp.(type) {
 			case *Poly:
 				p = px
@@ -621,10 +665,12 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 	}
 
 	ans, err := pp.iRealRoot(prec, 1000)
+	cad.stat.irealroot++
 	if err != nil {
 		fmt.Printf("irealroot failed: %s\n", err.Error())
 		return nil, 0, err
 	}
+	cad.stat.irealroot_ok++
 
 	sgn := pp.Sign()
 	cells := make([]*Cell, len(ans), len(ans)+1)
