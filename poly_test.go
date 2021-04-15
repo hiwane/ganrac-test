@@ -426,7 +426,7 @@ func TestSubstBinint1Var(t *testing.T) {
 		{-1, -1, NewPolyInts(lv, -1, -3, -2), zero},
 		{-4, -3, NewPolyInts(lv, -1, -3, -2), zero},
 	} {
-		c := s.p.subst1(NewBinInt(s.numer, s.denom), lv)
+		c := s.p.subst1(newBinIntInt64(s.numer, s.denom), lv)
 		if !c.Equals(s.expect) {
 			t.Errorf("subst2: %d*2^(%d)\ninput =%v\nexpect=%v\nactual=%v\n", s.numer, s.denom, s.p, s.expect, c)
 		}
@@ -484,7 +484,7 @@ func TestPolMul2Exp(t *testing.T) {
 	s := NewPolyCoef(0,
 		NewInt(7),
 		NewRatInt64(3, 5),
-		NewBinInt(3, -10),
+		newBinIntInt64(3, -10),
 		NewInt(13),
 	)
 

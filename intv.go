@@ -12,7 +12,15 @@ type Interval struct {
 }
 
 func (z *Interval) String() string {
-	return fmt.Sprintf("[%e,%e]", z.inf, z.sup)
+	return fmt.Sprintf("[%f,%f]", z.inf, z.sup)
+}
+
+func (x *Interval) Format(s fmt.State, format rune) {
+	fmt.Fprintf(s, "[")
+	x.inf.Format(s, format)
+	fmt.Fprintf(s, ",")
+	x.sup.Format(s, format)
+	fmt.Fprintf(s, "]")
 }
 
 func newInterval(prec uint) *Interval {

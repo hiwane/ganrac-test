@@ -1,5 +1,9 @@
 package ganrac
 
+import (
+	"fmt"
+)
+
 type String struct {
 	GObj
 	s string
@@ -17,4 +21,8 @@ func (s *String) String() string {
 
 func (s *String) Tag() uint {
 	return TAG_STR
+}
+
+func (z *String) Format(s fmt.State, format rune) {
+	fmt.Fprintf(s, "\"%s\"", z.s)
 }

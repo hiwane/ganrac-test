@@ -1,5 +1,9 @@
 package ganrac
 
+import (
+	"fmt"
+)
+
 // ring ring
 // in R[x], in R
 type RObj interface {
@@ -102,4 +106,7 @@ func (z *RObjSample) mul_2exp(m uint) RObj {
 
 func (z *RObjSample) toIntv(prec uint) RObj {
 	return z
+}
+
+func (z *RObjSample) Format(s fmt.State, format rune) {
 }

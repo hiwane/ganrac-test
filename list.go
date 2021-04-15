@@ -24,6 +24,31 @@ func (z *List) String() string {
 	return s + "]"
 }
 
+func (z *List) Format(s fmt.State, format rune) {
+	left := "["
+	right := "]"
+	switch format {
+	case FORMAT_DUMP:
+		left = fmt.Sprintf("(list %d", len(z.v))
+		right = ")"
+	case FORMAT_TEX:
+		left = "\\left["
+		right = "\\right]"
+	case FORMAT_SRC:
+		left = "NewList("
+		right = ")"
+	}
+
+	fmt.Fprintf(s, "%s", left)
+	for i, v := range z.v {
+		if i != 0 {
+			fmt.Fprintf(s, ", ")
+		}
+		v.Format(s, format)
+	}
+	fmt.Fprintf(s, "%s", right)
+}
+
 func (z *List) Get(ii *Int) (GObj, error) {
 	ilen := NewInt(int64(len(z.v)))
 	if ii.Sign() < 0 || ii.Cmp(ilen) >= 0 {

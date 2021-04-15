@@ -18,9 +18,16 @@ func newBinInt() *BinInt {
 	return v
 }
 
-func NewBinInt(n int64, m int) *BinInt {
+func newBinIntInt64(n int64, m int) *BinInt {
 	v := new(BinInt)
 	v.n = big.NewInt(n)
+	v.m = m
+	return v
+}
+
+func NewBinInt(n *big.Int, m int) *BinInt {
+	v := new(BinInt)
+	v.n = n
 	v.m = m
 	return v
 }
@@ -34,22 +41,63 @@ func (x *BinInt) Equals(yy interface{}) bool {
 }
 
 func (x *BinInt) String() string {
-	if x.m == 0 {
-		return fmt.Sprintf("%v", x.n)
-	} else if x.m > 0 {
-		if x.m == 1 {
-			return fmt.Sprintf("%v*2", x.n)
-		} else {
-			return fmt.Sprintf("%v*2^%d", x.n, x.m)
+	return fmt.Sprintf("%v", x)
+}
+
+func (x *BinInt) Format(s fmt.State, format rune) {
+	switch format {
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		f := new(big.Float)
+		if w, ok := s.Precision(); ok {
+			f.SetPrec(uint(w) + 10)
 		}
-	} else {
-		if x.m == -1 {
-			return fmt.Sprintf("%v/2", x.n)
+		f.SetInt(x.n)
+		f.Format(s, format)
+	case FORMAT_DUMP: // dump
+		fmt.Fprintf(s, "(bin %v %d)", x.n, x.m)
+		return
+	case FORMAT_TEX:
+		if x.m > 0 {
+			if x.m == 1 {
+				fmt.Fprintf(s, "%v \\cdot 2", x.n)
+			} else {
+				fmt.Fprintf(s, "%v \\cdot 2^{%d}", x.n, x.m)
+			}
+		} else if x.m < 0 {
+			if x.m == -1 {
+				fmt.Fprintf(s, "\\frac{%v}{2}", x.n)
+			} else {
+				fmt.Fprintf(s, "\\frac{%v}{2^{%d}}", x.n, x.m)
+			}
 		} else {
-			return fmt.Sprintf("%v/2^%d", x.n, -x.m)
+			fmt.Fprintf(s, "%v", x.n)
+		}
+		return
+	case FORMAT_SRC:
+		if x.n.IsInt64() {
+			fmt.Fprintf(s, "newBinIntInt64(%v, %d)", x.n, x.m)
+		} else {
+			fmt.Fprintf(s, "NewBinInt(ParseInt(\"%v\", 10).n, %d)", x.n, x.m)
+		}
+	default:
+		x.n.Format(s, format)
+	}
+
+	if x.m > 0 {
+		if x.m == 1 {
+			fmt.Fprintf(s, "*2")
+		} else {
+			fmt.Fprintf(s, "*2^%d", x.m)
+		}
+	} else if x.m < 0 {
+		if x.m == -1 {
+			fmt.Fprintf(s, "/2")
+		} else {
+			fmt.Fprintf(s, "/2^%d", -x.m)
 		}
 	}
 }
+
 func (x *BinInt) AddInt(y *Int) RObj {
 	if x.m < 0 {
 		z := newBinInt()

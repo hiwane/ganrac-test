@@ -443,12 +443,12 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 	}
 
 	for prec := uint(53); ; prec += uint(53) {
-		c, s, err := cell.make_cells_i(cad, pf, p, prec)
+		c, s, err := cell.make_cells_i(cad, pf, p, prec, 1)
 		if err != nil && false {
 			return c, s
 		}
 
-		// 区間にゼロを含むなら.... 記号演算でチェック
+		// 係数区間にゼロを含むなら.... 記号演算でチェック
 
 		// セルの分離区間を改善
 		cell.Print(os.Stdout)
@@ -477,7 +477,7 @@ func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 	panic("unimplemented")
 }
 
-func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint) ([]*Cell, sign_t, error) {
+func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, multiplicity int8) ([]*Cell, sign_t, error) {
 	pp := p.toIntv(prec).(*Poly)
 	for c := cell; c != cad.root; c = c.parent {
 		if !p.hasVar(Level(c.lv)) {
@@ -491,18 +491,33 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint) ([]
 		panic("invalid")
 	}
 
-	for _, c := range pp.c {
+	for i, c := range pp.c {
 		if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
+			fmt.Printf("coef[%d] contains zero: %v\n", i, c)
 			return nil, 0, fmt.Errorf("coef contains zero.")
 		}
 	}
 
-	_, err := pp.iRealRoot(prec)
+	ans, err := pp.iRealRoot(prec)
 	if err != nil {
+		fmt.Printf("irealroot failed: %s\n", err.Error())
 		return nil, 0, err
 	}
 
-	return []*Cell{}, sign_t(pp.Sign()), nil
+	sgn := pp.Sign()
+	cells := make([]*Cell, len(ans))
+	for i := len(ans) - 1; i >= 0; i-- {
+		sgn *= -1
+		c := NewCell(cad, cell, pf.index)
+		c.nintv = ans[i]
+		c.sgn_of_left = sign_t(sgn)
+		c.de = true
+		c.multiplicity[pf.index] = multiplicity
+		c.defpoly = p
+		cells[i] = c
+	}
+
+	return cells, sign_t(pp.Sign()), nil
 }
 
 func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {

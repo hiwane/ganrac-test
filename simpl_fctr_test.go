@@ -2,7 +2,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -183,12 +182,8 @@ func TestSimplFctr(t *testing.T) {
 		output = s.input.simplFctr(g)
 
 		if !testSameFormAndOrFctr(output, s.expect) {
-			fmt.Printf("expect")
-			s.expect.dump(os.Stdout)
-			fmt.Printf("\n")
-			fmt.Printf("output")
-			output.dump(os.Stdout)
-			fmt.Printf("\n")
+			fmt.Printf("expect %V\n", s.expect)
+			fmt.Printf("output %V\n", output)
 			t.Errorf("i=%d\ninput =%v\nexpect=%v\nactual=%v", i, s.input, s.expect, output)
 			continue
 		}

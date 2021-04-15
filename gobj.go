@@ -1,6 +1,8 @@
 package ganrac
 
-import "io"
+import (
+	"fmt"
+)
 
 const (
 	TAG_NONE = iota
@@ -10,10 +12,15 @@ const (
 	TAG_FOF
 	TAG_LIST
 	TAG_CAD
+
+	FORMAT_TEX  = 'P'
+	FORMAT_DUMP = 'V'
+	FORMAT_SRC  = 'S'
 )
 
 // ganrac object
 type GObj interface {
+	fmt.Formatter
 	String() string
 	Tag() uint
 }
@@ -28,14 +35,4 @@ type indeter interface {
 
 type equaler interface {
 	Equals(v interface{}) bool
-}
-
-type dumper interface {
-	dump(b io.Writer) // for debug print
-}
-
-type printer interface {
-	// func.go の print() 関数からの呼び出しを想定.
-	// write() は通常表示用
-	Print(b io.Writer, args ...interface{}) error
 }

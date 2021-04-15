@@ -153,6 +153,34 @@ func (x *Rat) String() string {
 	return x.n.String()
 }
 
+func (x *Rat) Format(s fmt.State, format rune) {
+	switch format {
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		f := new(big.Float)
+		if w, ok := s.Precision(); ok {
+			f.SetPrec(uint(w) + 10)
+		}
+		f.SetRat(x.n)
+		f.Format(s, format)
+	case FORMAT_TEX:
+		fmt.Fprintf(s, "\\frac{%v}{%v}", x.n.Num(), x.n.Denom())
+	case FORMAT_DUMP:
+		x.n.Num().Format(s, 'd')
+		fmt.Fprintf(s, "/")
+		x.n.Denom().Format(s, 'd')
+	case FORMAT_SRC:
+		if x.n.Num().IsInt64() && x.n.Denom().IsInt64() {
+			fmt.Fprintf(s, "NewRatInt64(%v, %v)", x.n.Num(), x.n.Denom())
+		} else {
+			fmt.Fprintf(s, "NewRatInt64(ParseInt(\"%v\", 10), ParseInt(\"%v\", 10))", x.n.Num(), x.n.Denom())
+		}
+	default:
+		x.n.Num().Format(s, format)
+		fmt.Fprintf(s, "/")
+		x.n.Denom().Format(s, format)
+	}
+}
+
 func (x *Rat) Sign() int {
 	return x.n.Sign()
 }

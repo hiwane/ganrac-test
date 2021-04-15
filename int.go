@@ -192,6 +192,28 @@ func (x *Int) String() string {
 	return x.n.String()
 }
 
+func (x *Int) Format(s fmt.State, format rune) {
+	switch format {
+	case 'e', 'E', 'f', 'F', 'g', 'G':
+		f := new(big.Float)
+		if w, ok := s.Precision(); ok {
+			f.SetPrec(uint(w) + 10)
+		}
+		f.SetInt(x.n)
+		f.Format(s, format)
+	case FORMAT_DUMP, FORMAT_TEX:
+		x.n.Format(s, 'd')
+	case FORMAT_SRC:
+		if x.n.IsInt64() {
+			fmt.Fprintf(s, "NewInt(%v)", x.n)
+		} else {
+			fmt.Fprintf(s, "ParseInt(\"%v\", 10)", x.n)
+		}
+	default:
+		x.n.Format(s, format)
+	}
+}
+
 func (x *Int) Sign() int {
 	return x.n.Sign()
 }

@@ -124,7 +124,7 @@ func TestBinIntSubst(t *testing.T) {
 				NewPolyInts(0, -4752, 1552, 512)),
 		},
 	} {
-		b := NewBinInt(s.num, s.den)
+		b := newBinIntInt64(s.num, s.den)
 		o := b.subst_poly(s.input, s.lv)
 		if !o.Equals(s.expect) {
 			t.Errorf("lv=%d\ninput =%v\nx=%v*2^(%d) => `%v`\nexpect=%v\noutput=%v", s.lv, s.input, s.num, s.den, b, s.expect, o)

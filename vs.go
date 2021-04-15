@@ -8,7 +8,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 )
 
 type vslin_sample_point struct {
@@ -193,15 +192,13 @@ func vs_nu(polys []*Poly, pt *vslin_sample_point) Fof {
 	}
 	// fmt.Printf("vsnu(): f1=%v\n", f1)
 	if err := f1.valid(); err != nil { // debug
-		f1.dump(os.Stdout)
-		fmt.Printf("\ninvalid f1 %v\n", f1)
+		fmt.Printf("%V\ninvalid f1 %v\n", f1, f1)
 		panic(err.Error())
 	}
 	var f2 Fof = virtual_subst_lin(newAtoms(polys, EQ), pt)
 	// fmt.Printf("vsnu(): f2=%v\n", f2)
 	if err := f2.valid(); err != nil { // debug
-		f2.dump(os.Stdout)
-		fmt.Printf("\ninvalid f2 %v\n", f1)
+		fmt.Printf("%V\ninvalid f2 %v\n", f1, f1)
 		panic(err.Error())
 	}
 
@@ -265,8 +262,7 @@ func virtual_subst_lin_e(atom *Atom, ptt interface{}) Fof {
 	} else if atom.op == LT {
 		pt := ptt.(*vslin_sample_point)
 		if err := atom.valid(); err != nil {
-			atom.dump(os.Stdout)
-			fmt.Printf("\ninvalid atom %v\n", atom)
+			fmt.Printf("%V\ninvalid atom %v\n", atom, atom)
 			panic(err.Error())
 		}
 		return vs_nu(atom.p, pt)

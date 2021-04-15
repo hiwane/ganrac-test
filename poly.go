@@ -3,7 +3,6 @@ package ganrac
 import (
 	"fmt"
 	"io"
-	"strings"
 )
 
 type Level uint
@@ -177,26 +176,32 @@ func (z *Poly) Sign() int {
 }
 
 func (z *Poly) String() string {
-	var b strings.Builder
-	z.write(&b, false, "*")
-	return b.String()
+	return fmt.Sprintf("%v", z)
 }
 
-func (z *Poly) dump(b io.Writer) {
-	fmt.Fprintf(b, "(poly %d %d (", z.lv, len(z.c))
-	for _, c := range z.c {
-		if c.IsNumeric() {
-			fmt.Fprintf(b, "%v", c)
-		} else {
-			cp := c.(*Poly)
-			cp.dump(b)
+func (z *Poly) Format(s fmt.State, format rune) {
+	switch format {
+	case FORMAT_DUMP: // DEBUG (dump)
+		fmt.Fprintf(s, "(poly %d %d (", z.lv, len(z.c))
+		for _, c := range z.c {
+			if cp, ok := c.(*Poly); ok {
+				cp.Format(s, format)
+			} else {
+				fmt.Fprintf(s, "%v", c)
+			}
+			fmt.Fprintf(s, " ")
 		}
-		fmt.Fprintf(b, " ")
+		fmt.Fprintf(s, "))")
+	case FORMAT_SRC: // source
+		z.write_src(s)
+	case FORMAT_TEX: // TeX
+		z.write(s, format, false, " ")
+	default:
+		z.write(s, format, false, "*")
 	}
-	fmt.Fprintf(b, "))")
 }
 
-func (z *Poly) write(b io.Writer, out_sgn bool, mul string) {
+func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if z.c[i].IsZero() {
 			continue
@@ -208,26 +213,26 @@ func (z *Poly) write(b io.Writer, out_sgn bool, mul string) {
 						fmt.Fprintf(b, "+")
 					}
 					if i == 0 || !z.c[i].IsOne() {
-						fmt.Fprintf(b, "%v", z.c[i])
+						z.c[i].Format(b, format)
 						if i != 0 {
-							fmt.Fprintf(b, "*")
+							fmt.Fprintf(b, "%s", mul)
 						}
 					}
 				} else {
 					if i != 0 && z.c[i].IsMinusOne() {
 						fmt.Fprintf(b, "-")
 					} else {
-						fmt.Fprintf(b, "%v", z.c[i])
+						z.c[i].Format(b, format)
 						if i != 0 {
-							fmt.Fprintf(b, "*")
+							fmt.Fprintf(b, "%s", mul)
 						}
 					}
 				}
 			} else if p, ok := z.c[i].(*Poly); ok {
 				if p.isMono() {
-					p.write(b, i != len(z.c)-1, mul)
+					p.write(b, format, i != len(z.c)-1, mul)
 					if i > 0 {
-						fmt.Fprintf(b, "*")
+						fmt.Fprintf(b, "%s", mul)
 					}
 				} else {
 					if i != len(z.c)-1 {
@@ -235,25 +240,23 @@ func (z *Poly) write(b io.Writer, out_sgn bool, mul string) {
 					}
 					if i > 0 {
 						fmt.Fprintf(b, "(")
-						p.write(b, false, mul)
-						fmt.Fprintf(b, ")*")
+						p.write(b, format, false, mul)
+						fmt.Fprintf(b, ")%s", mul)
 					} else {
-						p.write(b, false, mul)
+						p.write(b, format, false, mul)
 					}
 				}
 			}
 			if i > 0 {
 				fmt.Fprintf(b, "%s", varlist[z.lv].v)
-				if i > 1 {
+				if i >= 10 && mul == " " {
+					fmt.Fprintf(b, "^{%d}", i)
+				} else if i > 1 {
 					fmt.Fprintf(b, "^%d", i)
 				}
 			}
 		}
 	}
-}
-
-func (p *Poly) write_tex(b io.Writer) {
-	p.write(b, false, " ")
 }
 
 func (p *Poly) write_src(b io.Writer) {
@@ -274,24 +277,11 @@ func (p *Poly) write_src(b io.Writer) {
 			fmt.Fprintf(b, ")")
 			return
 		}
-
 	}
 
 	fmt.Fprintf(b, "NewPolyCoef(%d", p.lv)
 	for _, cc := range p.c {
-		fmt.Fprintf(b, ",")
-		switch c := cc.(type) {
-		case *Poly:
-			c.write_src(b)
-		case *Int:
-			if c.n.IsInt64() {
-				fmt.Fprintf(b, "NewInt(%d)", c.Int64())
-			} else {
-				fmt.Fprintf(b, "ParseInt(\"%v\")", c)
-			}
-		default:
-			panic("nooooo")
-		}
+		fmt.Fprintf(b, ", %S", cc)
 	}
 	fmt.Fprintf(b, ")")
 }

@@ -2,9 +2,7 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -57,7 +55,6 @@ Examples
   > discrim(a*x^2+b*x+c, y);
   0
 `},
-		{"dump", 1, 1, funcDump, false, "(obj):", ""},
 		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2): fof1 is equivalent to fof2", ""},
 		{"ex", 2, 2, funcExists, false, "(vars, FOF): existential quantifier.", `
 Args
@@ -115,7 +112,8 @@ Examples
   > oxstr("fctr(x^2-4);");
   [[1,1],[x-2,1],[x+2,1]]
 `},
-		{"print", 1, 10, funcPrint, false, "(obj [, kind, ...]): print object", ""},
+		{"print", 1, 10, funcPrint, false, "(obj [, kind, ...]): print object", `
+`},
 		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly): real root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x]): root bound", `
 Args
@@ -406,9 +404,7 @@ func funcCADprint(g *Ganrac, name string, args []interface{}) (interface{}, erro
 ////////////////////////////////////////////////////////////
 func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	switch cc := args[0].(type) {
-	case printer:
-		return nil, cc.Print(os.Stdout, args[1:]...)
-	case Fof:
+	case fmt.Formatter:
 		if len(args) > 2 {
 			return nil, fmt.Errorf("invalid # of arg")
 		}
@@ -422,14 +418,15 @@ func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 		}
 		switch t {
 		case "org":
-			cc.write(os.Stdout)
+			fmt.Printf("%v\n", cc)
 		case "tex":
-			cc.write_tex(os.Stdout)
+			fmt.Printf("%P\n", cc)
 		case "src":
-			cc.write_src(os.Stdout)
+			fmt.Printf("%S\n", cc)
+		case "dump":
+			fmt.Printf("%V\n", cc)
 		default:
-			return nil, fmt.Errorf("invalid 2nd arg")
-
+			fmt.Printf(t, cc)
 		}
 		return nil, nil
 	default:
@@ -638,16 +635,6 @@ func funcIGCD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 ////////////////////////////////////////////////////////////
 // system
 ////////////////////////////////////////////////////////////
-
-func funcDump(g *Ganrac, name string, args []interface{}) (interface{}, error) {
-	switch f := args[0].(type) {
-	case dumper:
-		var b strings.Builder
-		f.dump(&b)
-		return NewString(b.String()), nil
-	}
-	return nil, fmt.Errorf("%s not implemented", name) // @TODO
-}
 
 func funcLoad(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return nil, fmt.Errorf("%s not implemented", name) // @TODO

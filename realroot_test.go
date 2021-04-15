@@ -55,7 +55,7 @@ func TestConvertRange(t *testing.T) {
 		p := NewPolyInts(lv, s.p...)
 		expect := NewPolyInts(lv, s.expect...)
 
-		q := p.convertRange(NewBinInt(s.n, s.m))
+		q := p.convertRange(newBinIntInt64(s.n, s.m))
 		if !expect.Equals(q) {
 			t.Errorf("\ninput=%v\nexpect=%v\nactual=%v\n", p, expect, q)
 		}
