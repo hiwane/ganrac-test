@@ -197,7 +197,12 @@ func (z *Poly) Format(s fmt.State, format rune) {
 	case FORMAT_TEX: // TeX
 		z.write(s, format, false, " ")
 	default:
-		z.write(s, format, false, "*")
+		if p, ok := s.Precision(); ok {
+			ss := fmt.Sprintf("%v", z)
+			fmt.Fprintf(s, "%.*s", p, ss)
+		} else {
+			z.write(s, format, false, "*")
+		}
 	}
 }
 

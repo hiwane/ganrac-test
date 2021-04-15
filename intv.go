@@ -16,10 +16,22 @@ func (z *Interval) String() string {
 }
 
 func (x *Interval) Format(s fmt.State, format rune) {
+	if x == nil {
+		fmt.Fprintf(s, "<NiLIntv>")
+		return
+	}
 	fmt.Fprintf(s, "[")
-	x.inf.Format(s, format)
+	if x.inf == nil {
+		fmt.Fprintf(s, "<NiL>")
+	} else {
+		x.inf.Format(s, format)
+	}
 	fmt.Fprintf(s, ",")
-	x.sup.Format(s, format)
+	if x.sup == nil {
+		fmt.Fprintf(s, "<NiL>")
+	} else {
+		x.sup.Format(s, format)
+	}
 	fmt.Fprintf(s, "]")
 }
 

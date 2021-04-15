@@ -40,6 +40,7 @@ func TestCADeasy(t *testing.T) {
 				NewFmlAnd(NewAtom(NewPolyInts(0, -2, 0, 1), EQ),
 					NewAtom(NewPolyCoef(1, NewInt(-1), NewPolyInts(0, -2, 0, 1)), EQ))),
 			0,
+			//		}, { exAdam1().Input, 1,
 		},
 	} {
 		cad, err := NewCAD(s.input, g)

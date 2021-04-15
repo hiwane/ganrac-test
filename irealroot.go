@@ -167,11 +167,17 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 	return n == 1 && !undetermined
 }
 
-func (p *Poly) iRealRoot(prec uint) ([]*Interval, error) {
+func (p *Poly) iRealRoot(prec uint, lmax int) ([]*Interval, error) {
 	// return error if
 	// - p の区間が広いか
 	// - p が重複因子をもつか
 	// - 精度がたりないか (prec が小さい)
+	if err := p.valid(); err != nil {
+		fmt.Printf("iRealRoot() %v\n", err)
+		panic("stop")
+	}
+	// fmt.Printf("iRealRoot(%v) start!\n", p)
+
 	bound, posp, posn := p.iRootBound(prec)
 
 	sup := make([]*big.Float, len(p.c))
@@ -187,27 +193,31 @@ func (p *Poly) iRealRoot(prec uint) ([]*Interval, error) {
 	x := newInterval(prec)
 	x.sup.Set(bound)
 
-	sgn := p.c[len(p.c)-1].Sign()
-
 	ret := make([]*Interval, 0, posn+posp)
 	if posp > 0 {
 		// 正の根を探す.
 		kraw := newIKraw(prec, sup)
 		x := newInterval(prec)
 		x.sup.Set(bound)
-		roots[0] = kraw.fRealRoot(x)
+		roots[0] = kraw.fRealRoot(x, lmax)
+		if roots[0] == nil {
+			return nil, fmt.Errorf("pos0 prec")
+		}
 
 		kraw = newIKraw(prec, inf)
 		x = newInterval(prec)
 		x.sup.Set(bound)
-		roots[1] = kraw.fRealRoot(x)
+		roots[1] = kraw.fRealRoot(x, lmax)
 
+		if roots[1] == nil {
+			return nil, fmt.Errorf("pos1 prec")
+		}
 		if len(roots[0]) != len(roots[1]) || int(posp) < len(roots[0]) || int(posp)%2 != len(roots[0])%2 {
 			return nil, fmt.Errorf("pos root=(%d,%d)/%d", len(roots[0]), len(roots[1]), posp)
 		}
 
 		w := 0
-		if sgn > 0 {
+		if p.c[len(p.c)-1].Sign() > 0 {
 			w = 1
 		}
 
@@ -216,7 +226,7 @@ func (p *Poly) iRealRoot(prec uint) ([]*Interval, error) {
 			vv := newInterval(prec)
 			vv.sup.Set(roots[0+w][i].sup)
 			vv.inf.Set(roots[1-w][i].inf)
-			if err := vv.valid(); err != nil {
+			if err := vv.valid(); err != nil { // @TODO
 				fmt.Printf("roots[%d] 0=%v, 1=%v -> %v\n", i, roots[0][i], roots[1][i], vv)
 				return nil, err
 			}
@@ -258,29 +268,49 @@ func (p *Poly) iRealRoot(prec uint) ([]*Interval, error) {
 		}
 
 		kraw := newIKraw(prec, sup)
-		roots[0] = kraw.fRealRoot(x)
+		roots[0] = kraw.fRealRoot(x, lmax)
+		if roots[0] == nil {
+			return nil, fmt.Errorf("neg0 prec")
+		}
 
 		kraw = newIKraw(prec, inf)
-		roots[1] = kraw.fRealRoot(x)
+		roots[1] = kraw.fRealRoot(x, lmax)
+		if roots[1] == nil {
+			return nil, fmt.Errorf("neg1 prec")
+		}
 
 		if len(roots[0]) != len(roots[1]) || int(posn) < len(roots[0]) || int(posn)%2 != len(roots[0])%2 {
 			return nil, fmt.Errorf("neg root=(%d,%d)/%d", len(roots[0]), len(roots[1]), posn)
 		}
 
 		w := 0
-		if sgn > 0 {
+		if (len(p.c)%2*2-1)*p.c[len(p.c)-1].Sign() > 0 {
 			w = 1
 		}
 
 		retp := make([]*Interval, len(roots[0]))
 		for i := len(roots[0]) - 1; i >= 0; i-- {
+			if err := roots[0][i].valid(); err != nil { // @TODO
+				fmt.Printf("roots[0][%d]=%v\n", i, roots[0][i])
+				panic(err.Error())
+			}
+			if err := roots[1][i].valid(); err != nil { // @TODO
+				fmt.Printf("roots[1][%d]=%v\n", i, roots[1][i])
+				panic(err.Error())
+			}
+
 			vv := newInterval(prec)
-			vv.sup.Neg(roots[0+w][i].inf)
-			vv.inf.Neg(roots[1-w][i].sup)
+			vv.inf.Neg(roots[0+w][i].sup)
+			vv.sup.Neg(roots[1-w][i].inf)
 			retp[len(roots[0])-i-1] = vv
 			w = 1 - w
-			if err := vv.valid(); err != nil {
-				return nil, fmt.Errorf("invalid interval %v", vv)
+			if err := vv.valid(); err != nil { // @TODO
+				fmt.Printf("P1 neg. roots[%d/%d,%d:%d] %v\n", i, len(roots[w]), p.c[len(p.c)-1].Sign(), len(p.c), err)
+				fmt.Printf("%%e: %e %e\n", roots[w][i], roots[1-w][i])
+				fmt.Printf("%%f: %f %f\n", roots[w][i], roots[1-w][i])
+				fmt.Printf("%%f: %.30f\n", vv)
+				fmt.Printf("%%f: %.30f\n", roots[1-w][i])
+				panic(err)
 			}
 		}
 
@@ -308,6 +338,7 @@ func (p *Poly) iRealRoot(prec uint) ([]*Interval, error) {
 		}
 	}
 
+	// fmt.Printf("iRealRoot(%v) end!\n", p)
 	return ret, nil
 }
 

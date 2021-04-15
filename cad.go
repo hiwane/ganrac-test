@@ -327,9 +327,13 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			c.printSignature(b)
 			fmt.Fprintf(b, " ")
 			c.printMultiplicity(b)
-			fmt.Fprintf(b, " [% e,% e]", c.intv.inf.Float(), c.intv.sup.Float())
+			if c.intv.inf != nil {
+				fmt.Fprintf(b, " [% e,% e]", c.intv.inf.Float(), c.intv.sup.Float())
+			} else {
+				fmt.Fprintf(b, " [% e,% e]", c.nintv.inf, c.nintv.sup)
+			}
 			if c.defpoly != nil {
-				fmt.Fprintf(b, " %.30v", c.defpoly)
+				fmt.Fprintf(b, " %.50v", c.defpoly)
 			}
 			fmt.Fprintf(b, "\n")
 		}

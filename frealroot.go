@@ -226,13 +226,13 @@ func (kraw *iKraw) rootbound() *big.Float {
 	return t
 }
 
-func (kraw *iKraw) fRealRoot(x *Interval) []*Interval {
+func (kraw *iKraw) fRealRoot(x *Interval, lmax int) []*Interval {
 
 	kraw.push(x)
 
 	ans := make([]*Interval, 0, len(kraw.d)-1)
 
-	for !kraw.empty() {
+	for i := 0; !kraw.empty() && i < lmax; i++ {
 		x = kraw.pop()
 		// fmt.Printf("@ kraw.pop() x=%v\n", x)
 
@@ -249,7 +249,7 @@ func (kraw *iKraw) fRealRoot(x *Interval) []*Interval {
 		kraw.calFd(x)
 
 		chk := kraw.check(x)
-		// fmt.Printf("# kraw() @@ [%2d,%d] x=%v\n", len(kraw.stack), chk, x)
+		// fmt.Printf("# kraw() @@ [%2d,%d,%d] x=%v\n", len(kraw.stack), chk, len(ans), x)
 		switch chk {
 		case 1: // 根が一つ見つかった.
 			kraw.k = kraw.improve(kraw.k)
@@ -291,6 +291,10 @@ func (kraw *iKraw) fRealRoot(x *Interval) []*Interval {
 		kraw.push(x2)
 	}
 
+	if !kraw.empty() {
+		return nil
+	}
+
 	sort.Slice(ans, func(i, j int) bool {
 		return ans[i].inf.Cmp(ans[j].inf) <= 0
 	})
@@ -298,7 +302,7 @@ func (kraw *iKraw) fRealRoot(x *Interval) []*Interval {
 	return ans
 }
 
-func FRealRoot(prec uint, poly []*big.Float, rand float64) []*Interval {
+func FRealRoot(prec uint, lmax int, poly []*big.Float, rand float64) []*Interval {
 	// poly: univariate polynomial
 	// return: real root isolation
 	kraw := newIKraw(prec, poly)
@@ -309,5 +313,5 @@ func FRealRoot(prec uint, poly []*big.Float, rand float64) []*Interval {
 	x.inf.Neg(bound)
 	x.sup.Set(bound)
 
-	return kraw.fRealRoot(x)
+	return kraw.fRealRoot(x, lmax)
 }

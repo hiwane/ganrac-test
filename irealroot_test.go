@@ -72,7 +72,7 @@ func TestIRealRoot1(t *testing.T) {
 			{s.p.subst1(NewPolyInts(s.p.lv, 0, -1), s.p.lv).Neg().(*Poly), -1},
 		} {
 			p := pp.p.toIntv(s.prec).(*Poly)
-			o, err := p.iRealRoot(s.prec + 10)
+			o, err := p.iRealRoot(s.prec+10, 100000)
 			if err != nil {
 				t.Errorf("[%d,%d] err=%v\ninput =%v\nexpect=%v\nactual=%v\n", i, j, err, pp.p, s.expect, o)
 				return

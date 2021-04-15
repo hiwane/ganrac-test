@@ -2,6 +2,7 @@ package ganrac
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 )
 
@@ -49,6 +50,7 @@ func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
 }
 
 func (cad *CAD) Lift(index ...int) error {
+	fmt.Printf("cad.Lift %v\n", index)
 	if len(index) == 0 {
 		for !cad.stack.empty() {
 			cell := cad.stack.pop()
@@ -66,8 +68,10 @@ func (cad *CAD) Lift(index ...int) error {
 	}
 	c := cad.root
 	if len(index) == 1 && index[0] == -1 {
-		if c.children != nil {
+		if c.children == nil {
 			c.lift(cad)
+		} else {
+			return fmt.Errorf("already lifted %v", index)
 		}
 		return nil
 	}
@@ -78,10 +82,12 @@ func (cad *CAD) Lift(index ...int) error {
 		}
 		c = c.children[idx]
 	}
-	if c.children != nil {
+	if c.children == nil {
 		c.lift(cad)
+		return nil
+	} else {
+		return fmt.Errorf("already lifted %v", index)
 	}
-	return nil
 }
 
 func (cell *Cell) Index() []uint {
@@ -95,6 +101,7 @@ func (cell *Cell) Index() []uint {
 }
 
 func (cell *Cell) lift(cad *CAD) error {
+	fmt.Printf("lift (%v)\n", cell.Index())
 	ciso := make([][]*Cell, len(cad.proj[cell.lv+1].pf))
 	signs := make([]sign_t, len(ciso))
 	cs := make([]*Cell, 0)
@@ -134,12 +141,15 @@ func (cell *Cell) lift(cad *CAD) error {
 	}
 	cell.children = cs
 
+	undefined := false
 	for _, c = range cs {
 		switch c.evalTruth(cad.fml, cad).(type) {
 		case *AtomT:
 			c.truth = t_true
 		case *AtomF:
 			c.truth = t_false
+		default:
+			undefined = true
 		}
 	}
 	if cad.q[cell.lv+1] >= 0 {
@@ -154,6 +164,12 @@ func (cell *Cell) lift(cad *CAD) error {
 				cell.set_parent_and_truth_other(cad)
 				return nil
 			}
+		}
+		if !undefined {
+			// 全ての子供の真偽値が決まっていた
+			cell.truth = 1 - qx
+			cell.set_parent_and_truth_other(cad)
+			return nil
 		}
 
 		// quantifier なら親の真偽値に影響する
@@ -207,6 +223,38 @@ func (cell *Cell) evalTruth(formula Fof, cad *CAD) Fof {
 	panic("stop")
 }
 
+func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
+	if c.intv.inf != nil && d.intv.inf != nil {
+		return c.intv.sup.Add(d.intv.inf).Div(two).(NObj)
+	}
+
+	var di, ci *Interval
+	if c.nintv == nil {
+		ci = c.getNumIsoIntv(50)
+	} else {
+		ci = c.nintv
+	}
+	if d.nintv == nil {
+		di = d.getNumIsoIntv(50)
+	} else {
+		di = d.nintv
+	}
+
+	fmt.Printf("ci=%f, di=%f\n", ci, di)
+	f := new(big.Float)
+	f.Add(ci.sup, di.inf)
+	f.Quo(f, big.NewFloat(2))
+
+	rat := newRat()
+	f.Rat(rat.n)
+
+	fmt.Printf("c:%v, %v -> %v\n", c.Index(), c.intv.sup, ci.sup)
+	fmt.Printf("d:%v, %v -> %v\n", d.Index(), d.intv.inf, di.inf)
+	fmt.Printf("m:%v, %v\n", f, rat)
+
+	return rat
+}
+
 func (cad *CAD) addSector(parent *Cell, cs []*Cell) []*Cell {
 	// @TODO 整数を優先するとか
 	ret := make([]*Cell, len(cs)*2+1)
@@ -217,13 +265,22 @@ func (cad *CAD) addSector(parent *Cell, cs []*Cell) []*Cell {
 		return ret
 	}
 
-	ret[0].intv.inf = cs[0].intv.inf.Sub(one).(NObj)
+	if cs[0].intv.inf != nil {
+		ret[0].intv.inf = cs[0].intv.inf.Sub(one).(NObj)
+	} else {
+		f_one := big.NewFloat(1)
+		f := new(big.Float)
+		f.Sub(cs[0].nintv.inf, f_one)
+		ii := newInt()
+		f.Int(ii.n)
+		ret[0].intv.inf = ii
+	}
 	ret[0].intv.sup = ret[0].intv.inf
 	ret[1] = cs[0]
 	cs[0].index = 1
 	for i := 1; i < len(cs); i++ {
 		ret[2*i] = NewCell(cad, parent, uint(2*i))
-		m := cs[i-1].intv.sup.Add(cs[i].intv.inf).Div(two).(NObj)
+		m := cad.midSamplePoint(cs[i-1], cs[i])
 		ret[2*i].intv.inf = m
 		ret[2*i].intv.sup = m
 		cs[i].index = uint(2*i + 1)
@@ -231,9 +288,51 @@ func (cad *CAD) addSector(parent *Cell, cs []*Cell) []*Cell {
 	}
 	n := len(ret) - 1
 	ret[n] = NewCell(cad, parent, uint(n))
-	ret[n].intv.inf = cs[len(cs)-1].intv.sup.Add(one).(NObj)
+
+	if cs[len(cs)-1].intv.inf != nil {
+		ret[n].intv.inf = cs[len(cs)-1].intv.sup.Add(one).(NObj)
+	} else {
+		f_one := big.NewFloat(1)
+		f := new(big.Float)
+		f.Add(cs[len(cs)-1].nintv.sup, f_one)
+		ii := newInt()
+		f.Int(ii.n)
+		ret[n].intv.inf = ii
+	}
 	ret[n].intv.sup = ret[n].intv.inf
 	return ret
+}
+
+func (cad *CAD) cellcmp(c, d *Cell) (int, bool) {
+	if c.nintv != nil {
+		if d.nintv != nil {
+			if c.nintv.sup.Cmp(d.nintv.inf) < 0 {
+				return -1, true
+			} else if d.nintv.sup.Cmp(c.nintv.inf) < 0 {
+				return +1, true
+			}
+		} else {
+			fmt.Printf("c=%v: %v, %v %v\n", c.Index(), c.defpoly, c.nintv, c.intv.inf)
+			fmt.Printf("d=%v: %v, %v %v\n", d.Index(), d.defpoly, d.nintv, d.intv.inf)
+			panic("nooo")
+		}
+	} else {
+		if d.nintv != nil {
+			cc := c.getNumIsoIntv(d.nintv.Prec())
+			if cc.sup.Cmp(d.nintv.inf) < 0 {
+				return -1, true
+			} else if d.nintv.sup.Cmp(cc.inf) < 0 {
+				return +1, true
+			}
+		} else {
+			if c.intv.sup.Cmp(d.intv.inf) < 0 {
+				return -1, true
+			} else if d.intv.sup.Cmp(c.intv.inf) < 0 {
+				return +1, true
+			}
+		}
+	}
+	return 0, false
 }
 
 func (cad *CAD) cellsort(cs []*Cell, dup bool) {
@@ -242,14 +341,16 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 	for i := 0; i < len(cs); i++ {
 		for j := 0; j < i; j++ {
 			for {
-				if cs[j].intv.sup.Cmp(cs[i].intv.inf) < 0 {
+				if s, ok := cad.cellcmp(cs[j], cs[i]); s < 0 {
 					break
-				} else if cs[i].intv.sup.Cmp(cs[j].intv.inf) < 0 {
+				} else if s > 0 {
 					// cs[i] < cs[j]
 					c := cs[i]
 					cs[i] = cs[j]
 					cs[j] = c
 					break
+				} else if ok {
+					// 一致した
 				}
 
 				// 共通根をもつ可能性があるか?
@@ -279,8 +380,8 @@ func (cad *CAD) cellsort(cs []*Cell, dup bool) {
 func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	// returns (roots, sign(lc(p)))
 	cs := make([]*Cell, 0, len(p.c)-1)
-	fmt.Printf("root_iso: %v\n", p)
 	fctrs := cad.g.ox.Factor(p)
+	fmt.Printf("root_iso(%v,%d): %v -> %v\n", cell.Index(), pf.index, p, fctrs)
 	for i := fctrs.Len() - 1; i > 0; i-- {
 		ff := fctrs.getiList(i)
 		q := ff.getiPoly(0)
@@ -300,7 +401,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 			c.multiplicity[pf.index] = r
 			cs = append(cs, c)
 		} else {
-			roots := q.realRootIsolation(+30) // DEBUG用に大きい値を設定中
+			roots := q.realRootIsolation(+30) // @TODO DEBUG用に大きい値を設定中
 			sgn := sign_t(1)
 			if len(q.c)%2 == 0 {
 				sgn = -1
@@ -364,7 +465,12 @@ func (cell *Cell) make_cells_try1(cad *CAD, pf *ProjFactor, pr RObj) (*Poly, []*
 	// returns (p, c, s)
 	// 子供セルが作れたら， p=nil, s=pfに cell 代入したときの主係数の符号
 	// 子供セルが作れなかったら p != nil, (c,s) は使わない
-	fmt.Printf("make_cells_try1() pr=%v, pf=%v\n", pr, pf.p)
+	if pf.discrim != nil {
+		dd, db := pf.discrim.evalSign(cell)
+		fmt.Printf("make_cells_try1(%v, %d) pr=%v, discrim=%d:%v\n", cell.Index(), pf.index, pr, dd, db)
+	} else {
+		fmt.Printf("make_cells_try1(%v, %d) pr=%v, p=%v\n", cell.Index(), pf.index, pr, pf.p)
+	}
 	switch p := pr.(type) {
 	case *Poly:
 		if p.isUnivariate() && p.lv == pf.p.lv {
@@ -444,7 +550,8 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 
 	for prec := uint(53); ; prec += uint(53) {
 		c, s, err := cell.make_cells_i(cad, pf, p, prec, 1)
-		if err != nil && false {
+		if err == nil {
+			fmt.Printf("c=%v, s=%v\n", c, s)
 			return c, s
 		}
 
@@ -459,6 +566,7 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 }
 
 func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
+	// isolating interval を *Interval に変換する
 	if cell.nintv != nil && cell.nintv.Prec() >= prec {
 		return cell.nintv.clonePrec(prec)
 	}
@@ -498,14 +606,28 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 		}
 	}
 
-	ans, err := pp.iRealRoot(prec)
+	// 定数項のゼロは取り除く.
+	zeros := 0
+	for i, c := range pp.c {
+		if !c.IsZero() {
+			if i > 0 {
+				qq := NewPoly(pp.lv, len(pp.c)-i)
+				copy(qq.c, pp.c[i:])
+				pp = qq
+				zeros = i
+			}
+			break
+		}
+	}
+
+	ans, err := pp.iRealRoot(prec, 1000)
 	if err != nil {
 		fmt.Printf("irealroot failed: %s\n", err.Error())
 		return nil, 0, err
 	}
 
 	sgn := pp.Sign()
-	cells := make([]*Cell, len(ans))
+	cells := make([]*Cell, len(ans), len(ans)+1)
 	for i := len(ans) - 1; i >= 0; i-- {
 		sgn *= -1
 		c := NewCell(cad, cell, pf.index)
@@ -515,6 +637,27 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 		c.multiplicity[pf.index] = multiplicity
 		c.defpoly = p
 		cells[i] = c
+	}
+	if zeros > 0 {
+		// x=0 を追加
+		c := NewCell(cad, cell, pf.index)
+		c.de = cell.de
+		c.multiplicity[pf.index] = int8(zeros)
+		c.intv.inf = zero
+		c.intv.sup = zero
+		for i := 0; i < len(cells); i++ {
+			if c.nintv.inf.Sign() >= 0 {
+				cs := cells[:i]
+				cs = append(cs, c)
+				cs = append(cs, cells[i:]...)
+				cells = cs
+				zeros = 0
+				break
+			}
+		}
+		if zeros > 0 {
+			cells = append(cells, c)
+		}
 	}
 
 	return cells, sign_t(pp.Sign()), nil
