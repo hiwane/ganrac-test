@@ -15,6 +15,7 @@ type qeExTable struct {
 var qeExampleTable []qeExTable = []qeExTable{
 	{"adam1", exAdam1},
 	{"pl01", exPL01},
+	{"candj", exCandJ},
 }
 
 func GetExampleFof(name string) *QeExample {
@@ -57,5 +58,15 @@ func exPL01() *QeExample {
 	q.Input = NewQuantifier(true, []Level{1, 2}, newFmlOrs(NewAtom(NewPolyInts(1, 1, 1), LT), NewAtom(NewPolyInts(1, -1, 1), GT), NewAtom(NewPolyInts(2, 1, 1), LT), NewAtom(NewPolyInts(2, -1, 1), GT), NewAtom(NewPolyCoef(2, NewPolyInts(0, 1, -1), NewInt(0), NewPolyInts(1, 0, 0, -3, 0, 1), NewInt(0), NewPolyInts(1, 0, 0, 1)), GE)))
 	q.Ref = "P. Parrilo and S. Lall. Semidefinite Programming Relaxation and Algebraic Optimization in Control."
 	q.DOI = ""
+	return q
+}
+
+func exCandJ() *QeExample {
+	// ex([z], z>0 && z-1<0 && y>0 && 2*x >= 1 && (3*y^2+3*x^2-2*x)*z+-y^2-x^2<0 && (3*y^2+3*x^2-4*x+1)*z+-2*y^2+-2*x^2+2*x>0)
+
+	q := new(QeExample)
+	q.Output = NewAtom(NewPolyInts(0, 0, 1), LE)
+	q.Input = NewQuantifier(false, []Level{2}, newFmlAnds(NewAtom(NewPolyInts(2,0,1), GT),NewAtom(NewPolyInts(2,-1,1), LT),NewAtom(NewPolyInts(1,0,1), GT),NewAtom(NewPolyInts(0,-1,2), GE),NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyInts(0,0,0,-1), NewInt(0), NewInt(-1)), NewPolyCoef(1, NewPolyInts(0,0,-2,3), NewInt(0), NewInt(3))), LT),NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyInts(0,0,2,-2), NewInt(0), NewInt(-2)), NewPolyCoef(1, NewPolyInts(0,1,-4,3), NewInt(0), NewInt(3))), GT)))
+
 	return q
 }

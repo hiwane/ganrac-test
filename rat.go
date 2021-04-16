@@ -205,8 +205,11 @@ func (z *Rat) Cmp(xx NObj) int {
 		return z.n.Num().Cmp(xr)
 	case *Rat:
 		return z.n.Cmp(x.n)
+	case *BinInt:
+		xr := x.ToIntRat()
+		return z.Cmp(xr)
 	}
-	panic("unknown")
+	panic(fmt.Sprintf("unknown: z=%v, x=%v", z, xx))
 }
 
 func (z *Rat) CmpAbs(xx NObj) int {

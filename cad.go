@@ -103,13 +103,14 @@ func (stat CADStat) Print(b io.Writer) {
 	fmt.Fprintf(b, "===========\n")
 	fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
 	fmt.Fprintf(b, " - # of lifting         : %d\n", stat.lift)
+	fmt.Fprintf(b, "\n")
 	fmt.Fprintf(b, "CA stat....\n")
 	fmt.Fprintf(b, "===========\n")
-	fmt.Fprintf(b, " - discrim on proj      : %d\n", stat.discriminant)
-	fmt.Fprintf(b, " - resultant on proj    : %d\n", stat.resultant)
-	fmt.Fprintf(b, " - factorization over Z : %d\n", stat.fctr)
-	fmt.Fprintf(b, " - real root in Z[x]    : %d\n", stat.qrealroot)
-	fmt.Fprintf(b, " - real root in intv[x] : %d / %d\n", stat.irealroot_ok, stat.irealroot)
+	fmt.Fprintf(b, " - discrim on proj      : %8d\n", stat.discriminant)
+	fmt.Fprintf(b, " - resultant on proj    : %8d\n", stat.resultant)
+	fmt.Fprintf(b, " - factorization over Z : %8d\n", stat.fctr)
+	fmt.Fprintf(b, " - real root in Z[x]    : %8d\n", stat.qrealroot)
+	fmt.Fprintf(b, " - real root in intv[x] : %8d / %d\n", stat.irealroot_ok, stat.irealroot)
 
 }
 
@@ -363,7 +364,7 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			c.printMultiplicity(b)
 			if c.intv.inf != nil {
 				fmt.Fprintf(b, " [% e,% e]", c.intv.inf.Float(), c.intv.sup.Float())
-			} else {
+			} else if c.nintv != nil {
 				fmt.Fprintf(b, " [% e,% e]", c.nintv.inf, c.nintv.sup)
 			}
 			if c.defpoly != nil {
@@ -384,9 +385,15 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		fmt.Fprintf(b, "# of children=%d\n", num)
 		fmt.Fprintf(b, "truth value  =%d\n", cell.truth)
 		fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
+		fmt.Fprintf(b, "signature    =%v\n", cell.signature)
+		fmt.Fprintf(b, "multiplicity =%v\n", cell.multiplicity)
 		if cell.intv.inf != nil {
 			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.inf, cell.intv.sup)
 			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.inf.Float(), cell.intv.sup.Float())
+		}
+		if cell.nintv != nil {
+			fmt.Fprintf(b, "iso.nintv    =%f\n", cell.nintv)
+			fmt.Fprintf(b, "             =%e\n", cell.nintv)
 		}
 	case "cells":
 		if cell.children == nil {

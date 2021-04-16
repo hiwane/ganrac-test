@@ -174,19 +174,37 @@ func gbHasZeros(gb *List) bool {
 	return p.IsNumeric()
 }
 
-func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) bool {
+func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) int {
+	// return -1 重複根をもつかも (unknown)
+	//         0 重複根をもたない (false)
+	//         1 重複根を必ずもつ (true)
+
 	// 射影因子の符号で，共通因子を持つか調べる.
 	// true なら，もつ可能性がある.
-	// @TODO 主係数がおちたときに，共通因子もたなくてもゼロ
 	if pfs.resultant == nil {
-		return false
+		return -1
 	}
 
+	for _, pf := range []*ProjFactor{pfs.pf[i], pfs.pf[j]} {
+		// 次数が落ちていると，共通根を持たなくても終結式が 0 になる
+		s, d := pf.coeff[len(pf.coeff) - 1].evalSign(c)
+		if !d || s == 0 {
+			return -1
+		}
+	}
+
+	var pl *ProjLink
 	if i < j {
-		b, _ := pfs.resultant[j][i].evalSign(c)
-		return b == 0
+		pl = pfs.resultant[j][i]
 	} else {
-		b, _ := pfs.resultant[i][j].evalSign(c)
-		return b == 0
+		pl = pfs.resultant[i][j]
+	}
+	s, d := pl.evalSign(c)
+	if !d {
+		return -1
+	} else if s == 0 {
+		return 1
+	} else {
+		return 0
 	}
 }
