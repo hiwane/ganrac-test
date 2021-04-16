@@ -56,7 +56,7 @@ func (z *Poly) valid() error {
 		return fmt.Errorf("coefs is null")
 	}
 	if len(z.c) < 2 {
-		return fmt.Errorf("numeric... %v", z)
+		return fmt.Errorf("poly deg()<1 ... %v", z)
 	}
 	if z.c[len(z.c)-1].IsZero() {
 		return fmt.Errorf("lc should not be zero... %v", z)
@@ -96,6 +96,7 @@ func (z *Poly) Equals(x interface{}) bool {
 }
 
 func (z *Poly) Deg(lv Level) int {
+	// Deg(0) = 0
 	if lv == z.lv {
 		return len(z.c) - 1
 	} else if lv > z.lv {
@@ -485,10 +486,28 @@ func (x *Poly) leadingTerm() *Poly {
 func sdivlt(x, y *Poly) RObj {
 	// return lt(y)/lt(x) if lt(y) is a factor of lt(x)
 	// return nil otherwise
-	if x.lv != y.lv || len(x.c) < len(y.c) {
-		return nil
-	}
 	var zret *Poly
+	if x.lv < y.lv {
+		return nil
+	} else if x.lv > y.lv {
+		zret = NewPoly(x.lv, len(x.c))
+		for i, cc := range x.c {
+			switch c := cc.(type) {
+			case *Poly:
+				zret.c[i] = sdivlt(c, y)
+				if zret.c[i] == nil {
+					return nil
+				}
+			default:
+				if c.IsZero() {
+					zret.c[i] = zero
+				} else {
+					return nil
+				}
+			}
+		}
+		return zret
+	}
 
 	if len(x.c) != len(y.c) {
 		zret = NewPoly(x.lv, len(x.c)-len(y.c)+1)
@@ -501,7 +520,6 @@ func sdivlt(x, y *Poly) RObj {
 	z := zret
 
 	for j := len(x.c); j >= 0; j-- {
-
 		switch yp := y.c[len(y.c)-1].(type) {
 		case NObj:
 			c := x.c[len(x.c)-1].Div(yp)
@@ -552,7 +570,7 @@ func (x *Poly) sdiv(y *Poly) RObj {
 	for i := len(x.c); i >= 0; i-- {
 		m := sdivlt(x, y)
 		if m == nil {
-			return nil
+			panic("1")
 		}
 		ret = Add(ret, m)
 		xx := x.Sub(y.Mul(m))
@@ -560,7 +578,7 @@ func (x *Poly) sdiv(y *Poly) RObj {
 			if xx.IsZero() {
 				return ret
 			} else {
-				return nil
+				panic("2")
 			}
 		}
 		x = xx.(*Poly)

@@ -16,7 +16,9 @@ func (ox *OpenXM) Discrim(p *Poly, lv Level) RObj {
 	dp := p.diff(lv)
 	ox.ExecFunction("res", NewPolyVar(lv), p, dp)
 	qq, _ := ox.PopCMO()
+	fmt.Printf("qq=%v\n", qq)
 	q := ox.toGObj(qq).(RObj)
+	fmt.Printf("q=%v\n", q)
 	n := len(p.c) - 1 // deg(p)
 	if (n & 0x2) != 0 {
 		q = q.Neg()
@@ -24,9 +26,12 @@ func (ox *OpenXM) Discrim(p *Poly, lv Level) RObj {
 	// 主係数で割る
 	switch pc := p.c[n].(type) {
 	case *Poly:
+		fmt.Printf("poly...\n")
 		return q.(*Poly).sdiv(pc)
 	case NObj:
 		return q.Div(pc)
+	default:
+		fmt.Printf("discrim: %v, pc=%v\n", p, pc)
 	}
 	return nil
 }

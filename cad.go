@@ -283,7 +283,7 @@ func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
 	case "stat":
 		cad.stat.Print(b)
 	case "proj":
-	case "cells", "cell", "signature":
+	case "cells", "cell":
 		cad.root.Print(b, args...)
 	default:
 		return fmt.Errorf("invalid argument")
@@ -299,10 +299,10 @@ func (cell *Cell) printSignature(b io.Writer) {
 		if cell.signature[j] < 0 {
 			sgns = '-'
 		} else if cell.signature[j] == 0 {
-			sgns = '0'
+			sgns = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHJIKLMNOPQRSTUVWXYZ")[cell.multiplicity[j]]
 		}
 		fmt.Fprintf(b, "%c%c", ch, sgns)
-		ch = ','
+		ch = ' '
 	}
 	fmt.Fprintf(b, ")")
 }
@@ -310,8 +310,12 @@ func (cell *Cell) printSignature(b io.Writer) {
 func (cell *Cell) printMultiplicity(b io.Writer) {
 	ch := '('
 	for j := 0; j < len(cell.multiplicity); j++ {
-		fmt.Fprintf(b, "%c%d", ch, cell.multiplicity[j])
-		ch = ','
+		if cell.multiplicity[j] == 0 {
+			fmt.Fprintf(b, "%c ", ch)
+		} else {
+			fmt.Fprintf(b, "%c%d", ch, cell.multiplicity[j])
+		}
+		ch = ' '
 	}
 	fmt.Fprintf(b, ")")
 }
@@ -346,7 +350,7 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 	}
 
 	switch s {
-	case "signature":
+	case "cells":
 		if cell.children == nil {
 			return fmt.Errorf("invalid argument [no child]")
 		}
@@ -369,13 +373,16 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			}
 			if c.defpoly != nil {
 				fmt.Fprintf(b, " %.50v", c.defpoly)
+			} else if c.intv.inf == c.intv.sup && c.index%2 == 1 {
+				fmt.Fprintf(b, " %v", c.intv.inf)
 			}
 			fmt.Fprintf(b, "\n")
 		}
 		return nil
 	case "cell":
 		fmt.Fprintf(b, "--- infomation about the cell %v ---\n", cell.Index())
-		fmt.Fprintf(b, "level        =%d\n", cell.lv)
+		fmt.Fprintf(b, "lv=%d, de=%v, exdeg=%d, truth=%d sgn=%d\n",
+			cell.lv, cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
 		var num int
 		if cell.children == nil {
 			num = -1
@@ -383,10 +390,10 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			num = len(cell.children)
 		}
 		fmt.Fprintf(b, "# of children=%d\n", num)
-		fmt.Fprintf(b, "truth value  =%d\n", cell.truth)
 		fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
-		fmt.Fprintf(b, "signature    =%v\n", cell.signature)
-		fmt.Fprintf(b, "multiplicity =%v\n", cell.multiplicity)
+		fmt.Fprintf(b, "signature    =")
+		cell.printSignature(b)
+		fmt.Fprintf(b, "\n")
 		if cell.intv.inf != nil {
 			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.inf, cell.intv.sup)
 			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.inf.Float(), cell.intv.sup.Float())
@@ -394,10 +401,6 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		if cell.nintv != nil {
 			fmt.Fprintf(b, "iso.nintv    =%f\n", cell.nintv)
 			fmt.Fprintf(b, "             =%e\n", cell.nintv)
-		}
-	case "cells":
-		if cell.children == nil {
-			return fmt.Errorf("invalid argument [no child]")
 		}
 	}
 

@@ -31,6 +31,7 @@ func (cad *CAD) addProjRObj(q RObj) *ProjLink {
 	case NObj:
 		return cad.get_projlink_num(cz.Sign())
 	default:
+		fmt.Printf("cz=%v\n", cz)
 		panic("unknown")
 	}
 }
@@ -187,7 +188,7 @@ func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) int {
 
 	for _, pf := range []*ProjFactor{pfs.pf[i], pfs.pf[j]} {
 		// 次数が落ちていると，共通根を持たなくても終結式が 0 になる
-		s, d := pf.coeff[len(pf.coeff) - 1].evalSign(c)
+		s, d := pf.coeff[len(pf.coeff)-1].evalSign(c)
 		if !d || s == 0 {
 			return -1
 		}

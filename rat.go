@@ -61,8 +61,11 @@ func (x *Rat) Add(yy RObj) RObj {
 		z := newRat()
 		z.n.Add(x.n, y.n)
 		return z.normal()
+	case *BinInt:
+		z := y.ToIntRat()
+		return x.Add(z)
 	}
-	return nil
+	panic("stop")
 }
 
 func (x *Rat) Sub(yy RObj) RObj {
@@ -78,7 +81,7 @@ func (x *Rat) Sub(yy RObj) RObj {
 		z.n.Sub(x.n, y.n)
 		return z.normal()
 	}
-	return nil
+	panic("stop")
 }
 
 func (x *Rat) Mul(yy RObj) RObj {
@@ -94,7 +97,7 @@ func (x *Rat) Mul(yy RObj) RObj {
 		z.n.Mul(x.n, y.n)
 		return z.normal()
 	}
-	return nil
+	panic("stop")
 }
 
 func (x *Rat) Div(yy NObj) RObj {
@@ -115,7 +118,7 @@ func (x *Rat) Div(yy NObj) RObj {
 		return z.normal()
 	}
 
-	return nil // @TODO
+	panic("stop")
 }
 
 func (x *Rat) Pow(y *Int) RObj {

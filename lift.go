@@ -100,6 +100,15 @@ func (cell *Cell) Index() []uint {
 	return idx
 }
 
+func (cell *Cell) hasSection() bool {
+	for c := cell; c.lv >= 0; c = c.parent {
+		if c.index%2 != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (cell *Cell) lift(cad *CAD) error {
 	fmt.Printf("lift (%v)\n", cell.Index())
 	cad.stat.lift++
@@ -109,7 +118,7 @@ func (cell *Cell) lift(cad *CAD) error {
 		ciso[i], signs[i] = cell.make_cells(cad, cad.proj[cell.lv+1].pf[i])
 
 		if true {
-			if cad.proj[cell.lv+1].pf[i].index != uint(i) {	// @DEBUG
+			if cad.proj[cell.lv+1].pf[i].index != uint(i) { // @DEBUG
 				panic("3?")
 			}
 			for _, c := range ciso[i] {
@@ -140,7 +149,7 @@ func (cell *Cell) lift(cad *CAD) error {
 	}
 
 	// merge して
-	cs := cad.cellmerge(ciso, true)
+	cs := cad.cellmerge(ciso, cell.hasSection())
 
 	// sector 作って
 	cs = cad.addSector(cell, cs)
@@ -295,7 +304,7 @@ func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
 func (cad *CAD) setSamplePoint(cells []*Cell, idx int) {
 	// set a sample point to cs[idx] where cs[idx] is a sector
 	// @TODO 整数を優先するとか
-	if idx % 2 != 0 {
+	if idx%2 != 0 {
 		panic("invalid index")
 	}
 	c := cells[idx]
@@ -313,13 +322,13 @@ func (cad *CAD) setSamplePoint(cells []*Cell, idx int) {
 			f.Int(ii.n)
 			c.intv.inf = ii
 		}
-	} else if idx < len(cells) - 1 {
+	} else if idx < len(cells)-1 {
 
 		m := cad.midSamplePoint(cells[idx-1], cells[idx+1])
 		c.intv.inf = m
 	} else {
-		if cells[idx - 1].intv.inf != nil {
-			c.intv.inf = cells[idx - 1].intv.sup.Add(one).(NObj)
+		if cells[idx-1].intv.inf != nil {
+			c.intv.inf = cells[idx-1].intv.sup.Add(one).(NObj)
 		} else {
 			f_one := big.NewFloat(1)
 			f := new(big.Float)
@@ -429,7 +438,7 @@ func (cad *CAD) cellmerge(ciso [][]*Cell, dup bool) []*Cell {
 }
 
 func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
-	cret := make([]*Cell, 0, len(cis) + len(cjs))
+	cret := make([]*Cell, 0, len(cis)+len(cjs))
 
 	i := 0
 	j := 0
@@ -456,7 +465,7 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 				panic("kk")
 			}
 			hcr := cad.proj[ci.lv].hasCommonRoot(ci.parent, cj.index, ci.index)
-			if hcr== 0 {
+			if hcr == 0 {
 				// 共通根は持たない.
 				fusion_improve = false
 				goto _FUSION_IMPROVE
@@ -472,16 +481,15 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 				goto _FUSION_IMPROVE
 			}
 
-			if hcr==1 {
+			if hcr == 1 {
 				// @TODO 虚根を持たない，かつ，他に重複がなければ一致が確定する
 				// @TODO 一方が線形なら重複が確定する
 			}
 
-//			fusion_improve = cad.symbolic_equal(ci, cj)
-			panic("stop")
+			fusion_improve = cad.symbolic_equal(ci, cj)
 		}
 
-		_FUSION_IMPROVE:
+	_FUSION_IMPROVE:
 		if fusion_improve {
 			// 一致した
 			fmt.Printf("fusion!\n")
@@ -491,7 +499,7 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			j++
 		} else {
 			// 一致しないので区間を改善
-			for k := 0;; k++ {
+			for k := 0; ; k++ {
 				ci.improveIsoIntv()
 				cj.improveIsoIntv()
 				if s, _ := cad.cellcmp(cj, ci); s < 0 {
@@ -527,11 +535,11 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	fctrs := cad.g.ox.Factor(p)
 	cad.stat.fctr++
 	fmt.Printf("root_iso(%v,%d): %v -> %v\n", cell.Index(), pf.index, p, fctrs)
-	ciso := make([][]*Cell, fctrs.Len() - 1)
+	ciso := make([][]*Cell, fctrs.Len()-1)
 	for i := fctrs.Len() - 1; i > 0; i-- {
 		ff := fctrs.getiList(i)
 		q := ff.getiPoly(0)
-		ciso[i - 1] = make([]*Cell, 0, len(q.c) - 1)
+		ciso[i-1] = make([]*Cell, 0, len(q.c)-1)
 		r := int8(ff.getiInt(1).Int64())
 		if len(q.c) == 2 {
 			c := NewCell(cad, cell, pf.index)
@@ -546,7 +554,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 				c.intv.sup = rat
 			}
 			c.multiplicity[pf.index] = r
-			ciso[i - 1] = append(ciso[i - 1], c)
+			ciso[i-1] = append(ciso[i-1], c)
 		} else {
 			roots := q.realRootIsolation(-30) // @TODO DEBUG用に大きい値を設定中
 			cad.stat.qrealroot++
@@ -570,8 +578,8 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 				sgn *= -1
 				c.multiplicity[pf.index] = r
 				c.defpoly = q
-				c.ex_deg = int(r)
-				ciso[i - 1] = append(ciso[i - 1], c)
+				c.ex_deg = len(q.c) - 1
+				ciso[i-1] = append(ciso[i-1], c)
 			}
 		}
 	}
@@ -818,14 +826,14 @@ func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
 				sc, fc := pf.coeff[len(pf.coeff)-1].evalSign(cell)
 				if fd && fc && sd < 0 && sc != 0 {
 					// 2 次で，判別式が負なら，どこでも符号が sc になる.
-					if sc < 0 && pl.multiplicity[i] % 2 == 1 {
+					if sc < 0 && pl.multiplicity[i]%2 == 1 {
 						sgn *= -1
 					}
 					continue
 				}
 			}
 
-			undetermined = false		// 符号未知の多項式がある
+			undetermined = false // 符号未知の多項式がある
 			continue
 		}
 

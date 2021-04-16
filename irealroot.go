@@ -173,7 +173,7 @@ func (p *Poly) iRealRoot(prec uint, lmax int) ([]*Interval, error) {
 	// - p が重複因子をもつか
 	// - 精度がたりないか (prec が小さい)
 	if err := p.valid(); err != nil {
-		fmt.Printf("iRealRoot() %v\n", err)
+		fmt.Printf("iRealRoot() input is invalid %v\n", err)
 		panic("stop")
 	}
 	// fmt.Printf("iRealRoot(%v) start!\n", p)
