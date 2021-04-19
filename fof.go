@@ -586,7 +586,6 @@ func (p *AtomT) Format(s fmt.State, format rune) {
 		fmt.Fprintf(s, "true")
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "trueObj")
-		fmt.Fprintf(s, "trueObj")
 	default:
 		p.Format(s, format)
 	}

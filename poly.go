@@ -208,12 +208,13 @@ func (z *Poly) Format(s fmt.State, format rune) {
 }
 
 func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
+	// out_sgn 主係数で + の出力が必要ですよ
 	for i := len(z.c) - 1; i >= 0; i-- {
 		if z.c[i].IsZero() {
 			continue
 		} else {
-			s := z.c[i].Sign()
 			if z.c[i].IsNumeric() {
+				s := z.c[i].Sign()
 				if s >= 0 {
 					if i != len(z.c)-1 || out_sgn {
 						fmt.Fprintf(b, "+")
@@ -235,8 +236,8 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 					}
 				}
 			} else if p, ok := z.c[i].(*Poly); ok {
-				if p.isMono() {
-					p.write(b, format, i != len(z.c)-1, mul)
+				if p.isMono() { // 括弧不要
+					p.write(b, format, i != len(z.c)-1 || out_sgn, mul)
 					if i > 0 {
 						fmt.Fprintf(b, "%s", mul)
 					}
@@ -810,6 +811,10 @@ func (z *Poly) LeadinfCoef() NObj {
 	return nil
 }
 
+func (z *Poly) lc() RObj {
+	return z.c[len(z.c)-1]
+}
+
 func (z *Poly) hasSameTerm(pp RObj, lowest bool) bool {
 	// 定数以外同じ項をもつか.
 	p, ok := pp.(*Poly)
@@ -962,6 +967,48 @@ func (p *Poly) reduce(q *Poly) RObj {
 	default:
 		return pp
 	}
+}
+
+func (f *Poly) _quorem(g *Poly) (RObj, RObj) {
+	var q RObj
+	q = zero
+	gc := g.lc()
+	for {
+		var c RObj
+		switch gcc := gc.(type) {
+		case *Poly:
+			c = sdivlt(f.lc().(*Poly), gcc)
+		case *Int:
+			c = f.lc().Div(gcc)
+		default:
+			panic("a")
+		}
+		qc := Mul(newPolyVarn(g.lv, len(f.c)-len(g.c)), c)
+		q = Add(qc, q)
+		switch ff := f.Sub(g.Mul(qc)).(type) {
+		case NObj:
+			return q, ff
+		case *Poly:
+			if ff.lv == g.lv && len(ff.c) >= len(g.c) {
+				f = ff
+			} else {
+				return q, ff
+			}
+		}
+	}
+}
+
+func (f *Poly) pquorem(g *Poly) (RObj, RObj, RObj) {
+	// assume: f.lv == g.lv
+	// return: (a, q, r) where a * f = q * g + r and deg(r) < deg(g)
+	if len(f.c) < len(g.c) {
+		return one, zero, f
+	}
+
+	a := g.lc().Pow(NewInt(int64(len(f.c) - len(g.c) + 1)))
+	pp := f.Mul(a).(*Poly)
+	q, r := pp._quorem(g)
+	return a, q, r
 }
 
 func (p *Poly) content(k *Int) *Int {

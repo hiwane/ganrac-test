@@ -534,3 +534,36 @@ func TestPolReduce(t *testing.T) {
 		}
 	}
 }
+
+func TestPQuoRem(t *testing.T) {
+	for _, s := range []struct {
+		f, g *Poly
+	}{
+		{NewPolyInts(0, 2, 3, 1), NewPolyInts(0, 2, 1)},
+		{NewPolyInts(0, 1, 3, 2), NewPolyInts(0, 1, 2)},
+		{NewPolyInts(0, 5, 0, 2, 3), NewPolyInts(0, 1, 2)},
+		{NewPolyInts(1, 5, 0, 2, 3), NewPolyCoef(1, NewInt(4), NewPolyInts(0, 0, 1))},
+	} {
+		a, q, r := s.f.pquorem(s.g)
+
+		if ap, ok := a.(*Poly); ok {
+			if ap.lv == s.g.lv {
+				t.Errorf("invalid a\nf=%v\ng=%v\na=%v\nq=%v\nr=%v\n", s.f, s.g, a, q, r)
+				continue
+			}
+		}
+		if rp, ok := r.(*Poly); ok {
+			if rp.lv == s.g.lv && len(rp.c) >= len(s.g.c) {
+				t.Errorf("invalid r\nf=%v\ng=%v\na=%v\nq=%v\nr=%v\n", s.f, s.g, a, q, r)
+				continue
+			}
+		}
+
+		af := Mul(a, s.f)
+		qg := Mul(q, s.g)
+		if !Sub(af, qg).Equals(r) {
+			t.Errorf("invalid\nf=%v\ng=%v\na=%v\nq=%v\nr=%v\n", s.f, s.g, a, q, r)
+			continue
+		}
+	}
+}

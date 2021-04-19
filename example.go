@@ -149,11 +149,22 @@ func exQuad() *QeExample {
 func exWO1() *QeExample {
 	q := new(QeExample)
 	q.Input = NewQuantifier(true, []Level{3}, NewAtom(NewPolyCoef(3, NewInt(1), NewPolyInts(2, 0, 1), NewPolyInts(1, 0, 1), NewInt(0), NewInt(0), NewInt(0), NewPolyInts(0, 0, 1)), GT))
+	q.Ref = "vanish & NOT well-oriented"
 	return q
 }
 
 func exWO2() *QeExample {
 	q := new(QeExample)
-	q.Input = NewQuantifier(true, []Level{3}, NewAtom(NewPolyCoef(3, NewPolyCoef(1, NewInt(0), NewPolyInts(0, 0, -1)), NewPolyCoef(2, NewInt(0), NewPolyInts(1, 0, 1)), NewInt(1)), GE))
+	q.Input = NewQuantifier(true, []Level{3}, NewAtom(
+		NewPolyCoef(3,
+			NewPolyCoef(1, NewInt(0), NewPolyInts(0, 0, -1)),
+			NewPolyCoef(2, NewInt(0), NewPolyInts(1, 0, 1)),
+			NewInt(1)), GE))
+	q.Output = newFmlOrs(
+		newFmlAnds(NewAtom(NewPolyInts(1, 0, 1), GE),
+			NewAtom(NewPolyCoef(2, NewPolyInts(0, 0, 4), NewInt(0), NewPolyInts(1, 0, 1)), LE)),
+		newFmlAnds(NewAtom(NewPolyCoef(2, NewPolyInts(0, 0, 4), NewInt(0), NewPolyInts(1, 0, 1)), GE),
+			NewAtom(NewPolyInts(1, 0, 1), LE)))
+	q.Ref = "vanish & well-oriented"
 	return q
 }

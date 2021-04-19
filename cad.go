@@ -380,9 +380,9 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		}
 		return nil
 	case "cell":
-		fmt.Fprintf(b, "--- infomation about the cell %v ---\n", cell.Index())
-		fmt.Fprintf(b, "lv=%d, de=%v, exdeg=%d, truth=%d sgn=%d\n",
-			cell.lv, cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
+		fmt.Fprintf(b, "--- information about the cell %v ---\n", cell.Index())
+		fmt.Fprintf(b, "lv=%d:%s, de=%v, exdeg=%d, truth=%d sgn=%d\n",
+			cell.lv, varlist[cell.lv].v, cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
 		var num int
 		if cell.children == nil {
 			num = -1

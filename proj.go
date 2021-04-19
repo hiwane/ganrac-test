@@ -175,6 +175,20 @@ func gbHasZeros(gb *List) bool {
 	return p.IsNumeric()
 }
 
+func (pf *ProjFactor) hasMultiFctr(cell *Cell) int {
+	// return -1 重複根をもつかも (unknown)
+	//         0 重複根をもたない (false)
+	//         1 重複根を必ずもつ (true)
+	s, d := pf.discrim.evalSign(cell)
+	if !d {
+		return -1
+	} else if s == 0 {
+		return 1
+	} else {
+		return 0
+	}
+}
+
 func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) int {
 	// return -1 重複根をもつかも (unknown)
 	//         0 重複根をもたない (false)

@@ -109,6 +109,9 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 	for i := j + 1; i < len(cs); i++ {
 		if sfc.cmp_signature(cs[j], cs[i]) != 0 {
 			t |= sfc.pdqv22(lv+1, cs, j, i)
+			if (t & 0x4) != 0 {
+				return t
+			}
 			j = i
 		}
 	}
@@ -143,10 +146,10 @@ func (sfc *CADSfc) pdq(root *Cell) int {
 	// return 2 undetermined
 	cells := []*Cell{root}
 	t := sfc.pdqv22(0, cells, 0, 1)
-	fmt.Printf("pdq() t=%x, [%x %x, %x]\n", t, t&0xc, t&0x8, 0x4|0x8)
+	fmt.Printf("pdq() t=%x, [%x %x]\n", t, t&0xc, t&0x8)
 	if (t & (0x4 | 0x8)) == 0 {
 		return 0
-	} else if (t % 0x8) != 0 {
+	} else if (t & 0x8) != 0 {
 		return 1
 	} else {
 		return 2
@@ -157,7 +160,7 @@ func (sfc *CADSfc) gen_atoms() []*sfcAtom {
 	a := make([]*sfcAtom, 0) // @TODO
 	for i := 0; i < sfc.freen; i++ {
 		for j := 0; j < len(sfc.cad.proj[i].pf); j++ {
-			for _, op := range []OP{LE, GE, NE, EQ, LT, GT} {
+			for _, op := range []OP{EQ, LE, GE, NE, LT, GT} {
 				a = append(a, &sfcAtom{i, sfc.cad.proj[i].pf[j].index, op})
 			}
 		}
@@ -232,7 +235,6 @@ func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
 				panic("boo")
 			}
 			t := sfc._hitting_set(s, h, idx+1, maxn)
-			fmt.Printf("t=%v, lenh=%v, maxn=%d\n", t, len(h), maxn)
 			if t != nil {
 				hmin = make([]int, len(t))
 				copy(hmin, t)
@@ -241,9 +243,6 @@ func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
 				}
 				maxn = len(hmin)
 			}
-		}
-		if hmin == nil {
-			panic("naze?")
 		}
 		return hmin
 	}
@@ -258,17 +257,12 @@ func (sfc *CADSfc) hitting_set(s [][]int) []int {
 		return len(s[i]) < len(s[j])
 	})
 
-	for _, ss := range s {
-		fmt.Printf(" hs() %v\n", ss)
-	}
-
 	return sfc._hitting_set(s, []int{}, 0, len(s[len(s)-1])+10)
 }
 
 func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 
 	// la のうち, c が true となる cell をすべて抽出
-
 	ai := make([]int, 0, len(la)/2)
 	for i, ta := range la {
 		if len(ctable) <= ta.lv {
@@ -278,17 +272,10 @@ func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 			ai = append(ai, i)
 		}
 	}
-	fmt.Printf("ai=%v, %v [%d]\n", ai, ctable[0].Index(), len(sfc.lf))
-	fmt.Printf("la[ 6]=%v\n", la[6])
-	fmt.Printf("la[10]=%v\n", la[10])
-
 	// ai のうち, false cell が false になるものたちを抽出
 	s := make([][]int, 0, len(sfc.lf))
 	for _, c := range sfc.lf {
-		for u := c; u.lv >= 0; u = u.parent {
-			ctable[u.lv] = u
-		}
-		ctable = ctable[:c.lv+1]
+		ctable = sfc.set_ctable(c, ctable)
 
 		impls := make([]int, 0, len(ai)/2)
 		for _, aa := range ai {
@@ -300,7 +287,6 @@ func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 				impls = append(impls, aa)
 			}
 		}
-		fmt.Printf(".. impl=%v\n", impls)
 		if len(impls) > 0 {
 			s = append(s, impls)
 		} else {
@@ -311,30 +297,73 @@ func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 	return sfc.hitting_set(s)
 }
 
+func (sfc *CADSfc) set_ctable(cell *Cell, ctable []*Cell) []*Cell {
+	for len(ctable) <= int(cell.lv) {
+		ctable = append(ctable, cell)
+	}
+	for ci := cell; ci.lv >= 0; ci = ci.parent {
+		ctable[ci.lv] = ci
+	}
+	return ctable[:cell.lv+1]
+}
+
+func (sfc *CADSfc) another_hp(impls [][]int, la []*sfcAtom, ctable []*Cell) [][]int {
+
+	s := make([][]int, 0)
+	for _, c := range sfc.lt {
+		ctable = sfc.set_ctable(c, ctable)
+		sj := make([]int, 0)
+		for j, impl := range impls {
+			b := true
+			for _, aa := range impl {
+				ta := la[aa]
+				if len(ctable) <= ta.lv {
+					b = false
+					break
+				}
+				if !sfc.eval(ctable, ta) {
+					b = false
+					break
+				}
+
+			}
+			if b {
+				sj = append(sj, j)
+			}
+		}
+		s = append(s, sj)
+	}
+
+	hs := sfc.hitting_set(s)
+	ret := make([][]int, 0, len(hs))
+	for _, h := range hs {
+		ret = append(ret, impls[h])
+	}
+	return ret
+
+}
+
 func (sfc *CADSfc) simplesf(la []*sfcAtom) Fof {
 
 	impls := make([][]int, 0)
 	ctable := make([]*Cell, sfc.freen)
 	for _, c := range sfc.lt {
-
-		for ci := c; ci.lv >= 0; ci = ci.parent {
-			ctable[ci.lv] = ci
-		}
-		ctable = ctable[:c.lv+1]
+		ctable = sfc.set_ctable(c, ctable)
 
 		// すでにある implicant に捕獲されているか
 		if sfc.captured(ctable, la, impls) {
-			fmt.Printf("c=%v captured %v\n", c.Index(), impls)
 			continue
 		}
 
 		// c を捕獲し, すべての false cell を含まない implicant を求める
 		ai := sfc.implcons(ctable, la)
 		impls = append(impls, ai)
-		fmt.Printf("c=%v, new impl %v\n", c.Index(), ai)
 	}
 
 	// another hitting problem
+	if len(impls) > 1 {
+		impls = sfc.another_hp(impls, la, ctable)
+	}
 
 	var fml Fof = falseObj
 	for _, impl := range impls {
