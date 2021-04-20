@@ -104,7 +104,7 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 	for _, pf := range cad.proj[0].pf {
 		pf.coeff = coef
 	}
-
+	cad.stage = 1
 	return nil
 }
 

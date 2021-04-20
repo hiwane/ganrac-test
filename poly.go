@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-type Level uint
+type Level int8
 
 // poly in K[x_lv,...,x_n]
 type Poly struct { // recursive expression
@@ -51,12 +51,18 @@ func NewPolyCoef(lv Level, coeffs ...RObj) *Poly {
 	return p
 }
 
+func (z *Poly) Clone() *Poly {
+	u := NewPoly(z.lv, len(z.c))
+	copy(u.c, z.c)
+	return u
+}
+
 func (z *Poly) valid() error {
 	if z.c == nil {
 		return fmt.Errorf("coefs is null")
 	}
 	if len(z.c) < 2 {
-		return fmt.Errorf("poly deg()<1 ... %v", z)
+		return fmt.Errorf("[%d,%d]poly deg()<1 ... %v", z.lv, len(z.c), z)
 	}
 	if z.c[len(z.c)-1].IsZero() {
 		return fmt.Errorf("lc should not be zero... %v", z)
@@ -255,7 +261,11 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 				}
 			}
 			if i > 0 {
-				fmt.Fprintf(b, "%s", varlist[z.lv].v)
+				if varlist != nil && int(z.lv) < len(varlist) {
+					fmt.Fprintf(b, "%s", varlist[z.lv].v)
+				} else {
+					fmt.Fprintf(b, "_x%d", z.lv)
+				}
 				if i >= 10 && mul == " " {
 					fmt.Fprintf(b, "^{%d}", i)
 				} else if i > 1 {
@@ -779,6 +789,38 @@ func (z *Poly) isUnivariate() bool {
 	return true
 }
 
+func (z *Poly) isIntPoly() bool {
+	for _, cc := range z.c {
+		switch c := cc.(type) {
+		case *Poly:
+			if !c.isIntPoly() {
+				return false
+			}
+		case *Int:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (z *Poly) isIntvPoly() bool {
+	for _, cc := range z.c {
+		switch c := cc.(type) {
+		case *Poly:
+			if !c.isIntPoly() {
+				return false
+			}
+		case *Interval:
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func (z *Poly) Indets(b []bool) {
 	b[z.lv] = true
 	for _, c := range z.c {
@@ -813,6 +855,10 @@ func (z *Poly) LeadinfCoef() NObj {
 
 func (z *Poly) lc() RObj {
 	return z.c[len(z.c)-1]
+}
+
+func (z *Poly) deg() int {
+	return len(z.c) - 1
 }
 
 func (z *Poly) hasSameTerm(pp RObj, lowest bool) bool {
@@ -925,7 +971,7 @@ func (p *Poly) _reduce(q *Poly) RObj {
 			qq.c[i] = zero
 		}
 		for i := 0; i < len(q.c); i++ {
-			qq.c[i+df] = q.c[i].Mul(cc)
+			qq.c[i+df] = Mul(q.c[i], cc)
 		}
 		pp := p.Sub(qq)
 		if ppp, ok := pp.(*Poly); ok {
@@ -969,22 +1015,36 @@ func (p *Poly) reduce(q *Poly) RObj {
 	}
 }
 
-func (f *Poly) _quorem(g *Poly) (RObj, RObj) {
+func (forg *Poly) _quorem(g *Poly) (RObj, RObj) {
 	var q RObj
 	q = zero
+	f := forg
 	gc := g.lc()
 	for {
 		var c RObj
 		switch gcc := gc.(type) {
 		case *Poly:
+			// 擬除算やっているので gcc が poly なら f.lc() も poly のはず
+			if _, ok := f.lc().(*Poly); !ok {
+				fmt.Printf("forg=[%d, %d]\n", forg.lv, len(forg.c)-1)
+				fmt.Printf("f   =[%d, %d]\n", f.lv, len(f.c)-1)
+			}
 			c = sdivlt(f.lc().(*Poly), gcc)
 		case *Int:
 			c = f.lc().Div(gcc)
 		default:
 			panic("a")
 		}
-		qc := Mul(newPolyVarn(g.lv, len(f.c)-len(g.c)), c)
+		var qc RObj
+		if len(f.c) > len(g.c) {
+			qc = Mul(newPolyVarn(g.lv, len(f.c)-len(g.c)), c)
+		} else {
+			qc = c
+		}
 		q = Add(qc, q)
+		if err := q.valid(); err != nil {
+			panic(err)
+		}
 		switch ff := f.Sub(g.Mul(qc)).(type) {
 		case NObj:
 			return q, ff
@@ -1001,6 +1061,9 @@ func (f *Poly) _quorem(g *Poly) (RObj, RObj) {
 func (f *Poly) pquorem(g *Poly) (RObj, RObj, RObj) {
 	// assume: f.lv == g.lv
 	// return: (a, q, r) where a * f = q * g + r and deg(r) < deg(g)
+	if f.lv != g.lv {
+		panic("invalid")
+	}
 	if len(f.c) < len(g.c) {
 		return one, zero, f
 	}
@@ -1008,6 +1071,16 @@ func (f *Poly) pquorem(g *Poly) (RObj, RObj, RObj) {
 	a := g.lc().Pow(NewInt(int64(len(f.c) - len(g.c) + 1)))
 	pp := f.Mul(a).(*Poly)
 	q, r := pp._quorem(g)
+
+	if err := a.valid(); err != nil {
+		panic(err)
+	}
+	if err := q.valid(); err != nil {
+		panic(err)
+	}
+	if err := r.valid(); err != nil {
+		panic(err)
+	}
 	return a, q, r
 }
 

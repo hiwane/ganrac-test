@@ -3,6 +3,7 @@ package ganrac
 import (
 	"fmt"
 	"io"
+	"math/big"
 )
 
 type ProjectionAlgo int
@@ -29,6 +30,11 @@ type AtomProj struct {
 }
 
 type Cell struct {
+	de           bool
+	vanish       bool
+	truth        int8
+	sgn_of_left  sign_t
+	lv           Level
 	parent       *Cell
 	children     []*Cell
 	index        uint
@@ -38,10 +44,6 @@ type Cell struct {
 	ex_deg       int       // 拡大次数
 	signature    []sign_t
 	multiplicity []int8
-	lv           int8
-	truth        int8
-	de           bool
-	sgn_of_left  sign_t
 }
 
 type cellStack struct {
@@ -92,6 +94,8 @@ type CAD struct {
 	root     *Cell
 	g        *Ganrac
 	stat     CADStat
+	nwo      bool // well-oriented
+	stage    int8
 }
 
 func qeCAD(fml Fof) Fof {
@@ -283,7 +287,7 @@ func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
 	case "stat":
 		cad.stat.Print(b)
 	case "proj":
-	case "cells", "cell":
+	case "cells", "cell", "cellp":
 		cad.root.Print(b, args...)
 	default:
 		return fmt.Errorf("invalid argument")
@@ -331,11 +335,14 @@ func (cell *Cell) stringTruth() string {
 func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 	s := "cell"
 	if len(args) > 0 {
-		s2, ok := args[0].(*String)
-		if !ok {
+		switch s2 := args[0].(type) {
+		case *String:
+			s = s2.s
+		case string:
+			s = s2
+		default:
 			return fmt.Errorf("invalid argument [expect string/kind]")
 		}
-		s = s2.s
 	}
 
 	for i := 1; i < len(args); i++ {
@@ -395,12 +402,20 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		cell.printSignature(b)
 		fmt.Fprintf(b, "\n")
 		if cell.intv.inf != nil {
+			f := cell.intv.sup.Float() - cell.intv.inf.Float()
 			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.inf, cell.intv.sup)
-			fmt.Fprintf(b, "             =[%e,%e]\n", cell.intv.inf.Float(), cell.intv.sup.Float())
+			fmt.Fprintf(b, "             =[%e,%e] = %e\n", cell.intv.inf.Float(), cell.intv.sup.Float(), f)
 		}
 		if cell.nintv != nil {
+			bb := new(big.Float)
+			bb.Sub(cell.nintv.sup, cell.nintv.inf)
 			fmt.Fprintf(b, "iso.nintv    =%f\n", cell.nintv)
-			fmt.Fprintf(b, "             =%e\n", cell.nintv)
+			fmt.Fprintf(b, "             =%e = %e\n", cell.nintv, bb)
+		}
+	case "cellp":
+		for cell.lv >= 0 {
+			cell.Print(b)
+			cell = cell.parent
 		}
 	}
 

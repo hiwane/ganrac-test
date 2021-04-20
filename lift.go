@@ -9,6 +9,7 @@ import (
 func (cell *Cell) set_truth_value_from_children(cad *CAD) {
 	// 子供の真偽値から自分の真偽値を決める.
 	if cad.q[cell.lv+1] < 0 {
+		cell.Print(os.Stdout, "cellp")
 		panic("gao")
 	}
 
@@ -32,7 +33,6 @@ func (cell *Cell) set_truth_other() {
 			}
 		}
 	}
-
 }
 
 func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
@@ -50,8 +50,11 @@ func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
 }
 
 func (cad *CAD) Lift(index ...int) error {
+	if cad.stage != 1 {
+		return fmt.Errorf("invalid stage")
+	}
 	fmt.Printf("cad.Lift %v\n", index)
-	if len(index) == 0 {
+	if len(index) == 0 { // 指定なしなので，最後までやる.
 		for !cad.stack.empty() {
 			cell := cad.stack.pop()
 			if cell.truth >= 0 {
@@ -66,10 +69,11 @@ func (cad *CAD) Lift(index ...int) error {
 				}
 			}
 		}
+		cad.stage = 2
 		return nil
 	}
 	c := cad.root
-	if len(index) == 1 && index[0] == -1 {
+	if len(index) == 1 && index[0] == -1 { // 指定なしと区別するため，root は -1 で表現
 		if c.children == nil {
 			return c.lift(cad)
 		} else {
@@ -78,7 +82,13 @@ func (cad *CAD) Lift(index ...int) error {
 	}
 
 	for _, idx := range index {
-		if c.children == nil || idx < 0 || idx >= len(c.children) {
+		if c.children == nil {
+			err := c.lift(cad)
+			if err != nil {
+				return err
+			}
+		}
+		if idx < 0 || idx >= len(c.children) {
 			return fmt.Errorf("invalid index %v", index)
 		}
 		c = c.children[idx]
@@ -118,14 +128,8 @@ func (cell *Cell) lift(cad *CAD) error {
 		ciso[i], signs[i] = cell.make_cells(cad, cad.proj[cell.lv+1].pf[i])
 
 		if signs[i] == 0 {
-			for c := cell; c.lv >= 0; c = c.parent {
-				c.Print(os.Stdout)
-			}
-			fmt.Printf("%v\n", cad.proj[cell.lv+1].pf[i].p)
-			for c := cell; c.lv >= 0; c = c.parent {
-				if c.index%2 == 0 {
-					return fmt.Errorf("not well-oriented")
-				}
+			if cad.projmc_vanish(cell, cad.proj[cell.lv+1].pf[i]) {
+				return fmt.Errorf("not well-oriented %v", cell.Index())
 			}
 		}
 
@@ -298,7 +302,16 @@ func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
 		di = d.nintv
 	}
 
-	fmt.Printf("ci=%f, di=%f\n", ci, di)
+	// ciz := new(big.Int)
+	// diz := new(big.Int)
+	// ci.sup.Int(ciz)
+	// di.inf.Int(diz)
+	// fmt.Printf("ci=%f, di=%f\n", ci, di)
+	// fmt.Printf("ciz=%v, diz=%v\n", ciz, diz)
+	// if ci.Cmp(di) <= 0 {
+	// 	return NewIntZ(ciz)
+	// }
+
 	f := new(big.Float)
 	f.Add(ci.sup, di.inf)
 	f.Quo(f, big.NewFloat(2))
@@ -469,6 +482,8 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 		} else if ok {
 			// 一致したって........ 次数の低いほうを選ぼう.
 			fusion_improve = true
+		} else if !dup {
+			fusion_improve = false
 		} else {
 			// 共通根をもつ可能性があるか?
 			if ci.index == cj.index {
@@ -516,8 +531,8 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			ci.Print(os.Stdout)
 			cj.Print(os.Stdout)
 			for k := 0; ; k++ {
-				ci.improveIsoIntv()
-				cj.improveIsoIntv()
+				ci.improveIsoIntv(true)
+				cj.improveIsoIntv(false)
 				if s, _ := cad.cellcmp(cj, ci); s < 0 {
 					cret = append(cret, cj)
 					j++
@@ -528,10 +543,10 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 					break
 				}
 				if k > 50 {
-					fmt.Printf("dup=%.1v\n", dup)
+					fmt.Printf("dup=%.1v, k=%d\n", dup, k)
 					ci.Print(os.Stdout)
-					cj.Print(os.Stdout)
-					panic("!")
+					cj.Print(os.Stdout, "cellp")
+					panic("dup51!")
 				}
 			}
 		}
@@ -604,11 +619,6 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	return cad.cellmerge(ciso, false)
 }
 
-func (cell *Cell) root_iso_i(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
-	cs := make([]*Cell, 0, len(p.c)-1)
-	return cs
-}
-
 func (cell *Cell) reduce(p *Poly) RObj {
 	// 次数を下げる.
 	for c := cell; c.lv >= 0; c = c.parent {
@@ -634,7 +644,7 @@ func (cell *Cell) make_cells_try1(cad *CAD, pf *ProjFactor, pr RObj) (*Poly, []*
 	// 子供セルが作れなかったら p != nil, (c,s) は使わない
 	if pf.discrim != nil {
 		dd, db := pf.discrim.evalSign(cell)
-		fmt.Printf("make_cells_try1(%v, %d) pr=%v, discrim=%d:%v\n", cell.Index(), pf.index, pr, dd, db)
+		fmt.Printf("make_cells_try1(%v, %d) pr=%v->%v, discrim=%d:%v\n", cell.Index(), pf.index, pf.p, pr, dd, db)
 	} else {
 		fmt.Printf("make_cells_try1(%v, %d) pr=%v, p=%v\n", cell.Index(), pf.index, pr, pf.p)
 	}
@@ -703,7 +713,7 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 	for c := cell; c != cad.root; c = c.parent {
 		// 有理数代入
 		if c.defpoly == nil {
-			pp := c.intv.inf.subst_poly(p, Level(c.lv))
+			pp := c.intv.inf.subst_poly(p, c.lv)
 			switch px := pp.(type) {
 			case *Poly:
 				p = px
@@ -723,33 +733,8 @@ func (cell *Cell) make_cells(cad *CAD, pf *ProjFactor) ([]*Cell, sign_t) {
 	if p == nil {
 		return c, s
 	}
-	if err := p.valid(); err != nil {
-		panic(err)
-	}
 
-	sqfr := false
-	for prec := uint(53); ; prec += uint(53) {
-		if c, s, err := cell.make_cells_i(cad, pf, p, prec, 1); err == nil {
-			return c, s
-		}
-
-		if !sqfr {
-			if hmf := pf.hasMultiFctr(cell); hmf != 0 {
-				_ = cad.sym_sqfr(p, cell)
-				sqfr = true
-			}
-		}
-
-		// セルの分離区間を改善
-		fmt.Printf("pf=%v\n", pf.p)
-		fmt.Printf("p =%v\n", p)
-		for cc := cell; cc.lv >= 0; cc = cc.parent {
-			cc.Print(os.Stdout)
-		}
-		panic("not implemented")
-
-		// 精度が足りなかったか無平方でなかったか.
-	}
+	return cell.make_cells_i(cad, pf, p)
 }
 
 func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
@@ -775,11 +760,11 @@ func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 func (cell *Cell) subst_intv(cad *CAD, p *Poly, prec uint) RObj {
 	pp := p.toIntv(prec).(*Poly)
 	for c := cell; c != cad.root; c = c.parent {
-		if !p.hasVar(Level(c.lv)) {
+		if !p.hasVar(c.lv) {
 			continue
 		}
 		x := c.getNumIsoIntv(prec)
-		qq := pp.subst1(x, Level(c.lv))
+		qq := pp.subst1(x, c.lv)
 		if qq.IsNumeric() {
 			return qq
 		}
@@ -791,7 +776,10 @@ func (cell *Cell) subst_intv(cad *CAD, p *Poly, prec uint) RObj {
 	return pp
 }
 
-func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, multiplicity int8) ([]*Cell, sign_t, error) {
+func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, porg *Poly) ([]*Cell, sign_t) {
+	prec := uint(53)
+
+	p := porg.Clone()
 	pp := cell.subst_intv(cad, p, prec).(*Poly)
 	if !pp.isUnivariate() {
 		panic("invalid")
@@ -799,18 +787,21 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 
 	for i, c := range pp.c {
 		if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
-			if cad.sym_zero_chk(p.c[i].(*Poly), cell) {
+			if cad.sym_zero_chk(porg.c[i].(*Poly), cell) {
 				pp.c[i] = zero.toIntv(prec)
+				p.c[i] = zero
 			} else {
 				// 精度をあげる
-				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, p.c[i], c)
-				return nil, 0, fmt.Errorf("coef contains zero.")
+				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, porg.c[i], c)
+				panic("unimplemented")
 			}
 		}
 	}
 
+	sgn := sign_t(pp.Sign())
+	cells := make([][]*Cell, 0)
+
 	// 定数項のゼロは取り除く.
-	zeros := 0
 	for i, c := range pp.c {
 		if !c.IsZero() {
 			if i > 0 {
@@ -818,26 +809,84 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 					// numeric 確定..
 					c := NewCell(cad, cell, pf.index)
 					c.de = cell.de
-					c.multiplicity[pf.index] = int8(zeros)
+					c.multiplicity[pf.index] = int8(i)
 					c.intv.inf = zero
 					c.intv.sup = zero
-					return []*Cell{c}, sign_t(pp.Sign()), nil
+					return []*Cell{c}, sgn
 				}
 				qq := NewPoly(pp.lv, len(pp.c)-i)
 				copy(qq.c, pp.c[i:])
 				pp = qq
-				zeros = i
-			}
 
+				c := NewCell(cad, cell, pf.index)
+				c.de = cell.de
+				c.multiplicity[pf.index] = int8(i)
+				c.intv.inf = zero
+				c.intv.sup = zero
+				cells = append(cells, []*Cell{c})
+			}
 			break
 		}
 	}
+
+	c, err := cell.root_iso_i(cad, pf, p, pp, prec, 1)
+	if err == nil {
+		cells = append(cells, c)
+	} else if hmf := pf.hasMultiFctr(cell); hmf != 0 {
+		ps := cad.sym_sqfr(p, cell)
+
+		// もし分解されていなかったら...
+
+		for _, poly_mul := range ps {
+			prec = uint(53)
+			p := poly_mul.p
+			pp := cell.subst_intv(cad, poly_mul.p, prec).(*Poly)
+			for i, c := range pp.c {
+				if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
+					if cad.sym_zero_chk(p.c[i].(*Poly), cell) {
+						p.c[i] = zero
+						pp.c[i] = zero.toIntv(prec)
+					} else {
+						// 精度をあげる
+						fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, porg.c[i], c)
+						panic("unimplemented")
+					}
+				}
+			}
+
+			for prec := uint(53); ; prec += 53 {
+				c, err := cell.root_iso_i(cad, pf, p, pp, prec, poly_mul.r)
+				if err == nil {
+					cells = append(cells, c)
+					break
+				}
+				panic("gege")
+			}
+		}
+	} else {
+		// 係数の符号が確定している.
+		for prec := uint(53); ; prec += 53 {
+			c, err := cell.root_iso_i(cad, pf, porg, pp, prec, 1)
+			if err == nil {
+				cells = append(cells, c)
+				break
+			}
+			panic("gege")
+		}
+	}
+
+	return cad.cellmerge(cells, false), sgn
+}
+
+func (cell *Cell) root_iso_i(cad *CAD, pf *ProjFactor, porg, pp *Poly, prec uint, multiplicity int8) ([]*Cell, error) {
+	// porg: 区間代入前
+	// pp: interval polynomial
 
 	ans, err := pp.iRealRoot(prec, 1000)
 	cad.stat.irealroot++
 	if err != nil {
 		fmt.Printf("irealroot failed: %s\n", err.Error())
-		return nil, 0, err
+		return nil, err
 	}
 	cad.stat.irealroot_ok++
 
@@ -850,32 +899,10 @@ func (cell *Cell) make_cells_i(cad *CAD, pf *ProjFactor, p *Poly, prec uint, mul
 		c.sgn_of_left = sign_t(sgn)
 		c.de = true
 		c.multiplicity[pf.index] = multiplicity
-		c.defpoly = p
+		c.defpoly = porg
 		cells[i] = c
 	}
-	if zeros > 0 {
-		// x=0 を追加
-		c := NewCell(cad, cell, pf.index)
-		c.de = cell.de
-		c.multiplicity[pf.index] = int8(zeros)
-		c.intv.inf = zero
-		c.intv.sup = zero
-		for i := 0; i < len(cells); i++ {
-			if c.nintv.inf.Sign() >= 0 {
-				cs := cells[:i]
-				cs = append(cs, c)
-				cs = append(cs, cells[i:]...)
-				cells = cs
-				zeros = 0
-				break
-			}
-		}
-		if zeros > 0 {
-			cells = append(cells, c)
-		}
-	}
-
-	return cells, sign_t(pp.Sign()), nil
+	return cells, nil
 }
 
 func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
@@ -886,7 +913,7 @@ func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
 	determined := true
 	for i := 0; i < len(pl.multiplicity); i++ {
 		pf := pl.projs.pf[i]
-		if Level(cell.lv) < pf.p.lv {
+		if cell.lv < pf.p.lv {
 			if len(pf.p.c) == 3 && pf.discrim != nil {
 				sd, fd := pf.discrim.evalSign(cell)
 				sc, fc := pf.coeff[len(pf.coeff)-1].evalSign(cell)
@@ -904,7 +931,7 @@ func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
 		}
 
 		c := cell
-		for Level(c.lv) != pf.p.lv {
+		for c.lv != pf.p.lv {
 			c = c.parent
 		}
 		s := c.signature[pf.index]
@@ -917,8 +944,11 @@ func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
 	return sgn, determined
 }
 
-func (cell *Cell) improveIsoIntv() {
+func (cell *Cell) improveIsoIntv(parent bool) {
 	// 分離区間の改善
+	if parent && cell.lv >= 0 {
+		cell.parent.improveIsoIntv(parent)
+	}
 	if cell.defpoly == nil {
 		return
 	}
@@ -939,6 +969,11 @@ func (cell *Cell) improveIsoIntv() {
 			cell.intv.inf = l
 			cell.intv.sup = m
 		}
+		cell.nintv = nil
+		return
+	}
+	if cell.intv.inf != nil {
+		cell.nintv = nil
 		return
 	}
 

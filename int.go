@@ -108,6 +108,9 @@ func (x *Int) Mul(y RObj) RObj {
 		return z.normal()
 	case *BinInt:
 		return yi.MulInt(x)
+	case *Poly:
+		fmt.Printf("mul: x=%v, y=%v\n", x, y)
+		panic("poly!")
 	}
 	fmt.Printf("mul: x=%v, y=%v\n", x, y)
 	panic("stop")

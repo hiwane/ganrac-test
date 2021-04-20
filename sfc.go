@@ -382,6 +382,8 @@ func (cad *CAD) Sfc() (Fof, error) {
 		return falseObj, nil
 	} else if cad.root.truth == 1 {
 		return trueObj, nil
+	} else if cad.stage != 2 {
+		return nil, fmt.Errorf("invalid stage")
 	}
 
 	sfc := NewCADSfc(cad)

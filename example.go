@@ -26,6 +26,8 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"quad", exQuad},
 	{"wo1", exWO1},
 	{"wo2", exWO2},
+	{"wo3", exWO3},
+	{"wo4", exWO4},
 }
 
 func GetExampleFof(name string) *QeExample {
@@ -149,7 +151,7 @@ func exQuad() *QeExample {
 func exWO1() *QeExample {
 	q := new(QeExample)
 	q.Input = NewQuantifier(true, []Level{3}, NewAtom(NewPolyCoef(3, NewInt(1), NewPolyInts(2, 0, 1), NewPolyInts(1, 0, 1), NewInt(0), NewInt(0), NewInt(0), NewPolyInts(0, 0, 1)), GT))
-	q.Ref = "vanish & NOT well-oriented"
+	q.Ref = "original: NOT well-oriented"
 	return q
 }
 
@@ -165,6 +167,42 @@ func exWO2() *QeExample {
 			NewAtom(NewPolyCoef(2, NewPolyInts(0, 0, 4), NewInt(0), NewPolyInts(1, 0, 1)), LE)),
 		newFmlAnds(NewAtom(NewPolyCoef(2, NewPolyInts(0, 0, 4), NewInt(0), NewPolyInts(1, 0, 1)), GE),
 			NewAtom(NewPolyInts(1, 0, 1), LE)))
-	q.Ref = "vanish & well-oriented"
+	q.Ref = "original: vanish & well-oriented"
+	return q
+}
+
+func exWO3() *QeExample {
+	// (x,y,z,w)
+	// 3
+	// (E w) [ x >= 0 /\ w^3 + z w^2 + x w + y < 0 ].
+	// Error! Delineating polynomial should be added over cell(2,2)!
+	// d-cell (2,2) -> (x=0, y=0)
+	// Degrees after substitution  : (-1)
+	// x=y=0
+	// P_3,1  = fac(J_3,1) = fac(dis(A_4,1))
+	//        = 4 y z^3 - x^2 z^2 - 18 x y z + 27 y^2 + 4 x^3
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(
+		NewAtom(NewPolyInts(3, 0, 1), GE),
+		NewAtom(NewPolyCoef(3, NewPolyInts(1, 0, 1), NewPolyInts(0, 0, 1), NewPolyInts(2, 0, 1), NewInt(1)), LT)))
+	q.Output = newFmlOrs(
+		NewAtom(NewPolyInts(1, 0, 1), LT),
+		newFmlAnds(NewAtom(NewPolyInts(2, 0, 1), LT), NewAtom(NewPolyCoef(2, NewPolyInts(0, 0, -4), NewInt(0), NewInt(1)), GT), NewAtom(NewPolyInts(1, 0, 1), EQ)),
+		newFmlAnds(NewAtom(NewPolyInts(2, 0, 1), LT), NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyInts(0, 0, 0, 0, 4), NewInt(0), NewInt(27)), NewPolyCoef(1, NewInt(0), NewPolyInts(0, 0, -18)), NewPolyInts(0, 0, 0, -1), NewPolyInts(1, 0, 4)), LT)),
+		newFmlAnds(NewAtom(NewPolyInts(0, 0, 1), LT), NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyInts(0, 0, 0, 0, 4), NewInt(0), NewInt(27)), NewPolyCoef(1, NewInt(0), NewPolyInts(0, 0, -18)), NewPolyInts(0, 0, -1), NewPolyInts(1, 0, 4)), LT)),
+	)
+	q.Ref = "original: NOT well-oriented"
+
+	return q
+}
+
+func exWO4() *QeExample {
+	// (x,y,z,w)
+	// 3
+	// (E x) [ w^2 < x /\ z w + y <= 0 ].
+	q := new(QeExample)
+	q.Ref = "original: well-oriented"
+	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(NewAtom(NewPolyCoef(3, NewPolyInts(0, 0, -1), NewInt(0), NewInt(1)), LT), NewAtom(NewPolyCoef(3, NewPolyInts(1, 0, 1), NewPolyInts(2, 0, 1)), LE)))
+	q.Output = newFmlAnds(NewAtom(NewPolyInts(0, 0, 1), GT), newFmlOrs(NewAtom(NewPolyInts(1, 0, 1), LE), NewAtom(NewPolyCoef(2, NewPolyInts(1, 0, 0, -1), NewInt(0), NewPolyInts(0, 0, 1)), GT)))
 	return q
 }
