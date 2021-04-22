@@ -13,7 +13,7 @@ func TestAtom(t *testing.T) {
 		{LT, GE}, // 1, 6
 		{EQ, NE}, // 2, 5
 	} {
-		pp := NewAtom(NewPolyInts(0, 0, 1), s.op1)
+		pp := NewAtom(NewPolyCoef(0, 0, 1), s.op1)
 		p, ok := pp.(*Atom)
 		if !ok {
 			t.Errorf("invalid atom %v", pp)
@@ -62,11 +62,11 @@ func TestAtom(t *testing.T) {
 func TestFmlAnd(t *testing.T) {
 	NewGANRAC()
 	fmls := []Fof{
-		NewAtom(NewPolyInts(0, 1, 2, 3), GE),
-		NewAtom(NewPolyInts(0, 2, 3, 4), NE),
+		NewAtom(NewPolyCoef(0, 1, 2, 3), GE),
+		NewAtom(NewPolyCoef(0, 2, 3, 4), NE),
 		NewBool(true),
-		NewAtom(NewPolyInts(1, 5, 1, 2), LT),
-		NewAtom(NewPolyInts(2, 1, 1, 2), LT),
+		NewAtom(NewPolyCoef(1, 5, 1, 2), LT),
+		NewAtom(NewPolyCoef(2, 1, 1, 2), LT),
 	}
 
 	var f Fof = NewFmlAnd(fmls[0], fmls[1])
@@ -102,11 +102,11 @@ func TestFmlAnd(t *testing.T) {
 func TestFmlOr(t *testing.T) {
 	NewGANRAC()
 	fmls := []Fof{
-		NewAtom(NewPolyInts(0, 1, 2, 3), GE),
-		NewAtom(NewPolyInts(0, 2, 3, 4), NE),
+		NewAtom(NewPolyCoef(0, 1, 2, 3), GE),
+		NewAtom(NewPolyCoef(0, 2, 3, 4), NE),
 		NewBool(false),
-		NewAtom(NewPolyInts(1, 5, 1, 2), LT),
-		NewAtom(NewPolyInts(2, 1, 1, 2), LE),
+		NewAtom(NewPolyCoef(1, 5, 1, 2), LT),
+		NewAtom(NewPolyCoef(2, 1, 1, 2), LE),
 	}
 
 	var f Fof = NewFmlOr(fmls[0], fmls[1])

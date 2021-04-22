@@ -116,7 +116,7 @@ func TestIntvSubst(t *testing.T) {
 	// [12] subst(F,x,3.595703*x-1001.778320);
 	// -46.4891*x^3+22035.5*x^2-2.53624e+06*x+1.24896e+06
 
-	p := NewPolyInts(lv, -300000, -301300, -1301, -1).toIntv(prec).(*Poly)
+	p := NewPolyCoef(lv, -300000, -301300, -1301, -1).toIntv(prec).(*Poly)
 
 	low := newInterval(prec)
 	low.SetFloat64(-1001.778320)

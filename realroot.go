@@ -187,7 +187,7 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 	}
 
 	// x < 0 の処理
-	q := p.subst1(NewPolyInts(p.lv, 0, -1), p.lv).(*Poly)
+	q := p.subst1(NewPolyCoef(p.lv, 0, -1), p.lv).(*Poly)
 	nn := q.descartesSignRules()
 	if nn > 0 {
 		if nn == 1 {

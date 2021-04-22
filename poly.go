@@ -40,13 +40,28 @@ func NewPolyInts(lv Level, coeffs ...int64) *Poly {
 	for i, c := range coeffs {
 		p.c[i] = NewInt(c)
 	}
+	if err := p.valid(); err != nil {
+		panic(err.Error())
+	}
 	return p
 }
 
-func NewPolyCoef(lv Level, coeffs ...RObj) *Poly {
+func NewPolyCoef(lv Level, coeffs ...interface{}) *Poly {
 	p := NewPoly(lv, len(coeffs))
-	for i, c := range coeffs {
-		p.c[i] = c
+	for i, cc := range coeffs {
+		switch c := cc.(type) {
+		case RObj:
+			p.c[i] = c
+		case int:
+			p.c[i] = NewInt(int64(c))
+		case int64:
+			p.c[i] = NewInt(c)
+		default:
+			panic("!")
+		}
+	}
+	if err := p.valid(); err != nil {
+		panic(err.Error())
 	}
 	return p
 }
@@ -273,28 +288,13 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 }
 
 func (p *Poly) write_src(b io.Writer) {
-	if p.isUnivariate() {
-		bints := true
-		for _, cc := range p.c {
-			if c, ok := cc.(*Int); !ok || !c.IsInt64() {
-				bints = false
-				break
-			}
-		}
-		if bints {
-			fmt.Fprintf(b, "NewPolyInts(%d", p.lv)
-			for _, cc := range p.c {
-				c := cc.(*Int).Int64()
-				fmt.Fprintf(b, ",%d", c)
-			}
-			fmt.Fprintf(b, ")")
-			return
-		}
-	}
-
 	fmt.Fprintf(b, "NewPolyCoef(%d", p.lv)
 	for _, cc := range p.c {
-		fmt.Fprintf(b, ", %S", cc)
+		if c, ok := cc.(*Int); ok && c.IsInt64() {
+			fmt.Fprintf(b, ", %v", c)
+		} else {
+			fmt.Fprintf(b, ", %S", cc)
+		}
 	}
 	fmt.Fprintf(b, ")")
 }

@@ -15,7 +15,7 @@ func TestSymSqfr(t *testing.T) {
 	defer connc.Close()
 	defer connd.Close()
 
-	fof := NewQuantifier(false, []Level{3}, NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyInts(0, 0, 1), NewInt(1)), NewInt(1)), NewInt(1)), GT))
+	fof := NewQuantifier(false, []Level{3}, NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 1), NewInt(1)), NewInt(1)), NewInt(1)), GT))
 	cad, err := NewCAD(fof, g)
 	if err != nil {
 		t.Errorf(err.Error())
@@ -23,26 +23,26 @@ func TestSymSqfr(t *testing.T) {
 	}
 	g.ox = nil
 	cell := NewCell(cad, cad.root, 1)
-	cell.defpoly = NewPolyInts(0, -2, 0, 1)
+	cell.defpoly = NewPolyCoef(0, -2, 0, 1)
 	for ii, s := range []struct {
 		p *Poly
 		r []int8
 		d []int
 	}{
 		{
-			NewPolyInts(3, -3, 7, -5, 1),
+			NewPolyCoef(3, -3, 7, -5, 1),
 			[]int8{1, 2},
 			[]int{1, 1},
 		}, {
-			NewPolyInts(3, -5, 15, -16, 8, -3, 1),
+			NewPolyCoef(3, -5, 15, -16, 8, -3, 1),
 			[]int8{1, 3},
 			[]int{2, 1},
 		}, {
-			NewPolyCoef(3, NewInt(2), NewPolyInts(0, 0, -2), NewInt(1)),
+			NewPolyCoef(3, NewInt(2), NewPolyCoef(0, 0, -2), NewInt(1)),
 			[]int8{2},
 			[]int{1},
 		}, {
-			NewPolyCoef(3, NewPolyInts(0, 0, 0, 0, 0, -1), NewPolyInts(0, 0, 10), NewInt(-12), NewPolyInts(0, 0, -4), NewInt(8)),
+			NewPolyCoef(3, NewPolyCoef(0, 0, 0, 0, 0, -1), NewPolyCoef(0, 0, 10), NewInt(-12), NewPolyCoef(0, 0, -4), NewInt(8)),
 			[]int8{1, 3},
 			[]int{1, 1},
 		},

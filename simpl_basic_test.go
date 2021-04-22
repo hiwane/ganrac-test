@@ -57,182 +57,182 @@ func testsimplBasicAndOr2(t *testing.T) {
 		expect Fof // simplified a /\ b
 	}{
 		{
-			NewAtom(NewPolyInts(0, 0, 1), LE),
-			NewAtom(NewPolyInts(1, 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 0, 1), LE),
+			NewAtom(NewPolyCoef(1, 0, 1), LE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE), // x <= 0
-			NewAtom(NewPolyInts(0, 0, 1), LE),
-			NewAtom(NewPolyInts(0, 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 0, 1), LE), // x <= 0
+			NewAtom(NewPolyCoef(0, 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 0, 1), LE),
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE), // x <= 0
-			NewAtom(NewPolyInts(0, 1, 1), LE), // x <= -1
-			NewAtom(NewPolyInts(0, 1, 1), LE),
+			NewAtom(NewPolyCoef(0, 0, 1), LE), // x <= 0
+			NewAtom(NewPolyCoef(0, 1, 1), LE), // x <= -1
+			NewAtom(NewPolyCoef(0, 1, 1), LE),
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE),
-			NewAtom(NewPolyInts(0, 1, 1), LT),
-			NewAtom(NewPolyInts(0, 1, 1), LT),
+			NewAtom(NewPolyCoef(0, 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 1, 1), LT),
+			NewAtom(NewPolyCoef(0, 1, 1), LT),
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE), // x <= 0
-			NewAtom(NewPolyInts(0, 1, 1), GT), // x >= -1
+			NewAtom(NewPolyCoef(0, 0, 1), LE), // x <= 0
+			NewAtom(NewPolyCoef(0, 1, 1), GT), // x >= -1
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE),  // x <= 0
-			NewAtom(NewPolyInts(0, -1, 1), GT), // x >= 1
+			NewAtom(NewPolyCoef(0, 0, 1), LE),  // x <= 0
+			NewAtom(NewPolyCoef(0, -1, 1), GT), // x >= 1
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), LE),  // x <= 0
-			NewAtom(NewPolyInts(0, -1, 1), NE), // x != 1
-			NewAtom(NewPolyInts(0, 0, 1), LE),  // x <= 0
+			NewAtom(NewPolyCoef(0, 0, 1), LE),  // x <= 0
+			NewAtom(NewPolyCoef(0, -1, 1), NE), // x != 1
+			NewAtom(NewPolyCoef(0, 0, 1), LE),  // x <= 0
 		}, {
-			NewAtom(NewPolyInts(0, 0, 1), EQ),  // x = 0
-			NewAtom(NewPolyInts(0, -1, 1), NE), // x != 1
-			NewAtom(NewPolyInts(0, 0, 1), EQ),  // x = 0
+			NewAtom(NewPolyCoef(0, 0, 1), EQ),  // x = 0
+			NewAtom(NewPolyCoef(0, -1, 1), NE), // x != 1
+			NewAtom(NewPolyCoef(0, 0, 1), EQ),  // x = 0
 		}, {
 			// Table 2 additive smart simplification assuming c < d
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), GE),
-			NewAtom(NewPolyInts(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), NE),
-			NewAtom(NewPolyInts(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), GT),
-			NewAtom(NewPolyInts(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), GE),
-			NewAtom(NewPolyInts(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), NE),
-			NewAtom(NewPolyInts(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GE),
-			NewAtom(NewPolyInts(0, d, 1), GT),
-			NewAtom(NewPolyInts(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), GE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), NE),
-			NewAtom(NewPolyInts(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), NE),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), LE),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), LT),
-			NewAtom(NewPolyInts(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), LT),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
 			nil,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), EQ),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), EQ),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), LE),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), LE),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), GE),
-			NewAtom(NewPolyInts(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), GE),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), NE),
-			NewAtom(NewPolyInts(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), NE),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), LT),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), LT),
 			falseObj,
 		}, {
-			NewAtom(NewPolyInts(0, c, 1), GT),
-			NewAtom(NewPolyInts(0, d, 1), GT),
-			NewAtom(NewPolyInts(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
+			NewAtom(NewPolyCoef(0, d, 1), GT),
+			NewAtom(NewPolyCoef(0, c, 1), GT),
 		},
 	} {
 
@@ -330,13 +330,13 @@ func TestSimplSmartAndOrn(t *testing.T) {
 		}, {
 			newFmlAnds(
 				newAtomVar(0, GT),
-				NewAtom(NewPolyInts(0, -1, 2), GT),
-				NewAtom(NewPolyInts(0, 5, 3), NE)),
-			NewAtom(NewPolyInts(0, -1, 2), GT),
+				NewAtom(NewPolyCoef(0, -1, 2), GT),
+				NewAtom(NewPolyCoef(0, 5, 3), NE)),
+			NewAtom(NewPolyCoef(0, -1, 2), GT),
 		}, {
 			NewFmlOr(
-				NewAtom(NewPolyCoef(0, NewPolyInts(1, 4, 1), zero, one), GE),
-				NewAtom(NewPolyCoef(0, NewPolyInts(1, 4, 7), zero, NewInt(7)), LE)),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, 4, 1), 0, 1), GE),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, 4, 7), 0, 7), LE)),
 			trueObj,
 		},
 	} {

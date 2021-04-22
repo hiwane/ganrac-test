@@ -21,7 +21,7 @@ func TestAsirDiscrim(t *testing.T) {
 	}{
 		{3,
 			NewPolyCoef(3, NewPolyVar(0), NewPolyVar(1), NewPolyVar(2)),    // ax^2+bx+c
-			NewPolyCoef(2, NewPolyInts(1, 0, 0, 1), NewPolyInts(0, 0, -4)), // b^2-4ac
+			NewPolyCoef(2, NewPolyCoef(1, 0, 0, 1), NewPolyCoef(0, 0, -4)), // b^2-4ac
 		},
 	} {
 		output := g.ox.Discrim(s.input, s.lv)

@@ -52,7 +52,7 @@ func (g *Ganrac) InitVarList(vlist []string) error {
 	varlist = make([]varInfo, len(vlist))
 	varstr2lv = make(map[string]Level, len(vlist))
 	for i := 0; i < len(vlist); i++ {
-		varlist[i] = varInfo{vlist[i], NewPolyInts(Level(i), 0, 1)}
+		varlist[i] = varInfo{vlist[i], NewPolyCoef(Level(i), 0, 1)}
 		varstr2lv[vlist[i]] = Level(i)
 	}
 

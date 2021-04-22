@@ -27,7 +27,7 @@ func TestDescartes(t *testing.T) {
 			t.Errorf("-p(+x)=%v, expect=%d, actual=%d", s.p, s.np, np)
 		}
 
-		q = p.Subst([]RObj{NewPolyInts(lv, 0, -1)}, []Level{lv}, 0).(*Poly)
+		q = p.Subst([]RObj{NewPolyCoef(lv, 0, -1)}, []Level{lv}, 0).(*Poly)
 		nn := q.descartesSignRules()
 		if nn != s.nn {
 			t.Errorf("+p(-x)=%v, expect=%d, actual=%d", s.p, s.nn, nn)
@@ -88,10 +88,10 @@ func TestRealRoot(t *testing.T) {
 		for _, p := range []*Poly{
 			pp,
 			pp.Neg().(*Poly),
-			pp.subst1(NewPolyInts(lv, 0, -1), lv).(*Poly),
+			pp.subst1(NewPolyCoef(lv, 0, -1), lv).(*Poly),
 			qq,
 			qq.Neg().(*Poly),
-			qq.subst1(NewPolyInts(lv, 0, -1), lv).(*Poly),
+			qq.subst1(NewPolyCoef(lv, 0, -1), lv).(*Poly),
 		} {
 			r, err := p.RealRootIsolation(10)
 			if err != nil {

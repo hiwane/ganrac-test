@@ -37,8 +37,8 @@ func TestCADeasy(t *testing.T) {
 			1,
 		}, {
 			NewQuantifier(false, []Level{0, 1},
-				NewFmlAnd(NewAtom(NewPolyInts(0, -2, 0, 1), EQ),
-					NewAtom(NewPolyCoef(1, NewInt(-1), NewPolyInts(0, -2, 0, 1)), EQ))),
+				NewFmlAnd(NewAtom(NewPolyCoef(0, -2, 0, 1), EQ),
+					NewAtom(NewPolyCoef(1, NewInt(-1), NewPolyCoef(0, -2, 0, 1)), EQ))),
 			0,
 			//		}, { exAdam1().Input, 1,
 		},

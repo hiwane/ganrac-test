@@ -30,7 +30,7 @@ func TestPolyString(t *testing.T) {
 			t.Errorf("invalid poly p=%v, exp=%s, [%d,%d]", p, v.exp, v.c1, v.c0)
 		}
 
-		q := NewPolyInts(p.lv, v.c0, v.c1)
+		q := NewPolyCoef(p.lv, v.c0, v.c1)
 		if q.String() != v.exp || !p.Equals(q) || !q.Equals(p) {
 			t.Errorf("invalid poly q=%v, exp=%s, [%d,%d]", q, v.exp, v.c1, v.c0)
 		}
@@ -58,7 +58,7 @@ func TestPolyString(t *testing.T) {
 			t.Errorf("invalid poly.mul p=%v, exp=%s, [%d,%d,%d]", p, v.exp, v.c2, v.c1, v.c0)
 		}
 
-		q := NewPolyInts(p.lv, v.c0, v.c1, v.c2)
+		q := NewPolyCoef(p.lv, v.c0, v.c1, v.c2)
 		if q.String() != v.exp || !p.Equals(q) || !q.Equals(p) {
 			t.Errorf("invalid poly.mul q=%v, exp=%s, [%d,%d,%d]", q, v.exp, v.c2, v.c1, v.c0)
 		}
@@ -71,9 +71,9 @@ func TestPolyAdd(t *testing.T) {
 		a, b   []int64
 		expect RObj
 	}{
-		{[]int64{1, 1}, []int64{1, 2}, NewPolyInts(lv, 2, 3)},
-		{[]int64{1, 2, 3}, []int64{4, 5}, NewPolyInts(lv, 5, 7, 3)},
-		{[]int64{1, 4, 5}, []int64{1, 3, -5}, NewPolyInts(lv, 2, 7)},
+		{[]int64{1, 1}, []int64{1, 2}, NewPolyCoef(lv, 2, 3)},
+		{[]int64{1, 2, 3}, []int64{4, 5}, NewPolyCoef(lv, 5, 7, 3)},
+		{[]int64{1, 4, 5}, []int64{1, 3, -5}, NewPolyCoef(lv, 2, 7)},
 		{[]int64{1, 1}, []int64{1, -1}, NewInt(2)},
 		{[]int64{2, 1}, []int64{-2, -1}, zero},
 	} {
@@ -94,10 +94,10 @@ func TestPolyAdd(t *testing.T) {
 func TestPolyAddLv(t *testing.T) {
 	var a, b, c RObj
 	var ep *Poly
-	a = NewPolyInts(0, 2, 3, 4)
-	b = NewPolyInts(1, 5, 6, 7)
-	ep = NewPolyInts(1, -1, 6, 7)
-	ep.c[0] = NewPolyInts(0, 7, 3, 4)
+	a = NewPolyCoef(0, 2, 3, 4)
+	b = NewPolyCoef(1, 5, 6, 7)
+	ep = NewPolyCoef(1, -1, 6, 7)
+	ep.c[0] = NewPolyCoef(0, 7, 3, 4)
 
 	c = a.Add(b)
 	if !ep.Equals(c) {
@@ -109,7 +109,7 @@ func TestPolyAddLv(t *testing.T) {
 	}
 
 	b = NewInt(9)
-	ep = NewPolyInts(0, 11, 3, 4)
+	ep = NewPolyCoef(0, 11, 3, 4)
 	c = a.Add(b)
 	if !ep.Equals(c) {
 		t.Errorf("invalid poly.add a=%v, b=%v, expect=%v, actual=%v", a, b, ep, c)
@@ -144,16 +144,16 @@ func TestPolyMul(t *testing.T) {
 func TestPolyMulLv(t *testing.T) {
 	var a, b, c RObj
 	var ep *Poly
-	a = NewPolyInts(0, 3, 5, 6) // 6*x^2+5x+3
-	b = NewPolyInts(1, 7, 11)   // 11y+7
+	a = NewPolyCoef(0, 3, 5, 6) // 6*x^2+5x+3
+	b = NewPolyCoef(1, 7, 11)   // 11y+7
 	ep = NewPoly(0, 3)          // 5*(11y+7)x + 3*(11y+7)
-	ep.c[0] = NewPolyInts(1, 21, 33)
-	ep.c[1] = NewPolyInts(1, 35, 55)
-	ep.c[2] = NewPolyInts(1, 42, 66)
+	ep.c[0] = NewPolyCoef(1, 21, 33)
+	ep.c[1] = NewPolyCoef(1, 35, 55)
+	ep.c[2] = NewPolyCoef(1, 42, 66)
 
 	ep = NewPoly(1, 2) //   5*(11y+7)x + 3*(11y+7)
-	ep.c[0] = NewPolyInts(0, 21, 35, 42)
-	ep.c[1] = NewPolyInts(0, 33, 55, 66)
+	ep.c[0] = NewPolyCoef(0, 21, 35, 42)
+	ep.c[1] = NewPolyCoef(0, 33, 55, 66)
 
 	c = a.Mul(b)
 	if !ep.Equals(c) {
@@ -166,7 +166,7 @@ func TestPolyMulLv(t *testing.T) {
 
 	m := int64(9)
 	b = NewInt(m)
-	ep = NewPolyInts(0, 3*m, 5*m, 6*m)
+	ep = NewPolyCoef(0, 3*m, 5*m, 6*m)
 	c = a.Mul(b)
 	if !ep.Equals(c) {
 		t.Errorf("invalid poly.mul a=%v, b=%v, expect=%v, actual=%v", a, b, ep, c)
@@ -237,20 +237,20 @@ func TestHasSameTerm(t *testing.T) {
 		expect bool
 	}{
 		{
-			NewPolyInts(0, 1, 2, 3, 0, 5),
-			NewPolyInts(0, 1, 5, 8, 0, -3),
+			NewPolyCoef(0, 1, 2, 3, 0, 5),
+			NewPolyCoef(0, 1, 5, 8, 0, -3),
 			true},
 		{
-			NewPolyInts(0, 1, 2, 3, 0, 5),
-			NewPolyInts(1, 1, 2, 3, 0, 5),
+			NewPolyCoef(0, 1, 2, 3, 0, 5),
+			NewPolyCoef(1, 1, 2, 3, 0, 5),
 			false},
 		{
-			NewPolyCoef(0, one, zero, two, one, NewPolyInts(1, 1, 1, 1)),
-			NewPolyCoef(0, two, zero, two, one, NewPolyInts(1, 1, 1, 1)),
+			NewPolyCoef(1, 1, 0, 2, 1, NewPolyCoef(0, 1, 1, 1)),
+			NewPolyCoef(1, 2, 0, 2, 1, NewPolyCoef(0, 1, 1, 1)),
 			true},
 		{
-			NewPolyCoef(0, one, zero, two, one, NewPolyInts(1, 1, 0, 1)),
-			NewPolyCoef(0, two, zero, two, one, NewPolyInts(1, 1, 1, 1)),
+			NewPolyCoef(1, 1, 0, 2, 1, NewPolyCoef(0, 1, 0, 1)),
+			NewPolyCoef(1, 2, 0, 2, 1, NewPolyCoef(0, 1, 1, 1)),
 			false},
 	} {
 		c := s.a.hasSameTerm(s.b, true)
@@ -301,26 +301,26 @@ func TestSubstFrac(t *testing.T) {
 		expect   RObj
 	}{
 		{
-			NewPolyInts(0, -11, 13),
+			NewPolyCoef(0, -11, 13),
 			0,
 			NewInt(5), NewInt(7),
 			NewInt(-12),
 		}, {
-			NewPolyInts(0, 2, 3, 1),
+			NewPolyCoef(0, 2, 3, 1),
 			0,
 			NewInt(5), NewInt(7),
 			NewInt(228),
 		}, {
 			NewPolyCoef(2,
-				NewPolyInts(1, 0, 3),
-				NewPolyInts(1, -7, 5, -3),
-				NewPolyCoef(1, NewInt(5), NewPolyInts(0, 1, 2, 3, 4, 5))),
+				NewPolyCoef(1, 0, 3),
+				NewPolyCoef(1, -7, 5, -3),
+				NewPolyCoef(1, 5, NewPolyCoef(0, 1, 2, 3, 4, 5))),
 			1,
 			NewInt(5), NewInt(7),
 			NewPolyCoef(2,
-				NewInt(105),
-				NewInt(-243),
-				NewPolyInts(0, 280, 70, 105, 140, 175)),
+				105,
+				-243,
+				NewPolyCoef(0, 280, 70, 105, 140, 175)),
 		},
 	} {
 		d := s.p.Deg(s.lv)
@@ -364,25 +364,25 @@ func TestPolyDiff(t *testing.T) {
 		expect RObj
 	}{
 		{
-			NewPolyInts(0, -11, 13),
+			NewPolyCoef(0, -11, 13),
 			0,
 			NewInt(13),
 		}, {
-			NewPolyInts(0, 2, 3, 1),
+			NewPolyCoef(0, 2, 3, 1),
 			0,
-			NewPolyInts(0, 3, 2),
+			NewPolyCoef(0, 3, 2),
 		}, {
 			NewPolyCoef(1,
-				NewPolyInts(0, 2, 3, 4),
-				NewPolyInts(0, -3, -5, -6),
-				NewPolyInts(0, -2, 11)),
+				NewPolyCoef(0, 2, 3, 4),
+				NewPolyCoef(0, -3, -5, -6),
+				NewPolyCoef(0, -2, 11)),
 			1,
 			NewPolyCoef(1,
-				NewPolyInts(0, -3, -5, -6),
-				NewPolyInts(0, -4, 22)),
+				NewPolyCoef(0, -3, -5, -6),
+				NewPolyCoef(0, -4, 22)),
 		}, {
 			NewPolyCoef(1,
-				NewPolyInts(0, 0, 1),
+				NewPolyCoef(0, 0, 1),
 				NewInt(1)),
 			0,
 			NewInt(1),
@@ -407,8 +407,8 @@ func TestSubstBinint1Var(t *testing.T) {
 		p      *Poly
 		expect *Poly
 	}{
-		{5, 0, NewPolyInts(lv, -5, -3, 2), NewPolyInts(lv, 30, 17, 2)},
-		{5, 2, NewPolyInts(lv, -5, -3, 2), NewPolyInts(lv, -90, 32, 32)},
+		{5, 0, NewPolyCoef(lv, -5, -3, 2), NewPolyCoef(lv, 30, 17, 2)},
+		{5, 2, NewPolyCoef(lv, -5, -3, 2), NewPolyCoef(lv, -90, 32, 32)},
 	} {
 		c := s.p.subst_binint_1var(NewInt(s.numer), s.denom)
 		if !c.Equals(s.expect) {
@@ -422,9 +422,9 @@ func TestSubstBinint1Var(t *testing.T) {
 		p      *Poly
 		expect RObj
 	}{
-		{-1, -1, NewPolyInts(lv, 1, 3, 2), zero},
-		{-1, -1, NewPolyInts(lv, -1, -3, -2), zero},
-		{-4, -3, NewPolyInts(lv, -1, -3, -2), zero},
+		{-1, -1, NewPolyCoef(lv, 1, 3, 2), zero},
+		{-1, -1, NewPolyCoef(lv, -1, -3, -2), zero},
+		{-4, -3, NewPolyCoef(lv, -1, -3, -2), zero},
 	} {
 		c := s.p.subst1(newBinIntInt64(s.numer, s.denom), lv)
 		if !c.Equals(s.expect) {
@@ -439,12 +439,12 @@ func TestSdiv(t *testing.T) {
 		expect RObj
 	}{
 		{
-			NewPolyInts(0, 6, 11, 6, 1), // x=z*y
-			NewPolyInts(0, 3, 1),        // y
-			NewPolyInts(0, 2, 3, 1),     // z
+			NewPolyCoef(0, 6, 11, 6, 1), // x=z*y
+			NewPolyCoef(0, 3, 1),        // y
+			NewPolyCoef(0, 2, 3, 1),     // z
 		}, {
-			NewPolyInts(0, 6, 9, 3), // x=z*y
-			NewPolyInts(0, 2, 3, 1), // y
+			NewPolyCoef(0, 6, 9, 3), // x=z*y
+			NewPolyCoef(0, 2, 3, 1), // y
 			NewInt(3),
 		}, {
 			NewPolyCoef(2, NewPolyVar(0), NewPolyCoef(1, zero, NewPolyVar(0))), // x*y*z+x
@@ -515,17 +515,17 @@ func TestPolReduce(t *testing.T) {
 		expect RObj
 	}{
 		{
-			NewPolyCoef(1, NewPolyInts(0, -2, 0, 3), NewPolyInts(0, -5, 1, 3)),
-			NewPolyInts(0, -2, 0, 3),
-			NewPolyCoef(1, zero, NewPolyInts(0, -3, 1)),
+			NewPolyCoef(1, NewPolyCoef(0, -2, 0, 3), NewPolyCoef(0, -5, 1, 3)),
+			NewPolyCoef(0, -2, 0, 3),
+			NewPolyCoef(1, zero, NewPolyCoef(0, -3, 1)),
 		}, {
-			NewPolyCoef(1, NewPolyInts(0, -5, 1, 3), NewPolyInts(0, -2, 0, 3)),
-			NewPolyInts(0, -2, 0, 3),
-			NewPolyInts(0, -3, 1),
+			NewPolyCoef(1, NewPolyCoef(0, -5, 1, 3), NewPolyCoef(0, -2, 0, 3)),
+			NewPolyCoef(0, -2, 0, 3),
+			NewPolyCoef(0, -3, 1),
 		}, {
-			NewPolyCoef(1, NewPolyInts(0, 0, 0, 2), NewPolyInts(0, 1, 0, 1)),
-			NewPolyInts(0, -2, 0, 3),
-			NewPolyInts(1, 4, 5),
+			NewPolyCoef(1, NewPolyCoef(0, 0, 0, 2), NewPolyCoef(0, 1, 0, 1)),
+			NewPolyCoef(0, -2, 0, 3),
+			NewPolyCoef(1, 4, 5),
 		},
 	} {
 		o := s.x.reduce(s.y)
@@ -539,10 +539,10 @@ func TestPQuoRem(t *testing.T) {
 	for _, s := range []struct {
 		f, g *Poly
 	}{
-		{NewPolyInts(0, 2, 3, 1), NewPolyInts(0, 2, 1)},
-		{NewPolyInts(0, 1, 3, 2), NewPolyInts(0, 1, 2)},
-		{NewPolyInts(0, 5, 0, 2, 3), NewPolyInts(0, 1, 2)},
-		{NewPolyInts(1, 5, 0, 2, 3), NewPolyCoef(1, NewInt(4), NewPolyInts(0, 0, 1))},
+		{NewPolyCoef(0, 2, 3, 1), NewPolyCoef(0, 2, 1)},
+		{NewPolyCoef(0, 1, 3, 2), NewPolyCoef(0, 1, 2)},
+		{NewPolyCoef(0, 5, 0, 2, 3), NewPolyCoef(0, 1, 2)},
+		{NewPolyCoef(1, 5, 0, 2, 3), NewPolyCoef(1, NewInt(4), NewPolyCoef(0, 0, 1))},
 	} {
 		a, q, r := s.f.pquorem(s.g)
 

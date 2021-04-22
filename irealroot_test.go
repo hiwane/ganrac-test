@@ -53,11 +53,11 @@ func TestIRealRoot1(t *testing.T) {
 		expect []float64
 	}{
 		{
-			NewPolyInts(0, -300000, 301300, -1301, 1),
+			NewPolyCoef(0, -300000, 301300, -1301, 1),
 			10,
 			[]float64{1, 1000, 300},
 		}, {
-			NewPolyInts(0, -6, 12, -1, -4, 1),
+			NewPolyCoef(0, -6, 12, -1, -4, 1),
 			10,
 			[]float64{1.7320508, -1.7320508, 2 + 1.41421356, 2 - 1.41421356},
 		},
@@ -67,9 +67,9 @@ func TestIRealRoot1(t *testing.T) {
 			sgn float64
 		}{
 			{s.p, 1},
-			{s.p.subst1(NewPolyInts(s.p.lv, 0, -1), s.p.lv).(*Poly), -1},
+			{s.p.subst1(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).(*Poly), -1},
 			{s.p.Neg().(*Poly), 1},
-			{s.p.subst1(NewPolyInts(s.p.lv, 0, -1), s.p.lv).Neg().(*Poly), -1},
+			{s.p.subst1(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).Neg().(*Poly), -1},
 		} {
 			p := pp.p.toIntv(s.prec).(*Poly)
 			o, err := p.iRealRoot(s.prec+10, 100000)
