@@ -2,7 +2,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 	"sort"
 )
 
@@ -55,7 +54,7 @@ func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int)
 			t |= 0x01
 			ct = c
 		} else {
-			c.Print(os.Stdout)
+			c.Print()
 			panic("s")
 		}
 	}
@@ -84,8 +83,8 @@ func (sfc *CADSfc) cmp_signature(c, d *Cell) int {
 }
 
 func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
-	// cells[min]..cells[max]$B$,F1$8%7%0%M%A%c(B
-	// returns ($BFbIt%N!<%I(B, T$BCM(B)
+	// cells[min]..cells[max]が同じシグネチャ
+	// returns (内部ノード, T値)
 
 	cs, t := sfc.pdqv22_split_leaf(cells, min, max)
 	if t == 0x3 {
@@ -99,7 +98,7 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 		return t
 	}
 
-	// $B;R6!$r%=!<%H$7$F(B....
+	// 子供をソートして....
 	sort.Slice(cs, func(i, j int) bool {
 		return sfc.cmp_signature(cs[i], cs[j]) < 0
 	})
@@ -118,8 +117,8 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 	t |= sfc.pdqv22(lv+1, cs, j, len(cs))
 	if tl != 0 && t == 0x3 {
 		/*
-		 * level  = $lv $B$G(B leaf $B$J$b$N$,$$$?(B.
-		 * level >= $lv $B$G(B conflict
+		 * level  = $lv で leaf なものがいた.
+		 * level >= $lv で conflict
 		 *
 		 * e.g. example(easy7); opt(nproj,y); opt(nlift,y);
 		 *      truth
@@ -128,7 +127,7 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 		 */
 		t |= 0x3
 		if (tl&0x4) == 0 && (t&0x08) == 0 {
-			/* min, max $B4V$G(B leaf $B$J$b$N$r(B t3cell $B$KDI2C(B */
+			/* min, max 間で leaf なものを t3cell に追加 */
 			// for i = min; i < max; i++ {
 			// 	if (k->v[i]->children == NULL) {
 			// 		synstack_push(sinf->t3cell, k->v[i]);
@@ -194,7 +193,7 @@ func (sfc *CADSfc) captured(ctable []*Cell, la []*sfcAtom, impls [][]int) bool {
 }
 
 func (sfc *CADSfc) isIncluded(s, h []int) bool {
-	// s $B$O%=!<%H:Q$_$G!$(B s $B$NMWAG$,(B h $B$K4^$^$l$F$$$?$i(B true $B$rJV$9(B
+	// s はソート済みで， s の要素が h に含まれていたら true を返す
 	for _, hv := range h {
 		for _, sv := range s {
 			if hv == sv {
@@ -206,13 +205,13 @@ func (sfc *CADSfc) isIncluded(s, h []int) bool {
 }
 
 func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
-	// s[idx] $B0J9_$r$?$I$k(B
-	// maxn $B$3$l$^$G8+$D$+$C$F$$$k:GE,2r$ND9$5(B
+	// s[idx] 以降をたどる
+	// maxn これまで見つかっている最適解の長さ
 
 	var si []int
 
 	for ; idx < len(s); idx++ {
-		// $BA0=hM}$G$b$&(B $B4^$^$l$F$$$k$b$N$OHt$P$9(B
+		// 前処理でもう 含まれているものは飛ばす
 		si = s[idx]
 		if !sfc.isIncluded(si, h) {
 			break
@@ -222,10 +221,10 @@ func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
 	if idx == len(s) {
 		return h
 	} else if len(h)+1 >= maxn {
-		// $B$b$&:#$h$jNI$$2r$O8+$D$+$i$J$$(B
+		// もう今より良い解は見つからない
 		return nil
 	} else {
-		// si $B$NMWAG$rDI2C$7$F;n$9(B.
+		// si の要素を追加して試す.
 		hlen := len(h) + 1
 		h = append(h, 0)
 		var hmin []int
@@ -262,7 +261,7 @@ func (sfc *CADSfc) hitting_set(s [][]int) []int {
 
 func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 
-	// la $B$N$&$A(B, c $B$,(B true $B$H$J$k(B cell $B$r$9$Y$FCj=P(B
+	// la のうち, c が true となる cell をすべて抽出
 	ai := make([]int, 0, len(la)/2)
 	for i, ta := range la {
 		if len(ctable) <= ta.lv {
@@ -272,7 +271,7 @@ func (sfc *CADSfc) implcons(ctable []*Cell, la []*sfcAtom) []int {
 			ai = append(ai, i)
 		}
 	}
-	// ai $B$N$&$A(B, false cell $B$,(B false $B$K$J$k$b$N$?$A$rCj=P(B
+	// ai のうち, false cell が false になるものたちを抽出
 	s := make([][]int, 0, len(sfc.lf))
 	for _, c := range sfc.lf {
 		ctable = sfc.set_ctable(c, ctable)
@@ -350,12 +349,12 @@ func (sfc *CADSfc) simplesf(la []*sfcAtom) Fof {
 	for _, c := range sfc.lt {
 		ctable = sfc.set_ctable(c, ctable)
 
-		// $B$9$G$K$"$k(B implicant $B$KJa3M$5$l$F$$$k$+(B
+		// すでにある implicant に捕獲されているか
 		if sfc.captured(ctable, la, impls) {
 			continue
 		}
 
-		// c $B$rJa3M$7(B, $B$9$Y$F$N(B false cell $B$r4^$^$J$$(B implicant $B$r5a$a$k(B
+		// c を捕獲し, すべての false cell を含まない implicant を求める
 		ai := sfc.implcons(ctable, la)
 		impls = append(impls, ai)
 	}

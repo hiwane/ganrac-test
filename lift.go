@@ -3,13 +3,12 @@ package ganrac
 import (
 	"fmt"
 	"math/big"
-	"os"
 )
 
 func (cell *Cell) set_truth_value_from_children(cad *CAD) {
 	// 子供の真偽値から自分の真偽値を決める.
 	if cad.q[cell.lv+1] < 0 {
-		cell.Print(os.Stdout, "cellp")
+		cell.Print("cellp")
 		panic("gao")
 	}
 
@@ -112,7 +111,7 @@ func (cell *Cell) Index() []uint {
 
 func (cell *Cell) hasSection() bool {
 	for c := cell; c.lv >= 0; c = c.parent {
-		if c.index%2 != 0 {
+		if c.isSection() {
 			return true
 		}
 	}
@@ -128,7 +127,7 @@ func (cell *Cell) lift(cad *CAD) error {
 		ciso[i], signs[i] = cell.make_cells(cad, cad.proj[cell.lv+1].pf[i])
 
 		if signs[i] == 0 {
-			if cad.projmc_vanish(cell, cad.proj[cell.lv+1].pf[i]) {
+			if !cad.projmc_vanish(cell, cad.proj[cell.lv+1].pf[i]) {
 				return fmt.Errorf("not well-oriented %v", cell.Index())
 			}
 		}
@@ -153,7 +152,7 @@ func (cell *Cell) lift(cad *CAD) error {
 		for j, c := range cs {
 			if c.index != uint(i) {
 				fmt.Printf("i=%d, j=%d, index=%d\n", i, j, c.index)
-				c.Print(os.Stdout)
+				c.Print()
 				panic("ge")
 			}
 			if j != 0 {
@@ -441,7 +440,7 @@ func (cad *CAD) cellmerge(ciso [][]*Cell, dup bool) []*Cell {
 		for j, c := range cs {
 			if dup && c.index != uint(i) {
 				fmt.Printf("i=%d, j=%d, index=%d\n", i, j, c.index)
-				c.Print(os.Stdout)
+				c.Print()
 				panic("ge")
 			}
 			if j != 0 {
@@ -487,8 +486,8 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 		} else {
 			// 共通根をもつ可能性があるか?
 			if ci.index == cj.index {
-				ci.Print(os.Stdout)
-				cj.Print(os.Stdout)
+				ci.Print()
+				cj.Print()
 				panic("kk")
 			}
 			hcr := cad.proj[ci.lv].hasCommonRoot(ci.parent, cj.index, ci.index)
@@ -501,8 +500,23 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			if ci.defpoly == nil || cj.defpoly == nil {
 				if ci.defpoly == nil && cj.defpoly == nil && ci.intv.inf.Equals(cj.intv.inf) {
 					fusion_improve = true
-					goto _FUSION_IMPROVE
+				} else {
+					var di, dj *Cell
+					if ci.defpoly == nil {
+						di = cj
+						dj = ci
+					} else {
+						di = ci
+						dj = cj
+					}
+					switch q := dj.intv.inf.subst_poly(di.defpoly, dj.lv).(type) {
+					case NObj:
+						fusion_improve = q.IsZero()
+					case *Poly:
+						fusion_improve = cad.sym_zero_chk(q, dj.parent)
+					}
 				}
+				goto _FUSION_IMPROVE
 			} else if ci.defpoly.Equals(cj.defpoly) {
 				// 一致した.
 				fusion_improve = true
@@ -527,9 +541,9 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			j++
 		} else {
 			// 一致しないので区間を改善
-			ci.parent.Print(os.Stdout)
-			ci.Print(os.Stdout)
-			cj.Print(os.Stdout)
+			ci.parent.Print()
+			ci.Print()
+			cj.Print()
 			for k := 0; ; k++ {
 				ci.improveIsoIntv(true)
 				cj.improveIsoIntv(false)
@@ -544,8 +558,8 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 				}
 				if k > 50 {
 					fmt.Printf("dup=%.1v, k=%d\n", dup, k)
-					ci.Print(os.Stdout)
-					cj.Print(os.Stdout, "cellp")
+					ci.Print()
+					cj.Print("cellp")
 					panic("dup51!")
 				}
 			}
@@ -619,20 +633,27 @@ func (cell *Cell) root_iso_q(cad *CAD, pf *ProjFactor, p *Poly) []*Cell {
 	return cad.cellmerge(ciso, false)
 }
 
-func (cell *Cell) reduce(p *Poly) RObj {
+func (cell *Cell) reduce(pp RObj) RObj {
 	// 次数を下げる.
+	p, ok := pp.(*Poly)
+	if !ok {
+		return pp
+	}
 	for c := cell; c.lv >= 0; c = c.parent {
+		var q RObj
 		if c.defpoly != nil {
 			if _, ok := c.defpoly.c[len(c.defpoly.c)-1].(NObj); !ok {
 				// 正規化されていない
 				continue
 			}
-			q := p.reduce(c.defpoly)
-			if qq, ok := q.(*Poly); ok {
-				p = qq
-			} else {
-				return q
-			}
+			q = p.reduce(c.defpoly)
+		} else {
+			q = c.intv.inf.subst_poly(p, c.lv)
+		}
+		if qq, ok := q.(*Poly); ok {
+			p = qq.primpart()
+		} else {
+			return q
 		}
 	}
 	return p
@@ -977,6 +998,6 @@ func (cell *Cell) improveIsoIntv(parent bool) {
 		return
 	}
 
-	cell.Print(os.Stdout)
+	cell.Print()
 	panic("unimplemented")
 }

@@ -208,7 +208,17 @@ func (x *Int) Format(s fmt.State, format rune) {
 		x.n.Format(s, 'd')
 	case FORMAT_SRC:
 		if x.n.IsInt64() {
-			fmt.Fprintf(s, "NewInt(%v)", x.n)
+			if x.IsZero() {
+				fmt.Fprintf(s, "zero")
+			} else if x.IsOne() {
+				fmt.Fprintf(s, "one")
+			} else if x.IsMinusOne() {
+				fmt.Fprintf(s, "mone")
+			} else if x.Cmp(two) == 0 {
+				fmt.Fprintf(s, "two")
+			} else {
+				fmt.Fprintf(s, "NewInt(%v)", x.n)
+			}
 		} else {
 			fmt.Fprintf(s, "ParseInt(\"%v\", 10)", x.n)
 		}

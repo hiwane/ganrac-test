@@ -2,7 +2,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"time"
 )
@@ -405,7 +404,7 @@ func funcCADsfc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	switch cc := args[0].(type) {
 	case *CAD:
-		return nil, cc.Print(os.Stdout, args[1:]...)
+		return nil, cc.Print(args[1:]...)
 	case fmt.Formatter:
 		if len(args) > 2 {
 			return nil, fmt.Errorf("invalid # of arg")

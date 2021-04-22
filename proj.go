@@ -2,6 +2,9 @@ package ganrac
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"sort"
 )
 
 // cylindrical algebraic decomposition
@@ -81,20 +84,23 @@ func (pl *ProjLink) merge(p *ProjLink) {
 func (cad *CAD) Projection(algo ProjectionAlgo) error {
 	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 	for lv := len(cad.proj) - 1; lv > 0; lv-- {
+		sort.Slice(cad.proj[lv].pf, func(i, j int) bool {
+			return cad.proj[lv].pf[i].p.Cmp(cad.proj[lv].pf[j].p) < 0
+		})
 		proj_mcallum(cad, Level(lv))
 	}
+	{
+		lv := 0
+		sort.Slice(cad.proj[lv].pf, func(i, j int) bool {
+			return cad.proj[lv].pf[i].p.Cmp(cad.proj[lv].pf[j].p) < 0
+		})
+	}
 
-	// sort してインデックスをつける
-	// @TODO ソートする.
+	// インデックスをつける
 	for lv := len(cad.proj) - 1; lv >= 0; lv-- {
 		pj := cad.proj[lv]
 		for i, pf := range pj.pf {
 			pf.index = uint(i)
-			ss := ' '
-			if pf.input {
-				ss = 'i'
-			}
-			fmt.Printf("[%d,%2d,%c,%d] %v\n", lv, i, ss, pf.p.lv, pf.p)
 		}
 	}
 
@@ -105,6 +111,9 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 		pf.coeff = coef
 	}
 	cad.stage = 1
+
+	cad.PrintProj()
+
 	return nil
 }
 
@@ -221,5 +230,23 @@ func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) int {
 		return 1
 	} else {
 		return 0
+	}
+}
+
+func (cad *CAD) PrintProj(args ...interface{}) {
+	cad.FprintProj(os.Stdout, args...)
+}
+
+func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) {
+	for lv := len(cad.proj) - 1; lv >= 0; lv-- {
+		pj := cad.proj[lv]
+		for i, pf := range pj.pf {
+			pf.index = uint(i)
+			ss := ' '
+			if pf.input {
+				ss = 'i'
+			}
+			fmt.Printf("[%d,%2d,%c,%d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
+		}
 	}
 }

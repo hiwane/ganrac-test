@@ -261,11 +261,7 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 				}
 			}
 			if i > 0 {
-				if varlist != nil && int(z.lv) < len(varlist) {
-					fmt.Fprintf(b, "%s", varlist[z.lv].v)
-				} else {
-					fmt.Fprintf(b, "_x%d", z.lv)
-				}
+				fmt.Fprintf(b, "%s", varstr(z.lv))
 				if i >= 10 && mul == " " {
 					fmt.Fprintf(b, "^{%d}", i)
 				} else if i > 1 {
@@ -1112,4 +1108,24 @@ func (p *Poly) primpart() *Poly {
 	// assume: p in Z[X]
 	c := p.content(nil)
 	return p.Div(c).(*Poly)
+}
+
+func (p *Poly) Cmp(q *Poly) int {
+	if p.lv != q.lv {
+		return int(p.lv - q.lv)
+	}
+	if p.isUnivariate() {
+		if !q.isUnivariate() {
+			return -1
+		}
+	} else {
+		if q.isUnivariate() {
+			return +1
+		}
+	}
+	if p.deg() != q.deg() {
+		return p.deg() - q.deg()
+	}
+
+	return 0
 }

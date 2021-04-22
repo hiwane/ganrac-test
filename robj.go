@@ -71,7 +71,7 @@ func (z *RObjSample) Add(x RObj) RObj {
 }
 
 func (z *RObjSample) Sub(x RObj) RObj {
-	// サボり ver
+	// @TODO
 	xn := x.Neg()
 	return z.Add(xn)
 }

@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+func (ox *OpenXM) Gcd(p, q *Poly) RObj {
+	ox.ExecFunction("gcd", p, q)
+	s, _ := ox.PopCMO()
+	gob := ox.toGObj(s)
+	return gob.(RObj)
+}
+
 func (ox *OpenXM) Factor(p *Poly) *List {
 	// 因数分解
 	ox.ExecFunction("fctr", p)

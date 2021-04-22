@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"os"
 )
 
 type ProjectionAlgo int
@@ -102,7 +103,7 @@ func qeCAD(fml Fof) Fof {
 	return fml
 }
 
-func (stat CADStat) Print(b io.Writer) {
+func (stat CADStat) Fprint(b io.Writer) {
 	fmt.Fprintf(b, "CAD stat....\n")
 	fmt.Fprintf(b, "===========\n")
 	fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
@@ -273,7 +274,11 @@ func (cs *cellStack) pop() *Cell {
 	return cell
 }
 
-func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
+func (cad *CAD) Print(args ...interface{}) error {
+	return cad.Fprint(os.Stdout, args...)
+}
+
+func (cad *CAD) Fprint(b io.Writer, args ...interface{}) error {
 	if len(args) == 0 {
 		fmt.Fprintf(b, "input=%v\n", cad.fml)
 		return nil
@@ -285,10 +290,11 @@ func (cad *CAD) Print(b io.Writer, args ...interface{}) error {
 
 	switch s.s {
 	case "stat":
-		cad.stat.Print(b)
+		cad.stat.Fprint(b)
 	case "proj":
+		cad.FprintProj(b, args...)
 	case "cells", "cell", "cellp":
-		cad.root.Print(b, args...)
+		cad.root.Fprint(b, args...)
 	default:
 		return fmt.Errorf("invalid argument")
 	}
@@ -332,7 +338,11 @@ func (cell *Cell) stringTruth() string {
 
 }
 
-func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
+func (cell *Cell) Print(args ...interface{}) error {
+	return cell.Fprint(os.Stdout, args...)
+}
+
+func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 	s := "cell"
 	if len(args) > 0 {
 		switch s2 := args[0].(type) {
@@ -341,7 +351,7 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		case string:
 			s = s2
 		default:
-			return fmt.Errorf("invalid argument [expect string/kind]")
+			return fmt.Errorf("invalid argument [expect string/kind] `%v`", args[0])
 		}
 	}
 
@@ -380,16 +390,18 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			}
 			if c.defpoly != nil {
 				fmt.Fprintf(b, " %.50v", c.defpoly)
-			} else if c.intv.inf == c.intv.sup && c.index%2 == 1 {
+			} else if c.isSection() {
+				if c.intv.inf != c.intv.sup {
+					panic("invlaid")
+				}
 				fmt.Fprintf(b, " %v", c.intv.inf)
 			}
 			fmt.Fprintf(b, "\n")
 		}
-		return nil
 	case "cell":
 		fmt.Fprintf(b, "--- information about the cell %v ---\n", cell.Index())
 		fmt.Fprintf(b, "lv=%d:%s, de=%v, exdeg=%d, truth=%d sgn=%d\n",
-			cell.lv, varlist[cell.lv].v, cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
+			cell.lv, varstr(cell.lv), cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
 		var num int
 		if cell.children == nil {
 			num = -1
@@ -397,10 +409,19 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 			num = len(cell.children)
 		}
 		fmt.Fprintf(b, "# of children=%d\n", num)
-		fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
-		fmt.Fprintf(b, "signature    =")
-		cell.printSignature(b)
-		fmt.Fprintf(b, "\n")
+		if cell.defpoly != nil {
+			fmt.Fprintf(b, "def.poly     =%v\n", cell.defpoly)
+		} else if cell.isSection() {
+			if cell.intv.inf != cell.intv.sup {
+				panic("invlaid")
+			}
+			fmt.Fprintf(b, "def.value    =%v\n", cell.intv.inf)
+		}
+		if cell.signature != nil {
+			fmt.Fprintf(b, "signature    =")
+			cell.printSignature(b)
+			fmt.Fprintf(b, "\n")
+		}
 		if cell.intv.inf != nil {
 			f := cell.intv.sup.Float() - cell.intv.inf.Float()
 			fmt.Fprintf(b, "iso.intv     =[%v,%v]\n", cell.intv.inf, cell.intv.sup)
@@ -414,10 +435,15 @@ func (cell *Cell) Print(b io.Writer, args ...interface{}) error {
 		}
 	case "cellp":
 		for cell.lv >= 0 {
-			cell.Print(b)
+			if err := cell.Fprint(b); err != nil {
+				return err
+			}
 			cell = cell.parent
+			fmt.Fprintf(b, "cell %d: %v\n", cell.lv, cell.Index())
 		}
+		return cell.Fprint(b)
+	default:
+		return fmt.Errorf("invalid argument [kind=%s]", s)
 	}
-
-	return fmt.Errorf("invalid argument [kind]")
+	return nil
 }

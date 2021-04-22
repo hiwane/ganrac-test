@@ -2,7 +2,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 )
 
 type cadSqfr struct {
@@ -40,7 +39,7 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 			continue
 		}
 		fmt.Printf("sym_zero_chk_node(): p=%v\n", p)
-		if len(c.defpoly.c) == 2 { // 1$B<!$G$"$k(B. $BBeF~$G>C5n(B
+		if len(c.defpoly.c) == 2 { // 1次である. 代入で消去
 			deg := p.Deg(c.lv)
 			if deg == 0 {
 				continue
@@ -81,7 +80,7 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 }
 
 func (cad *CAD) sym_equal(ci, cj *Cell) bool {
-	// @TODO $BF1$8<!?t$J$i<g78?tM-M}?t$,5/E@$N$[$&$,$$$$$+(B.
+	// @TODO 同じ次数なら主係数有理数が起点のほうがいいか.
 	if len(ci.defpoly.c) > len(cj.defpoly.c) {
 		return cad.sym_zero_chk(ci.defpoly, cj)
 	} else {
@@ -91,7 +90,7 @@ func (cad *CAD) sym_equal(ci, cj *Cell) bool {
 
 func (cad *CAD) sym_zero_chk(p *Poly, c *Cell) bool {
 	if !c.parent.isDE() {
-		if len(c.defpoly.c) == 2 { // 1 $B<!(B
+		if len(c.defpoly.c) == 2 { // 1 次
 			return cad.symsex_zero_chk(p, c)
 		}
 	}
@@ -101,7 +100,7 @@ func (cad *CAD) sym_zero_chk(p *Poly, c *Cell) bool {
 	return ret
 }
 
-// $BDj5AB?9`<0$N<g78?t$r@0?t$K$9$k(B
+// 定義多項式の主係数を整数にする
 func (cad *CAD) symde_hcrat_cells(c *Cell) {
 	if c.lv > 0 {
 		cad.symde_hcrat_cells(c.parent)
@@ -117,7 +116,7 @@ func (cad *CAD) symde_hcrat_cells(c *Cell) {
 	panic("sko!")
 }
 func (cad *CAD) symde_normalize(p *Poly, cell *Cell) RObj {
-	// $B<g78?t$,Hs%<%m$G$J$$$+3NG'$7!$<!?t$r2<$2$k(B
+	// 主係数が非ゼロでないか確認し，次数を下げる
 	for ; cell.lv > p.lv; cell = cell.parent {
 	}
 
@@ -148,7 +147,7 @@ func (cad *CAD) symde_normalize(p *Poly, cell *Cell) RObj {
 	return zero
 }
 
-// p $B$,(B 0 $B$+H=Dj$9$k(B
+// p が 0 か判定する
 func (cad *CAD) symde_zero_chk(porg *Poly, cell *Cell) bool {
 	for cell.lv > porg.lv {
 		cell = cell.parent
@@ -160,14 +159,14 @@ func (cad *CAD) symde_zero_chk(porg *Poly, cell *Cell) bool {
 	}
 
 	if len(q.c) < len(cell.defpoly.c) {
-		// $BDj5AB?9`<0$,J,2r$G$-$?(B
+		// 定義多項式が分解できた
 		for prec := uint(50); ; prec += uint(50) {
 			fmt.Printf("input p=%v\n", porg)
-			cell.Print(os.Stdout)
+			cell.Print()
 			fmt.Printf("s2=%v\n", s2)
 			fmt.Printf("q=%v\n", q)
 			x1 := cell.subst_intv(cad, q, prec).(*Interval)          // GCD
-			x2 := cell.subst_intv(cad, s2.(*Poly), prec).(*Interval) // $B30(B
+			x2 := cell.subst_intv(cad, s2.(*Poly), prec).(*Interval) // 外
 
 			if x1.ContainsZero() && !x2.ContainsZero() {
 				cell.defpoly = q

@@ -231,7 +231,7 @@ func (z *Rat) CmpAbs(xx NObj) int {
 		} else if s1 == 0 {
 			return 0
 		}
-		// 同符号
+		// same sign
 		return s1 * z.n.Cmp(x.n)
 	}
 	panic("unknown")
