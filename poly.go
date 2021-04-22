@@ -263,7 +263,7 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 						fmt.Fprintf(b, "%s", mul)
 					}
 				} else {
-					if i != len(z.c)-1 {
+					if i != len(z.c)-1 && i != 0 {
 						fmt.Fprintf(b, "+")
 					}
 					if i > 0 {
@@ -271,13 +271,16 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 						p.write(b, format, false, mul)
 						fmt.Fprintf(b, ")%s", mul)
 					} else {
+						if p.Sign() > 0 {
+							fmt.Fprintf(b, "+")
+						}
 						p.write(b, format, false, mul)
 					}
 				}
 			}
 			if i > 0 {
 				fmt.Fprintf(b, "%s", varstr(z.lv))
-				if i >= 10 && mul == " " {
+				if i >= 10 && mul == " " { // TeX
 					fmt.Fprintf(b, "^{%d}", i)
 				} else if i > 1 {
 					fmt.Fprintf(b, "^%d", i)

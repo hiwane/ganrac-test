@@ -16,7 +16,6 @@ func (g *Ganrac) setBuiltinFuncTable() {
 		{"cadlift", 1, 10, funcCADlift, true, "(CAD)* ", ""},
 		{"cadproj", 1, 2, funcCADproj, true, "(CAD)* ", ""},
 		{"cadsfc", 1, 1, funcCADsfc, true, "(CAD)* ", ""},
-		// {"cadstat", 1, 1, funcCADstat, true, "(CAD)* ", ""},
 		{"coef", 3, 3, funcCoef, false, "(poly, var, deg): ", ""}, // coef(F, x, 2)
 		{"deg", 2, 2, funcDeg, false, "(poly|FOF, var): degree of a polynomial with respect to var", `
 Args
@@ -128,7 +127,7 @@ Examples
 		{"save", 2, 3, funcSave, false, "(obj, fname): save object...", ""},
 		{"sleep", 1, 1, funcSleep, false, "(milisecond): zzz", ""},
 		// {"sqrt", 1, 1, funcSqrt, false, "(poly)* square-free factorization", ""},
-		{"subst", 1, 101, funcSubst, false, "(poly,x,vx,y,vy,...):", ""},
+		{"subst", 1, 101, funcSubst, false, "(poly|FOF,x,vx,y,vy,...):", ""},
 		{"time", 1, 1, funcTime, false, "(expr)@ run command and system resource usage", ""},
 	}
 }

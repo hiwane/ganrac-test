@@ -381,8 +381,8 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 			}
 			fmt.Fprintf(b, " ")
 			c.printSignature(b)
-			fmt.Fprintf(b, " ")
-			c.printMultiplicity(b)
+			// fmt.Fprintf(b, " ")
+			// c.printMultiplicity(b)
 			if c.intv.inf != nil {
 				fmt.Fprintf(b, " [% e,% e]", c.intv.inf.Float(), c.intv.sup.Float())
 			} else if c.nintv != nil {

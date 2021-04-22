@@ -246,7 +246,7 @@ func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) {
 			if pf.input {
 				ss = 'i'
 			}
-			fmt.Printf("[%d,%2d,%c,%d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
+			fmt.Printf("[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
 		}
 	}
 }

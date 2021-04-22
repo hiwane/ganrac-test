@@ -41,11 +41,20 @@ func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
 
 	// 親の真偽値設定
 	c := cell
-	for ; c.lv >= 0 && cad.q[c.lv] == cell.truth; c = c.parent {
+	for ; c.lv >= 0 && cad.q[c.lv] == c.truth; c = c.parent {
 		c.parent.truth = cell.truth
+		c.parent.set_truth_other()
 	}
-
-	c.set_truth_other()
+	if c != cell && c.lv >= 0 && cad.q[c.lv] >= 0 {
+		// 限量子の交代があった.
+		for _, d := range c.parent.children {
+			if d.truth != c.truth {
+				return
+			}
+		}
+		c.parent.truth = c.truth
+		c.parent.set_parent_and_truth_other(cad)
+	}
 }
 
 func (cad *CAD) Lift(index ...int) error {
@@ -67,6 +76,9 @@ func (cad *CAD) Lift(index ...int) error {
 					return err
 				}
 			}
+		}
+		if err := cad.root.valid(cad); err != nil {
+			panic(err.Error())
 		}
 		cad.stage = 2
 		return nil
@@ -127,6 +139,7 @@ func (cell *Cell) lift(cad *CAD) error {
 		ciso[i], signs[i] = cell.make_cells(cad, cad.proj[cell.lv+1].pf[i])
 
 		if signs[i] == 0 {
+			// vanish!
 			if !cad.projmc_vanish(cell, cad.proj[cell.lv+1].pf[i]) {
 				return fmt.Errorf("not well-oriented %v", cell.Index())
 			}
@@ -1000,4 +1013,71 @@ func (cell *Cell) improveIsoIntv(parent bool) {
 
 	cell.Print()
 	panic("unimplemented")
+}
+
+func (cell *Cell) valid(cad *CAD) error {
+	if cell.lv >= 0 {
+		if cell.defpoly == nil {
+			if cell.intv.inf != cell.intv.sup {
+				return fmt.Errorf("defpoly=nil but inf != sup %v", cell.Index())
+			}
+		}
+	}
+
+	if cell.children != nil {
+		nt := 0
+		nf := 0
+		ntc := 0
+		nfc := 0
+		children := make([]*Cell, 0, len(cell.children))
+		for i := 0; i < len(cell.children); i += 2 {
+			children = append(children, cell.children[i])
+		}
+		for i := 1; i < len(cell.children); i += 2 {
+			children = append(children, cell.children[i])
+		}
+		for _, c := range children {
+			if err := c.valid(cad); err != nil {
+				return err
+			}
+			if c.truth == t_true {
+				nt++
+				if c.children != nil {
+					ntc++
+				}
+
+			} else if c.truth == t_false {
+				nf++
+				if c.children != nil {
+					nfc++
+				}
+			}
+		}
+
+		errmes := ""
+		if cad.q[cell.lv+1] == q_forall {
+			if nfc > 1 {
+				errmes = fmt.Sprintf("forall + many false cells")
+			} else if nf > 0 && cell.truth != t_false {
+				errmes = fmt.Sprintf("forall + false false false")
+			} else if nf == 0 && nt > 0 && cell.truth != t_true {
+				errmes = fmt.Sprintf("forall + true true true")
+			}
+		} else if cad.q[cell.lv+1] == q_exists {
+			if ntc > 1 {
+				errmes = fmt.Sprintf("exists + many false cells")
+			} else if nt > 0 && cell.truth != t_true {
+				errmes = fmt.Sprintf("exists + true true true")
+			} else if nt == 0 && nf > 0 && cell.truth != t_false {
+				errmes = fmt.Sprintf("exists + false false false")
+			}
+		}
+		if errmes != "" {
+			cell.Print("cellp")
+			cell.Print("cells")
+			return fmt.Errorf("%s: index=%v, truth=%d, true=(%d/%d), false=(%d/%d)", errmes, cell.Index(), cell.truth, ntc, nt, nfc, nf)
+		}
+	}
+
+	return nil
 }

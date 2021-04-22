@@ -941,7 +941,7 @@ func (p *AtomF) Subst(xs []RObj, lvs []Level) Fof {
 
 func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
 	op := p.op
-	pp := make([]*Poly, 0, len(p.p))
+	pp := make([]RObj, 0, len(p.p))
 	s := 1
 	for _, q := range p.p {
 		qc := q.Subst(xs, lvs, 0)
@@ -960,7 +960,7 @@ func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
 	if s < 0 {
 		op = op.neg()
 	}
-	return newAtoms(pp, op)
+	return NewAtoms(pp, op)
 }
 
 func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
