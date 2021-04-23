@@ -16,6 +16,7 @@ const (
 	t_false  = 0
 	t_true   = 1
 	t_other  = 2 // 兄弟の情報で親の真偽値が確定したのでもう評価しない
+	q_free   = t_undef
 	q_forall = t_false
 	q_exists = t_true
 )
@@ -128,6 +129,9 @@ func (c *CAD) String() string {
 }
 
 func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
+	if err := prenex_formula.valid(); err != nil {
+		return nil, err
+	}
 	if g.ox == nil {
 		return nil, fmt.Errorf("ox is required")
 	}
@@ -142,7 +146,8 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 		c.q[i] = -1
 	}
 	c.fml = prenex_formula
-	for {
+	vmax := Level(0)
+	for cnt := 0; ; cnt++ {
 		var qq []Level
 		var qval int8
 		switch f := c.fml.(type) {
@@ -158,7 +163,7 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 			goto _NEXT
 		}
 
-		max := Level(0)
+		max := vmax
 		min := v
 		for _, qi := range qq {
 			c.q[qi] = qval
@@ -169,11 +174,11 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 				max = qi
 			}
 		}
-		if int(max-min) != len(qq)-1 || max+1 != v {
-			return nil, fmt.Errorf("CAD: invalid variable order [%d,%d,%d]", min, max, v)
+		if int(max-min) != len(qq)-1 || (cnt > 0 && min != vmax+1) {
+			return nil, fmt.Errorf("CAD: invalid variable order [%d,%d,%d]", min, max, vmax)
 		}
 
-		v = min
+		vmax = max
 	}
 _NEXT:
 
@@ -201,6 +206,8 @@ func (c *CAD) initProj(v Level) {
 	}
 
 	c.fml = clone4CAD(c.fml, c)
+
+	// 定数（符号確定）用の ProjLink を構築
 	c.pl4const = make([]*ProjLink, 3)
 	for i, s := range []sign_t{0, 1, -1} {
 		c.pl4const[i] = newProjLink()
@@ -292,9 +299,14 @@ func (cad *CAD) Fprint(b io.Writer, args ...interface{}) error {
 	case "stat":
 		cad.stat.Fprint(b)
 	case "proj":
-		cad.FprintProj(b, args...)
-	case "cells", "cell", "cellp":
-		cad.root.Fprint(b, args...)
+		return cad.FprintProj(b, args[1:]...)
+	case "proji":
+		cad.FprintInput(b, args[1:]...)
+	case "cells", "cell", "cellp", "fcells", "tcells":
+		aa := make([]interface{}, len(args)+1)
+		copy(aa[1:], args)
+		aa[0] = cad
+		return cad.root.Fprint(b, aa...)
 	default:
 		return fmt.Errorf("invalid argument")
 	}
@@ -344,18 +356,26 @@ func (cell *Cell) Print(args ...interface{}) error {
 
 func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 	s := "cell"
-	if len(args) > 0 {
-		switch s2 := args[0].(type) {
+	idx := 0
+	var cad *CAD
+	if len(args) > idx {
+		if s2, ok := args[idx].(*CAD); ok {
+			cad = s2
+			idx++
+		}
+	}
+	if len(args) > idx {
+		switch s2 := args[idx].(type) {
 		case *String:
 			s = s2.s
+			idx++
 		case string:
 			s = s2
-		default:
-			return fmt.Errorf("invalid argument [expect string/kind] `%v`", args[0])
+			idx++
 		}
 	}
 
-	for i := 1; i < len(args); i++ {
+	for i := idx; i < len(args); i++ {
 		ii, ok := args[i].(*Int)
 		if !ok {
 			return fmt.Errorf("invalid argument [expect integer]")
@@ -367,13 +387,39 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 	}
 
 	switch s {
-	case "cells":
+	case "cells", "tcells", "fcells":
 		if cell.children == nil {
 			return fmt.Errorf("invalid argument [no child]")
 		}
-		fmt.Fprintf(b, "signature(%v) :: %v\n", cell.Index(), args)
+		truth := int8(-1)
+		switch s {
+		case "tcells":
+			truth = t_true
+		case "fcells":
+			truth = t_false
+		}
+
+		fmt.Fprintf(b, "%s() :: %v\n", s, args[1:])
+		if cad != nil {
+			fmt.Fprintf(b, "         (")
+			for i, pf := range cad.proj[cell.lv+1].pf {
+				if i != 0 {
+					fmt.Fprintf(b, " ")
+				}
+				if pf.input {
+					fmt.Fprintf(b, "i")
+				} else {
+					fmt.Fprintf(b, " ")
+				}
+			}
+			fmt.Fprintf(b, ")\n")
+		}
+
 		for i, c := range cell.children {
-			fmt.Fprintf(b, "%2d,%s,", i, c.stringTruth())
+			if truth >= 0 && c.truth != truth {
+				continue
+			}
+			fmt.Fprintf(b, "%3d,%s,", i, c.stringTruth())
 			if c.children == nil {
 				fmt.Fprintf(b, "  ")
 			} else {

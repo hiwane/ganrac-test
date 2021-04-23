@@ -11,6 +11,9 @@ import (
 
 func (cad *CAD) addPolyIrr(q *Poly, isInput bool) *ProjFactor {
 	// assume: lc(q) > 0, irreducible
+	if q.Sign() < 0 {
+		panic("invalid")
+	}
 	proj_factors := cad.proj[q.lv]
 	for _, pf := range proj_factors.pf {
 		if pf.p.Equals(q) {
@@ -51,12 +54,15 @@ func (cad *CAD) addPoly(q *Poly, isInput bool) *ProjLink {
 	for i := fctr.Len() - 1; i > 0; i-- {
 		fctri := fctr.getiList(i)
 		poly := fctri.getiPoly(0)
+		multi := uint(fctri.getiInt(1).Int64())
 		if poly.Sign() < 0 {
 			poly = poly.Neg().(*Poly)
-			pl.sgn *= -1
+			if multi%2 != 0 {
+				pl.sgn *= -1
+			}
 		}
 		pf := cad.addPolyIrr(poly, isInput)
-		pl.addPoly(pf, uint(fctri.getiInt(1).Int64()))
+		pl.addPoly(pf, multi)
 	}
 
 	return pl
@@ -237,16 +243,104 @@ func (cad *CAD) PrintProj(args ...interface{}) {
 	cad.FprintProj(os.Stdout, args...)
 }
 
-func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) {
-	for lv := len(cad.proj) - 1; lv >= 0; lv-- {
-		pj := cad.proj[lv]
-		for i, pf := range pj.pf {
-			pf.index = uint(i)
-			ss := ' '
-			if pf.input {
-				ss = 'i'
-			}
-			fmt.Printf("[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
+func (cad *CAD) FprintProjs(b io.Writer, lv Level) {
+	pj := cad.proj[lv]
+	for i, pf := range pj.pf {
+		pf.index = uint(i)
+		ss := ' '
+		if pf.input {
+			ss = 'i'
+		}
+		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
+	}
+}
+
+func (pl *ProjLink) Fprint(b io.Writer) {
+	if pl.sgn > 0 {
+		fmt.Fprintf(b, "+")
+	} else if pl.sgn < 0 {
+		fmt.Fprintf(b, "-")
+	} else if pl.sgn == 0 {
+		fmt.Fprintf(b, "0")
+	}
+	for i, pf := range pl.projs.pf {
+		fmt.Fprintf(b, " <%d,%3d>^%d", pf.p.lv, pf.index, pl.multiplicity[i])
+	}
+	fmt.Fprintf(b, "\n")
+}
+
+func (pf *ProjFactor) FprintProjFactor(b io.Writer, cad *CAD) {
+	ss := ' '
+	if pf.input {
+		ss = 'i'
+	}
+	fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", pf.p.lv, pf.index, ss, pf.p.deg(), pf.p)
+	for i := len(pf.coeff) - 1; i >= 0; i-- {
+		if pf.coeff[i] != nil {
+			fmt.Fprintf(b, "coef[%d]=", i)
+			pf.coeff[i].Fprint(b)
 		}
 	}
+	fmt.Fprintf(b, "discrim=")
+	pf.discrim.Fprint(b)
+}
+
+func (cad *CAD) FprintInput(b io.Writer, args ...interface{}) error {
+	fmt.Fprintf(b, "input formula\n")
+	cad.fprintInput(b, cad.fml)
+	return nil
+}
+
+func (cad *CAD) fprintInput(b io.Writer, fml Fof) {
+	switch ff := fml.(type) {
+	case *AtomProj:
+		fmt.Fprintf(b, "\n%v\n ...   ", ff)
+		ff.pl.Fprint(b)
+	case *FmlAnd:
+		for _, f := range ff.fml {
+			cad.fprintInput(b, f)
+		}
+	case *FmlOr:
+		for _, f := range ff.fml {
+			cad.fprintInput(b, f)
+		}
+	}
+}
+
+func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) error {
+	idx := 0
+	lv := Level(-1)
+	if len(args) > idx {
+		if ii, ok := args[idx].(*Int); ok {
+			lvv := ii.Int64()
+			idx++
+			if lvv >= int64(len(cad.proj)) {
+				return fmt.Errorf("invalid argument [level=%d]", lvv)
+			}
+			lv = Level(lvv)
+		}
+	}
+	index := -1
+	if len(args) > idx {
+		if ii, ok := args[idx].(*Int); ok {
+			if ii.Int64() >= int64(len(cad.proj[lv].pf)) {
+				return fmt.Errorf("invalid argument [index=%d]", index)
+			}
+			index = int(ii.Int64())
+			idx++
+		}
+	}
+
+	if lv >= 0 {
+		if index < 0 {
+			cad.FprintProjs(b, lv)
+		} else {
+			cad.proj[lv].pf[index].FprintProjFactor(b, cad)
+		}
+	} else {
+		for lv = Level(len(cad.proj) - 1); lv >= 0; lv-- {
+			cad.FprintProjs(b, lv)
+		}
+	}
+	return nil
 }

@@ -112,6 +112,26 @@ Examples
   [[1,1],[x-2,1],[x+2,1]]
 `},
 		{"print", 1, 10, funcPrint, false, "(obj [, kind, ...]): print object", `
+
+Examples*
+========
+  > print(x^10+y-3);
+  y+x^10-3
+  > print(x^10+y-3, "tex");
+  y+x^{10}-3
+  > print(ex([x], x^2>1 && y +x == 0), "tex");
+  \exists x x^2-1 > 0 \land y+x = 0
+
+  > init(a,b,c,x);
+  > C = cadinit(ex([x], a*x^2+b*x+c==0));
+  > cadproj(C);
+  > print(C, "proj");
+  > print(C, "proji");
+  > cadlift(C);
+  > print(C, "cells");
+  > print(C, "cells", 1);
+  > print(C, "cell", 1, 1);
+  > print(C, "stat");
 `},
 		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly): real root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x]): root bound", `

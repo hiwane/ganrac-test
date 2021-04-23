@@ -3,7 +3,6 @@ package ganrac
 // Krawczyk method.
 // real root isolation of a univariate polynomial with big.Float coeffient
 import (
-	"fmt"
 	"math/big"
 	"sort"
 )
@@ -191,17 +190,10 @@ func (kraw *iKraw) improve(x *Interval) *Interval {
 		if cnt == 2 {
 			return x
 		}
-		fmt.Printf("cnt=%d, i=%d\n", cnt, i)
 
 		x = kraw.k
 	}
 	return x
-	fmt.Printf("x=%v\n", x)
-	fmt.Printf("x=%f\n", x)
-	fmt.Printf("x=%e\n", x)
-	bb := new(big.Float)
-	fmt.Printf("|x|=%e\n", bb.Sub(x.sup, x.inf))
-	panic("stop improveeeeeeeeee 15times")
 }
 
 func (kraw *iKraw) rootbound() *big.Float {

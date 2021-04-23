@@ -45,7 +45,7 @@ func (cell *Cell) set_parent_and_truth_other(cad *CAD) {
 		c.parent.truth = cell.truth
 		c.parent.set_truth_other()
 	}
-	if c != cell && c.lv >= 0 && cad.q[c.lv] >= 0 {
+	if c.lv >= 0 && cad.q[c.lv] >= 0 {
 		// 限量子の交代があった.
 		for _, d := range c.parent.children {
 			if d.truth != c.truth {
@@ -77,11 +77,8 @@ func (cad *CAD) Lift(index ...int) error {
 				}
 			}
 		}
-		if err := cad.root.valid(cad); err != nil {
-			panic(err.Error())
-		}
 		cad.stage = 2
-		return nil
+		return cad.root.valid(cad)
 	}
 	c := cad.root
 	if len(index) == 1 && index[0] == -1 { // 指定なしと区別するため，root は -1 で表現

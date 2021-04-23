@@ -34,7 +34,6 @@ func TestHelpExamples(t *testing.T) {
 			if line == "Examples" {
 				pos++
 			} else if strings.HasPrefix(line, "Examples") {
-				t.Errorf("Examples...?")
 				break
 			} else if strings.HasPrefix(line, "========") && pos == 1 {
 				pos++
@@ -69,6 +68,12 @@ func TestHelpExamples(t *testing.T) {
 					if !ok || !ee.Equals(aa) {
 						t.Errorf("invalid f... `%s` `%s`", exp, line)
 					}
+				case *String:
+					aa, ok := answer.(*String)
+					if !ok || ee.s != aa.s {
+						t.Errorf("invalid f... `%s` `%s`", exp, line)
+					}
+
 				default:
 					t.Errorf("invalid f... `%s` `%s`", exp, line)
 				}

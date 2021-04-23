@@ -21,25 +21,25 @@ func TestCADeasy(t *testing.T) {
 		root_truth int8
 	}{
 		{
-			NewQuantifier(true, []Level{1},
-				NewQuantifier(false, []Level{0},
+			NewQuantifier(true, []Level{0},
+				NewQuantifier(false, []Level{1},
 					NewAtom(x.Sub(y), EQ))),
-			0,
+			t_true,
 		}, {
-			NewQuantifier(false, []Level{1},
-				NewQuantifier(true, []Level{0},
+			NewQuantifier(false, []Level{0},
+				NewQuantifier(true, []Level{1},
 					NewAtom(x.Sub(y), EQ))),
-			1,
+			t_false,
 		}, {
 			NewQuantifier(false, []Level{0, 1},
 				NewFmlAnd(NewAtom(x.Mul(x).Add(y.Mul(y)).Add(NewInt(-9)), LE),
 					NewAtom(x.Mul(x).Add(NewInt(-5)), GT))),
-			1,
+			t_true,
 		}, {
 			NewQuantifier(false, []Level{0, 1},
 				NewFmlAnd(NewAtom(NewPolyCoef(0, -2, 0, 1), EQ),
 					NewAtom(NewPolyCoef(1, NewInt(-1), NewPolyCoef(0, -2, 0, 1)), EQ))),
-			0,
+			t_false,
 			//		}, { exAdam1().Input, 1,
 		},
 	} {

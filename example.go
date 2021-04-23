@@ -136,6 +136,12 @@ func exAdam3() *QeExample {
 		NewAtom(NewPolyCoef(0, 0, 1), GT),
 		NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, -1), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, -2)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 1, -1), 0, 1)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 2)), NewPolyCoef(1, NewPolyCoef(0, 1, -1), 0, 1)), LE),
 		NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, -1), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 2)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 1, -1), 0, 1)), NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 2)), NewPolyCoef(1, NewPolyCoef(0, 1, -1), 0, 1)), LE))))
+	q.Input = NewQuantifier(false, []Level{1, 2}, NewQuantifier(true, []Level{3}, newFmlAnds(
+		NewAtom(NewPolyCoef(1, -1, 1), GT),
+		NewAtom(NewPolyCoef(2, 0, 1), GT),
+		NewAtom(NewPolyCoef(0, 0, 1), GT),
+		NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 0, NewPolyCoef(0, 1, -1)), 0, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), NewPolyCoef(0, 0, -2), NewPolyCoef(0, 1, -1)), NewPolyCoef(0, 0, 2), 1), 0, NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1)), LE),
+		NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 0, NewPolyCoef(0, 1, -1)), 0, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), NewPolyCoef(0, 0, 2), NewPolyCoef(0, 1, -1)), NewPolyCoef(0, 0, 2), 1), 0, NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1)), LE))))
 
 	q.Output = NewAtom(NewPolyCoef(0, -4, 1), GT)
 	q.Ref = "Adam W. Strzebonski. Cylindrical Algebraic Decomposition using validated numerics. 2006"
