@@ -32,10 +32,10 @@ func (cell *Cell) isSection() bool {
 	return cell.index%2 == 1
 }
 
-func (cad *CAD) constcoord_test(cell *Cell, pf *ProjFactor) bool {
+func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 	for c := cell.parent; c.lv >= 0; c = c.parent {
 		if c.isSector() {
-			if pf.p.Deg(c.lv) > 0 {
+			if pf.P().Deg(c.lv) > 0 {
 				return false
 			}
 		}
@@ -52,13 +52,13 @@ func (cad *CAD) constcoord_test(cell *Cell, pf *ProjFactor) bool {
 		}
 
 		// step 1: L is a list of definint proj factor
-		pfL := make([]*ProjFactor, 0)
+		pfL := make([]ProjFactor, 0)
 		n := ps.Len()
 		for j := 0; j < len(c.multiplicity); j++ {
 			if c.multiplicity[j] > 0 {
-				pf := cad.proj[i].pf[j]
+				pf := cad.proj[i].get(uint(j))
 				pfL = append(pfL, pf)
-				ps.Append(pf.p)
+				ps.Append(pf.P())
 				n++
 			}
 		}
@@ -76,14 +76,14 @@ func (cad *CAD) constcoord_test(cell *Cell, pf *ProjFactor) bool {
 	return true
 }
 
-func (cad *CAD) need_delineating_poly(cell *Cell, pf *ProjFactor) bool {
+func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 	// t-order partials の GCD を計算して，それが定数かすでに射影因子に含まれているなら ok
 	fmt.Printf("need_delineating_poly()\n")
 	if err := cell.Print("cellp"); err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
 	fmt.Printf("_____________\n")
-	a := []*Poly{pf.p}
+	a := []*Poly{pf.P()}
 	for t := Level(0); t <= cell.lv; t++ { // t-order
 		b := make([]*Poly, 0)
 		for _, p := range a {
@@ -92,8 +92,8 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf *ProjFactor) bool {
 				case *Poly:
 					switch qc := cell.reduce(q).(type) {
 					case *Poly:
-						if pf.p.lv != qc.lv {
-							fmt.Printf("[%d,%d/%d] pf=%v, q=%v, qc=%v\n", t, j, pf.p.lv, pf.p, q, qc)
+						if pf.P().lv != qc.lv {
+							fmt.Printf("[%d,%d/%d] pf=%v, q=%v, qc=%v\n", t, j, pf.P().lv, pf.P(), q, qc)
 							return true
 						}
 						if !qc.isUnivariate() {
@@ -147,8 +147,8 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf *ProjFactor) bool {
 				g = g.Neg().(*Poly)
 			}
 			found := false
-			for _, p := range cad.proj[g.lv].pf {
-				if g.Equals(p.p) {
+			for _, p := range cad.proj[g.lv].gets() {
+				if g.Equals(p.P()) {
 					found = true
 					break
 				}
@@ -164,14 +164,14 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf *ProjFactor) bool {
 	return false
 }
 
-func (cad *CAD) projmc_vanish(cell *Cell, pf *ProjFactor) bool {
+func (cad *CAD) projmc_vanish(cell *Cell, pf ProjFactor) bool {
 
-	if int(pf.p.lv) == len(cad.q)-1 {
+	if int(pf.P().lv) == len(cad.q)-1 {
 		return true
 	}
 
 	cell.Print("cellp")
-	fmt.Printf("projmc_vanish: dim=%d, p=%v\n", cell.dim(), pf.p)
+	fmt.Printf("projmc_vanish: dim=%d, p=%v\n", cell.dim(), pf.P())
 	if cell.dim() > 0 {
 		fmt.Printf("constcoord_test()\n")
 		if cad.constcoord_test(cell, pf) {

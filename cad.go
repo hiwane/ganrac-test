@@ -19,6 +19,10 @@ const (
 	q_free   = t_undef
 	q_forall = t_false
 	q_exists = t_true
+
+	PF_EVAL_UNKNOWN = -1
+	PF_EVAL_NO      = 0
+	PF_EVAL_YES     = 1
 )
 
 type qIntrval struct {
@@ -52,23 +56,43 @@ type cellStack struct {
 	stack []*Cell
 }
 
-type ProjFactor struct {
-	p       *Poly
-	index   uint
-	input   bool // 入力の論理式に含まれるか.
-	coeff   []*ProjLink
-	discrim *ProjLink
+type ProjFactor interface {
+	hasMultiFctr(cad *CAD, parent *Cell) int
+	// return -1 不明 (unknown)
+	//         0 sqfree でない (false)
+	//         1 sqrfree である (true)
+
+	P() *Poly
+	Index() uint
+	SetIndex(i uint)
+	Input() bool
+	SetInputT(b bool)
+	Lv() Level
+	Deg() int
+	evalCoeff(cad *CAD, cell *Cell, deg int) (sign_t, bool)
+	evalSign(cell *Cell) (sign_t, bool)
+
+	FprintProjFactor(b io.Writer, cad *CAD)
 }
 
-type ProjFactors struct {
-	pf        []*ProjFactor
-	resultant [][]*ProjLink
+type ProjFactors interface {
+	gets() []ProjFactor
+	get(index uint) ProjFactor
+
+	hasCommonRoot(cad *CAD, parent *Cell, i, j uint) int
+	// return -1 不明 (unknown)
+	//         0 重複根をもたない (false)
+	//         1 重複根を必ずもつ (true)
+
+	Len() int
+
+	addPoly(p *Poly, isInput bool) ProjFactor
 }
 
 type ProjLink struct {
 	sgn          sign_t
 	multiplicity []uint
-	projs        ProjFactors
+	projs        []ProjFactor
 }
 
 type CADStat struct {
@@ -88,10 +112,10 @@ type CADStat struct {
 }
 
 type CAD struct {
-	fml      Fof            // qff
-	q        []int8         // quantifier
-	proj     []*ProjFactors // [level]
-	pl4const []*ProjLink    // 定数用 0, +, -
+	fml      Fof           // qff
+	q        []int8        // quantifier
+	proj     []ProjFactors // [level]
+	pl4const []*ProjLink   // 定数用 0, +, -
 	stack    *cellStack
 	root     *Cell
 	g        *Ganrac
@@ -189,7 +213,7 @@ _NEXT:
 	/////////////////////////////////////
 	// projection の準備
 	/////////////////////////////////////
-	c.initProj(Level(len(c.q)))
+	c.initProj(Level(len(c.q)), 0)
 
 	c.root = NewCell(c, nil, 0)
 	c.stack = newCellStack()
@@ -198,11 +222,10 @@ _NEXT:
 	return c, nil
 }
 
-func (c *CAD) initProj(v Level) {
-	c.proj = make([]*ProjFactors, v)
+func (c *CAD) initProj(v Level, algo int) {
+	c.proj = make([]ProjFactors, v)
 	for i := Level(0); i < v; i++ {
-		c.proj[i] = new(ProjFactors)
-		c.proj[i].pf = make([]*ProjFactor, 0)
+		c.proj[i] = newProjFactorsMC()
 	}
 
 	c.fml = clone4CAD(c.fml, c)
@@ -255,8 +278,8 @@ func NewCell(cad *CAD, parent *Cell, idx uint) *Cell {
 		cell.lv = -1
 	} else {
 		cell.lv = parent.lv + 1
-		cell.signature = make([]sign_t, len(cad.proj[cell.lv].pf))
-		cell.multiplicity = make([]int8, len(cad.proj[cell.lv].pf))
+		cell.signature = make([]sign_t, cad.proj[cell.lv].Len())
+		cell.multiplicity = make([]int8, cad.proj[cell.lv].Len())
 	}
 	return cell
 }
@@ -402,11 +425,11 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 		fmt.Fprintf(b, "%s() :: %v\n", s, args[1:])
 		if cad != nil {
 			fmt.Fprintf(b, "         (")
-			for i, pf := range cad.proj[cell.lv+1].pf {
+			for i, pf := range cad.proj[cell.lv+1].gets() {
 				if i != 0 {
 					fmt.Fprintf(b, " ")
 				}
-				if pf.input {
+				if pf.Input() {
 					fmt.Fprintf(b, "i")
 				} else {
 					fmt.Fprintf(b, " ")

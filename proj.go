@@ -7,27 +7,84 @@ import (
 	"sort"
 )
 
+type ProjFactorBase struct {
+	p     *Poly
+	index uint
+	input bool // 入力の論理式に含まれるか.
+}
+
+type ProjFactorMC struct {
+	ProjFactorBase
+	coeff   []*ProjLink
+	discrim *ProjLink
+}
+
+type ProjFactorsMC struct {
+	pf        []ProjFactor
+	resultant [][]*ProjLink
+}
+
+func (pfb *ProjFactorBase) P() *Poly {
+	return pfb.p
+}
+
+func (pfb *ProjFactorBase) Index() uint {
+	return pfb.index
+}
+
+func (pfb *ProjFactorBase) SetIndex(i uint) {
+	pfb.index = i
+}
+
+func (pfb *ProjFactorBase) Input() bool {
+	return pfb.input
+}
+
+func (pfb *ProjFactorBase) SetInputT(b bool) {
+	pfb.input = (pfb.input || b)
+}
+
+func (pfb *ProjFactorBase) Lv() Level {
+	return pfb.p.lv
+}
+
+func (pfb *ProjFactorBase) Deg() int {
+	return len(pfb.p.c) - 1
+}
+
+func (pfs *ProjFactorsMC) gets() []ProjFactor {
+	return pfs.pf
+}
+
+func (pfs *ProjFactorsMC) get(index uint) ProjFactor {
+	return pfs.pf[index]
+}
+
+func (pfs *ProjFactorsMC) Len() int {
+	return len(pfs.pf)
+}
+
+func newProjFactorsMC() *ProjFactorsMC {
+	pfs := new(ProjFactorsMC)
+	pfs.pf = make([]ProjFactor, 0)
+	return pfs
+}
+
 // cylindrical algebraic decomposition
 
-func (cad *CAD) addPolyIrr(q *Poly, isInput bool) *ProjFactor {
+func (cad *CAD) addPolyIrr(q *Poly, isInput bool) ProjFactor {
 	// assume: lc(q) > 0, irreducible
 	if q.Sign() < 0 {
 		panic("invalid")
 	}
 	proj_factors := cad.proj[q.lv]
-	for _, pf := range proj_factors.pf {
-		if pf.p.Equals(q) {
-			if isInput {
-				pf.input = true
-			}
+	for _, pf := range proj_factors.gets() {
+		if pf.P().Equals(q) {
+			pf.SetInputT(isInput)
 			return pf
 		}
 	}
-	pf := new(ProjFactor)
-	pf.p = q
-	pf.input = isInput
-	proj_factors.pf = append(proj_factors.pf, pf)
-	return pf
+	return proj_factors.addPoly(q, isInput)
 }
 
 func (cad *CAD) addProjRObj(q RObj) *ProjLink {
@@ -71,51 +128,52 @@ func (cad *CAD) addPoly(q *Poly, isInput bool) *ProjLink {
 func newProjLink() *ProjLink {
 	pl := new(ProjLink)
 	pl.multiplicity = make([]uint, 0)
-	pl.projs.pf = make([]*ProjFactor, 0)
+	pl.projs = make([]ProjFactor, 0)
 	return pl
 }
 
-func (pl *ProjLink) addPoly(p *ProjFactor, r uint) {
-	pl.projs.pf = append(pl.projs.pf, p)
+func (pl *ProjLink) addPoly(p ProjFactor, r uint) {
+	pl.projs = append(pl.projs, p)
 	pl.multiplicity = append(pl.multiplicity, r)
 }
 
 func (pl *ProjLink) merge(p *ProjLink) {
 	pl.sgn *= p.sgn
 	for i := 0; i < len(p.multiplicity); i++ {
-		pl.addPoly(p.projs.pf[i], p.multiplicity[i])
+		pl.addPoly(p.projs[i], p.multiplicity[i])
 	}
 }
 
 func (cad *CAD) Projection(algo ProjectionAlgo) error {
 	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 	for lv := len(cad.proj) - 1; lv > 0; lv-- {
-		sort.Slice(cad.proj[lv].pf, func(i, j int) bool {
-			return cad.proj[lv].pf[i].p.Cmp(cad.proj[lv].pf[j].p) < 0
+
+		sort.Slice(cad.proj[lv].gets(), func(i, j int) bool {
+			return cad.proj[lv].get(uint(i)).P().Cmp(cad.proj[lv].get(uint(j)).P()) < 0
 		})
 		proj_mcallum(cad, Level(lv))
 	}
 	{
 		lv := 0
-		sort.Slice(cad.proj[lv].pf, func(i, j int) bool {
-			return cad.proj[lv].pf[i].p.Cmp(cad.proj[lv].pf[j].p) < 0
+		sort.Slice(cad.proj[lv].gets(), func(i, j int) bool {
+			return cad.proj[lv].get(uint(i)).P().Cmp(cad.proj[lv].get(uint(j)).P()) < 0
 		})
 	}
 
 	// インデックスをつける
 	for lv := len(cad.proj) - 1; lv >= 0; lv-- {
 		pj := cad.proj[lv]
-		for i, pf := range pj.pf {
-			pf.index = uint(i)
+		for i, pf := range pj.gets() {
+			pf.SetIndex(uint(i))
 		}
 	}
 
-	// 最下層の coeff だけ設定しておく.
-	coef := make([]*ProjLink, 1)
-	coef[0] = cad.get_projlink_num(1)
-	for _, pf := range cad.proj[0].pf {
-		pf.coeff = coef
-	}
+	// 最下層の coeff だけ設定しておく. @AAA
+	// coef := make([]*ProjLink, 1)
+	// coef[0] = cad.get_projlink_num(1)
+	// for _, pf := range cad.proj[0].gets() {
+	// 	pf.coeff = coef
+	// }
 	cad.stage = 1
 
 	cad.PrintProj()
@@ -124,17 +182,18 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 }
 
 func proj_mcallum(cad *CAD, lv Level) {
-	pj := cad.proj[lv]
-	for _, pf := range pj.pf {
-		proj_mcallum_coeff(cad, pf)
-		proj_mcallum_discrim(cad, pf)
+	pj := cad.proj[lv].(*ProjFactorsMC)
+	for _, _pf := range pj.gets() {
+		pf := _pf.(*ProjFactorMC)
+		pf.proj_coeff(cad)
+		pf.proj_discrim(cad)
 	}
 
-	pj.resultant = make([][]*ProjLink, len(pj.pf))
+	pj.resultant = make([][]*ProjLink, pj.Len())
 	for i := 0; i < len(pj.pf); i++ {
 		pj.resultant[i] = make([]*ProjLink, i)
 		for j := 0; j < i; j++ {
-			dd := cad.g.ox.Resultant(pj.pf[i].p, pj.pf[j].p, lv)
+			dd := cad.g.ox.Resultant(pj.get(uint(i)).P(), pj.get(uint(j)).P(), lv)
 			cad.stat.resultant++
 			pj.resultant[i][j] = cad.addProjRObj(dd)
 		}
@@ -142,6 +201,7 @@ func proj_mcallum(cad *CAD, lv Level) {
 }
 
 func (cad *CAD) get_projlink_num(sign int) *ProjLink {
+	// 定数なときの，符号を指定して，対応する pl を返す
 	if sign > 0 {
 		return cad.pl4const[1]
 	} else if sign < 0 {
@@ -151,7 +211,19 @@ func (cad *CAD) get_projlink_num(sign int) *ProjLink {
 	}
 }
 
-func proj_mcallum_coeff(cad *CAD, pf *ProjFactor) {
+func (pf *ProjFactorMC) evalSign(cell *Cell) (sign_t, bool) {
+	if pf.Deg() != 2 {
+		return 0, false
+	}
+	ds, dok := pf.discrim.evalSign(cell)
+	cs, cok := pf.coeff[2].evalSign(cell)
+	if dok && cok && ds < 0 && cs != 0 {
+		return cs, true
+	}
+	return 0, false
+}
+
+func (pf *ProjFactorMC) proj_coeff(cad *CAD) {
 	pf.coeff = make([]*ProjLink, len(pf.p.c))
 	for i := len(pf.p.c) - 1; i >= 0; i-- {
 		c := pf.p.c[i]
@@ -174,7 +246,7 @@ func proj_mcallum_coeff(cad *CAD, pf *ProjFactor) {
 	// }
 }
 
-func proj_mcallum_discrim(cad *CAD, pf *ProjFactor) {
+func (pf *ProjFactorMC) proj_discrim(cad *CAD) {
 	dd := cad.g.ox.Discrim(pf.p, pf.p.lv)
 	cad.stat.discriminant++
 	pf.discrim = cad.addProjRObj(dd)
@@ -190,10 +262,20 @@ func gbHasZeros(gb *List) bool {
 	return p.IsNumeric()
 }
 
-func (pf *ProjFactor) hasMultiFctr(cell *Cell) int {
+func (pf *ProjFactorMC) evalCoeff(cad *CAD, cell *Cell, deg int) (sign_t, bool) {
+	if pf.coeff[deg] == nil {
+		return 0, false
+	}
+	return pf.coeff[deg].evalSign(cell)
+}
+
+func (pf *ProjFactorMC) hasMultiFctr(cad *CAD, cell *Cell) int {
 	// return -1 重複根をもつかも (unknown)
 	//         0 重複根をもたない (false)
 	//         1 重複根を必ずもつ (true)
+	if pf.discrim == nil {
+		pf.FprintProjFactor(os.Stdout, cad)
+	}
 	s, d := pf.discrim.evalSign(cell)
 	if !d {
 		return -1
@@ -204,20 +286,24 @@ func (pf *ProjFactor) hasMultiFctr(cell *Cell) int {
 	}
 }
 
-func (pfs *ProjFactors) hasCommonRoot(c *Cell, i, j uint) int {
+func (pfs *ProjFactorsMC) addPoly(p *Poly, isInput bool) ProjFactor {
+	pf := new(ProjFactorMC)
+	pf.p = p
+	pf.input = isInput
+	pfs.pf = append(pfs.pf, pf)
+	return pf
+}
+
+func (pfs *ProjFactorsMC) hasCommonRoot(cad *CAD, c *Cell, i, j uint) int {
 	// return -1 重複根をもつかも (unknown)
 	//         0 重複根をもたない (false)
 	//         1 重複根を必ずもつ (true)
 
 	// 射影因子の符号で，共通因子を持つか調べる.
 	// true なら，もつ可能性がある.
-	if pfs.resultant == nil {
-		return -1
-	}
-
-	for _, pf := range []*ProjFactor{pfs.pf[i], pfs.pf[j]} {
+	for _, pf := range []ProjFactor{pfs.pf[i], pfs.pf[j]} {
 		// 次数が落ちていると，共通根を持たなくても終結式が 0 になる
-		s, d := pf.coeff[len(pf.coeff)-1].evalSign(c)
+		s, d := pf.evalCoeff(cad, c, pf.Deg())
 		if !d || s == 0 {
 			return -1
 		}
@@ -245,13 +331,12 @@ func (cad *CAD) PrintProj(args ...interface{}) {
 
 func (cad *CAD) FprintProjs(b io.Writer, lv Level) {
 	pj := cad.proj[lv]
-	for i, pf := range pj.pf {
-		pf.index = uint(i)
+	for i, pf := range pj.gets() {
 		ss := ' '
-		if pf.input {
+		if pf.Input() {
 			ss = 'i'
 		}
-		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.p.deg(), pf.p)
+		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.Deg(), pf.P())
 	}
 }
 
@@ -263,18 +348,18 @@ func (pl *ProjLink) Fprint(b io.Writer) {
 	} else if pl.sgn == 0 {
 		fmt.Fprintf(b, "0")
 	}
-	for i, pf := range pl.projs.pf {
-		fmt.Fprintf(b, " <%d,%3d>^%d", pf.p.lv, pf.index, pl.multiplicity[i])
+	for i, pf := range pl.projs {
+		fmt.Fprintf(b, " <%d,%3d>^%d", pf.Lv(), pf.Index(), pl.multiplicity[i])
 	}
 	fmt.Fprintf(b, "\n")
 }
 
-func (pf *ProjFactor) FprintProjFactor(b io.Writer, cad *CAD) {
+func (pf *ProjFactorMC) FprintProjFactor(b io.Writer, cad *CAD) {
 	ss := ' '
 	if pf.input {
 		ss = 'i'
 	}
-	fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", pf.p.lv, pf.index, ss, pf.p.deg(), pf.p)
+	fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", pf.Lv(), pf.Index(), ss, pf.Deg(), pf.P())
 	for i := len(pf.coeff) - 1; i >= 0; i-- {
 		if pf.coeff[i] != nil {
 			fmt.Fprintf(b, "coef[%d]=", i)
@@ -323,7 +408,7 @@ func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) error {
 	index := -1
 	if len(args) > idx {
 		if ii, ok := args[idx].(*Int); ok {
-			if ii.Int64() >= int64(len(cad.proj[lv].pf)) {
+			if ii.Int64() >= int64(cad.proj[lv].Len()) {
 				return fmt.Errorf("invalid argument [index=%d]", index)
 			}
 			index = int(ii.Int64())
@@ -335,7 +420,7 @@ func (cad *CAD) FprintProj(b io.Writer, args ...interface{}) error {
 		if index < 0 {
 			cad.FprintProjs(b, lv)
 		} else {
-			cad.proj[lv].pf[index].FprintProjFactor(b, cad)
+			cad.proj[lv].get(uint(index)).FprintProjFactor(b, cad)
 		}
 	} else {
 		for lv = Level(len(cad.proj) - 1); lv >= 0; lv-- {

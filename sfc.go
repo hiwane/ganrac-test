@@ -7,11 +7,20 @@ import (
 
 // solution formula construction for truth invariant CAD's
 // Christopher W. Brown. thesis, 1999
+
+const (
+	// pdq() の復帰
+	SFC_PROJ_DEFINABLE   = 0
+	SFC_PROJ_UNDEFINABLE = 1
+	SFC_PROJ_UNDET       = 2
+)
+
 type CADSfc struct {
 	cad        *CAD
 	lt, lf, t3 []*Cell
 	evaltbl    [][]bool
 	freen      int
+	cpair      [][][]*Cell
 }
 
 type sfcAtom struct {
@@ -36,7 +45,46 @@ func NewCADSfc(cad *CAD) *CADSfc {
 	sfc.evaltbl[1] = []bool{false, false, true, true, false, false, true} // sgn=0
 	sfc.evaltbl[2] = []bool{false, false, false, false, true, true, true} // sgn>0
 
+	sfc.cpair = make([][][]*Cell, sfc.freen)
+	for i := 0; i < sfc.freen; i++ {
+		sfc.cpair[i] = make([][]*Cell, 0)
+	}
+
 	return sfc
+}
+
+func (sfc *CADSfc) add_conflicting_pairs(cells []*Cell, min, max int) {
+	nt := make([]*Cell, 0, max-min)
+	nf := make([]*Cell, 0, max-min)
+	for i := min; i < max; i++ {
+		c := cells[i]
+		if c.truth == t_true {
+			nt = append(nt, c)
+		} else if c.truth == t_false {
+			nf = append(nf, c)
+		}
+	}
+
+	for _, ct := range nt {
+		for _, cf := range nf {
+			sfc.add_conflicting_pair(ct, cf)
+		}
+	}
+}
+
+func (sfc *CADSfc) add_conflicting_pair(ctrue, cfalse *Cell) {
+	a := make([]*Cell, 4)
+	a[2] = ctrue
+	a[3] = cfalse
+
+	for ctrue.parent != cfalse.parent {
+		ctrue = ctrue.parent
+		cfalse = cfalse.parent
+	}
+	a[0] = ctrue
+	a[1] = cfalse
+
+	sfc.cpair[ctrue.lv] = append(sfc.cpair[ctrue.lv], a)
 }
 
 func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int) {
@@ -66,7 +114,9 @@ func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int)
 		sfc.lf = append(sfc.lf, cf)
 	}
 
-	// @TODO
+	if t == (0x1 | 0x2) {
+		sfc.add_conflicting_pairs(cells, min, max)
+	}
 
 	return ret, t
 }
@@ -108,7 +158,7 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 	for i := j + 1; i < len(cs); i++ {
 		if sfc.cmp_signature(cs[j], cs[i]) != 0 {
 			t |= sfc.pdqv22(lv+1, cs, j, i)
-			if (t & 0x4) != 0 {
+			if (t & 0x4) != 0 { // projection undefinable が確定
 				return t
 			}
 			j = i
@@ -128,11 +178,11 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 		t |= 0x3
 		if (tl&0x4) == 0 && (t&0x08) == 0 {
 			/* min, max 間で leaf なものを t3cell に追加 */
-			// for i = min; i < max; i++ {
-			// 	if (k->v[i]->children == NULL) {
-			// 		synstack_push(sinf->t3cell, k->v[i]);
-			// 	}
-			// }
+			for i := min; i < max; i++ {
+				if cs[i].children == nil {
+					sfc.t3 = append(sfc.t3, cs[i])
+				}
+			}
 		}
 	}
 
@@ -147,20 +197,23 @@ func (sfc *CADSfc) pdq(root *Cell) int {
 	t := sfc.pdqv22(0, cells, 0, 1)
 	fmt.Printf("pdq() t=%x, [%x %x]\n", t, t&0xc, t&0x8)
 	if (t & (0x4 | 0x8)) == 0 {
-		return 0
+		return SFC_PROJ_DEFINABLE
 	} else if (t & 0x8) != 0 {
-		return 1
+		return SFC_PROJ_UNDEFINABLE
 	} else {
-		return 2
+		return SFC_PROJ_UNDET
 	}
 }
 
 func (sfc *CADSfc) gen_atoms() []*sfcAtom {
 	a := make([]*sfcAtom, 0) // @TODO
 	for i := 0; i < sfc.freen; i++ {
-		for j := 0; j < len(sfc.cad.proj[i].pf); j++ {
+		for j := 0; j < sfc.cad.proj[i].Len(); j++ {
 			for _, op := range []OP{EQ, LE, GE, NE, LT, GT} {
-				a = append(a, &sfcAtom{i, sfc.cad.proj[i].pf[j].index, op})
+				if sfc.cad.proj[i].get(uint(j)).Index() != uint(j) {
+					panic("hey")
+				}
+				a = append(a, &sfcAtom{i, uint(j), op})
 			}
 		}
 	}
@@ -369,7 +422,7 @@ func (sfc *CADSfc) simplesf(la []*sfcAtom) Fof {
 		var ff Fof = trueObj
 		for _, atm := range impl {
 			ta := la[atm]
-			ff = NewFmlAnd(ff, NewAtom(sfc.cad.proj[ta.lv].pf[ta.index].p, ta.op))
+			ff = NewFmlAnd(ff, NewAtom(sfc.cad.proj[ta.lv].get(ta.index).P(), ta.op))
 		}
 		fml = NewFmlOr(fml, ff)
 	}
@@ -393,7 +446,12 @@ func (cad *CAD) Sfc() (Fof, error) {
 	if len(sfc.lf) == 0 {
 		return trueObj, nil
 	}
-	if t >= 1 {
+	for t >= 1 {
+		if t == 1 {
+
+		} else {
+
+		}
 		panic(fmt.Sprintf("unsupported pdq=%d", t))
 	}
 
