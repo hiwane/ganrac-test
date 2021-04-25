@@ -167,7 +167,8 @@ func exCandJ() *QeExample {
 }
 
 func exEasy7() *QeExample {
-	// ex([x], a*x^2+b*x+c == 0)
+	// z-2*y-x==0 && z^2-125==0 && z>0 && y^2+x^2-25<=0 && y^2+(-x-5)*y-2*x^2-20*x-50<=0
+	// sqrt(125) = 2*y+x && y^2+x^2 <= 25 && y^2+(-x-5)*y-2*x^2-20*x-50<=0
 	q := new(QeExample)
 	q.Input = NewQuantifier(false, []Level{2}, newFmlAnds(
 		NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), -2), 1), EQ),
@@ -175,11 +176,14 @@ func exEasy7() *QeExample {
 		NewAtom(NewPolyCoef(2, 0, 1), GT),
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, -25, 0, 1), 0, 1), LE),
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, -50, -20, -2), NewPolyCoef(0, -5, -1), 1), LE)))
-	q.Output = newFmlAnds(
+	q.Output = newFmlAnds( // sncad x > 0 and y^2+x^2 == 25 and -4*y^2-4*x*y-x^2+125 == 0
 		NewAtom(NewPolyCoef(0, 0, 1), GT),
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, -25, 0, 1), 0, 1), EQ),
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, -125, 0, 1),
 			NewPolyCoef(0, 0, 4), 4), EQ))
+	// redlog->qepcad: x > 0 /\ x^2 - 5 = 0 /\ 2 y + x > 0 /\ y^2 + x^2 - 25 = 0
+
+	// alpha: x^2+y^2<=25 && x^2+4*x*y+4*y^2 == 125 && x+2*y > 0 && 2*x^2+x*y+20*x-y^2+5*y+50 >= 0
 	q.Ref = "syn_pdq error"
 
 	return q

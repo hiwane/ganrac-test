@@ -23,6 +23,9 @@ const (
 	PF_EVAL_UNKNOWN = -1
 	PF_EVAL_NO      = 0
 	PF_EVAL_YES     = 1
+
+	PROJ_McCallum = 0
+	PROJ_HONG     = 1
 )
 
 type qIntrval struct {
@@ -54,45 +57,6 @@ type Cell struct {
 
 type cellStack struct {
 	stack []*Cell
-}
-
-type ProjFactor interface {
-	hasMultiFctr(cad *CAD, parent *Cell) int
-	// return -1 不明 (unknown)
-	//         0 sqfree でない (false)
-	//         1 sqrfree である (true)
-
-	P() *Poly
-	Index() uint
-	SetIndex(i uint)
-	Input() bool
-	SetInputT(b bool)
-	Lv() Level
-	Deg() int
-	evalCoeff(cad *CAD, cell *Cell, deg int) (sign_t, bool)
-	evalSign(cell *Cell) (sign_t, bool)
-
-	FprintProjFactor(b io.Writer, cad *CAD)
-}
-
-type ProjFactors interface {
-	gets() []ProjFactor
-	get(index uint) ProjFactor
-
-	hasCommonRoot(cad *CAD, parent *Cell, i, j uint) int
-	// return -1 不明 (unknown)
-	//         0 重複根をもたない (false)
-	//         1 重複根を必ずもつ (true)
-
-	Len() int
-
-	addPoly(p *Poly, isInput bool) ProjFactor
-}
-
-type ProjLink struct {
-	sgn          sign_t
-	multiplicity []uint
-	projs        []ProjFactor
 }
 
 type CADStat struct {
@@ -210,11 +174,6 @@ _NEXT:
 		return nil, fmt.Errorf("prenex formula is expected")
 	}
 
-	/////////////////////////////////////
-	// projection の準備
-	/////////////////////////////////////
-	c.initProj(Level(len(c.q)), 0)
-
 	c.root = NewCell(c, nil, 0)
 	c.stack = newCellStack()
 	c.stack.push(c.root)
@@ -222,9 +181,10 @@ _NEXT:
 	return c, nil
 }
 
-func (c *CAD) initProj(v Level, algo int) {
-	c.proj = make([]ProjFactors, v)
-	for i := Level(0); i < v; i++ {
+func (c *CAD) initProj(algo ProjectionAlgo) {
+	vnum := Level(len(c.q))
+	c.proj = make([]ProjFactors, vnum)
+	for i := Level(0); i < vnum; i++ {
 		c.proj[i] = newProjFactorsMC()
 	}
 
@@ -232,9 +192,9 @@ func (c *CAD) initProj(v Level, algo int) {
 
 	// 定数（符号確定）用の ProjLink を構築
 	c.pl4const = make([]*ProjLink, 3)
-	for i, s := range []sign_t{0, 1, -1} {
+	for i, s := range []OP{EQ, GT, LT} {
 		c.pl4const[i] = newProjLink()
-		c.pl4const[i].sgn = s
+		c.pl4const[i].op = s
 	}
 }
 
@@ -257,7 +217,7 @@ func clone4CAD(formula Fof, c *CAD) Fof {
 		t.op = fml.op
 		t.p = make([]*Poly, len(fml.p))
 		t.pl = new(ProjLink)
-		t.pl.sgn = 1
+		t.pl.op = GT
 		for i, poly := range fml.p {
 			pl2 := c.addPoly(poly, true)
 			t.pl.merge(pl2)

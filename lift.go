@@ -1,9 +1,35 @@
 package ganrac
 
+// H. Iwane, H. Yanami, H. Anai, K. Yokoyama
+// An effective implementation of symbolic–numeric cylindrical algebraic decomposition for quantifier elimination
+// symoblic numeric computation 2009.
+
 import (
 	"fmt"
 	"math/big"
 )
+
+func (cell *Cell) Index() []uint {
+	// インデックスを返す. 論文は 1 始まりだが，0 始まりであることに注意
+	// つまり， section は奇数である
+	idx := make([]uint, cell.lv+1)
+	c := cell
+	for c.lv >= 0 {
+		idx[c.lv] = c.index
+		c = c.parent
+	}
+	return idx
+}
+
+func (cell *Cell) hasSection() bool {
+	// 自分〜先祖に section がいるか.
+	for c := cell; c.lv >= 0; c = c.parent {
+		if c.isSection() {
+			return true
+		}
+	}
+	return false
+}
 
 func (cell *Cell) set_truth_value_from_children(cad *CAD) {
 	// 子供の真偽値から自分の真偽値を決める.
@@ -108,42 +134,23 @@ func (cad *CAD) Lift(index ...int) error {
 	}
 }
 
-func (cell *Cell) Index() []uint {
-	idx := make([]uint, cell.lv+1)
-	c := cell
-	for c.lv >= 0 {
-		idx[c.lv] = c.index
-		c = c.parent
-	}
-	return idx
-}
-
-func (cell *Cell) hasSection() bool {
-	for c := cell; c.lv >= 0; c = c.parent {
-		if c.isSection() {
-			return true
-		}
-	}
-	return false
-}
-
 func (cell *Cell) lift(cad *CAD) error {
 	fmt.Printf("lift (%v)\n", cell.Index())
 	cad.stat.lift++
 	ciso := make([][]*Cell, cad.proj[cell.lv+1].Len())
 	signs := make([]sign_t, len(ciso))
-	for i := 0; i < len(ciso); i++ {
-		ciso[i], signs[i] = cell.make_cells(cad, cad.proj[cell.lv+1].get(uint(i)))
+	for i, pf := range cad.proj[cell.lv+1].gets() {
+		ciso[i], signs[i] = cell.make_cells(cad, pf)
 
 		if signs[i] == 0 {
 			// vanish!
-			if !cad.projmc_vanish(cell, cad.proj[cell.lv+1].get(uint(i))) {
+			if !pf.vanishChk(cad, cell) {
 				return fmt.Errorf("not well-oriented %v", cell.Index())
 			}
 		}
 
 		if true {
-			if cad.proj[cell.lv+1].get(uint(i)).Index() != uint(i) { // @DEBUG
+			if pf.Index() != uint(i) { // @DEBUG
 				panic("3?")
 			}
 			for _, c := range ciso[i] {
@@ -265,6 +272,8 @@ func (cell *Cell) lift(cad *CAD) error {
 }
 
 func (cell *Cell) evalTruth(formula Fof, cad *CAD) Fof {
+	// cell での formula の真偽値を評価してみる.
+	// 確定しない場合は atom をそのまま返す
 	switch fml := formula.(type) {
 	case *FmlAnd:
 		var t Fof = trueObj
@@ -279,22 +288,22 @@ func (cell *Cell) evalTruth(formula Fof, cad *CAD) Fof {
 		}
 		return t
 	case *AtomProj:
-		sgn, b := fml.pl.evalSign(cell)
-		if !b {
+		s := fml.pl.evalSign(cell)
+		if s == OP_TRUE {
 			return fml
-		}
-		if sgn < 0 && (fml.op&LT) != 0 ||
-			sgn == 0 && (fml.op&EQ) != 0 ||
-			sgn > 0 && (fml.op&GT) != 0 {
+		} else if s&fml.op == 0 {
+			return falseObj
+		} else if (s & fml.op.not()) == 0 {
 			return trueObj
 		} else {
-			return falseObj
+			return fml
 		}
 	}
 	panic("stop")
 }
 
 func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
+	// @TODO 代入しやすいサンプル点を生成する.
 	if c.intv.inf != nil && d.intv.inf != nil {
 		return c.intv.sup.Add(d.intv.inf).Div(two).(NObj)
 	}
@@ -435,6 +444,7 @@ func (cad *CAD) cellcmp(c, d *Cell) (int, bool) {
 }
 
 func (cell *Cell) fusion(c *Cell) {
+	// cell と c は同じものだったので，融合する
 	for k := 0; k < len(cell.multiplicity); k++ {
 		cell.multiplicity[k] += c.multiplicity[k]
 	}
@@ -502,7 +512,7 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			}
 			hcr := cad.proj[ci.lv].hasCommonRoot(cad, ci.parent, cj.index, ci.index)
 			fmt.Printf("hcr=%v\n", hcr)
-			if hcr == 0 {
+			if hcr == PF_EVAL_NO {
 				// 共通根は持たない.
 				fusion_improve = false
 				goto _FUSION_IMPROVE
@@ -551,9 +561,6 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 			j++
 		} else {
 			// 一致しないので区間を改善
-			ci.parent.Print()
-			ci.Print()
-			cj.Print()
 			for k := 0; ; k++ {
 				ci.improveIsoIntv(true)
 				cj.improveIsoIntv(false)
@@ -687,8 +694,13 @@ func (cell *Cell) make_cells_try1(cad *CAD, pf ProjFactor, pr RObj) (*Poly, []*C
 			return nil, cell.root_iso_q(cad, pf, p), sign_t(p.Sign())
 		} else if p.lv != pf.Lv() {
 			// 主変数が消えて定数になった.
-			if s, ok := pf.evalCoeff(cad, cell, 0); ok {
-				return nil, []*Cell{}, s
+			switch pf.evalCoeff(cad, cell, 0) {
+			case LT:
+				return nil, []*Cell{}, -1
+			case GT:
+				return nil, []*Cell{}, +1
+			case EQ:
+				return nil, []*Cell{}, 0
 			}
 
 			cell.reduce(p)
@@ -716,7 +728,7 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 		pp := NewPoly(p.lv, len(p.c))
 		up := false
 		for i := 0; i < len(p.c); i++ {
-			if s, ok := pf.evalCoeff(cad, cell, i); ok && s == 0 {
+			if pf.evalCoeff(cad, cell, i) == EQ {
 				pp.c[i] = zero
 				up = true
 			} else {
@@ -928,44 +940,6 @@ func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint,
 	return cells, nil
 }
 
-func (pl *ProjLink) evalSign(cell *Cell) (sign_t, bool) {
-	// returns (sign, determined)
-	//  sgn: pl に cell を代入したときの符号
-	//  determined: 符号が確定したら true.
-	sgn := pl.sgn
-	determined := true
-	for i := 0; i < len(pl.multiplicity); i++ {
-		pf := pl.projs[i]
-		if cell.lv < pf.Lv() {
-			s, ok := pf.evalSign(cell)
-			if ok {
-				if s == 0 {
-					return 0, true
-				}
-				if s < 0 {
-					sgn *= -1
-				}
-				continue
-			}
-
-			determined = false // 符号未知の多項式がある
-			continue
-		}
-
-		c := cell
-		for c.lv != pf.Lv() {
-			c = c.parent
-		}
-		s := c.signature[pf.Index()]
-		if s == 0 {
-			return 0, true
-		} else if s < 0 && pl.multiplicity[i]%2 == 1 {
-			sgn *= -1
-		}
-	}
-	return sgn, determined
-}
-
 func (cell *Cell) improveIsoIntv(parent bool) {
 	// 分離区間の改善
 	if parent && cell.lv >= 0 {
@@ -1004,6 +978,7 @@ func (cell *Cell) improveIsoIntv(parent bool) {
 }
 
 func (cell *Cell) valid(cad *CAD) error {
+	// cell の妥当性評価 for debug
 	if cell.lv >= 0 {
 		if cell.defpoly == nil {
 			if cell.intv.inf != cell.intv.sup {

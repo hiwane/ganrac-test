@@ -21,6 +21,7 @@ func TestSymSqfr(t *testing.T) {
 		t.Errorf(err.Error())
 		return
 	}
+	cad.initProj(0)
 	g.ox = nil
 	cell := NewCell(cad, cad.root, 1)
 	cell.defpoly = NewPolyCoef(0, -2, 0, 1)

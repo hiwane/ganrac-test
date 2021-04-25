@@ -164,7 +164,7 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 	return false
 }
 
-func (cad *CAD) projmc_vanish(cell *Cell, pf ProjFactor) bool {
+func (pf *ProjFactorMC) vanishChk(cad *CAD, cell *Cell) bool {
 
 	if int(pf.P().lv) == len(cad.q)-1 {
 		return true
