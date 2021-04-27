@@ -9,15 +9,15 @@ import (
 
 type ProjFactor interface {
 	P() *Poly
+	Lv() Level
+	Deg() int
+
 	Index() uint
 	SetIndex(i uint)
 
 	// 入力の論理式に含まれるなら true
 	Input() bool
-
 	SetInputT(b bool)
-	Lv() Level
-	Deg() int
 
 	// 係数の符号を返す
 	evalCoeff(cad *CAD, cell *Cell, deg int) OP
@@ -49,7 +49,10 @@ type ProjFactors interface {
 	hasCommonRoot(cad *CAD, parent *Cell, i, j uint) int
 
 	// 新しい proj.factor を追加する
+	//   isInput: 入力の論理式由来か
 	addPoly(p *Poly, isInput bool) ProjFactor
+
+	doProj(cad *CAD, idx int)
 }
 
 type ProjLink struct {
@@ -186,7 +189,10 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 		sort.Slice(cad.proj[lv].gets(), func(i, j int) bool {
 			return cad.proj[lv].get(uint(i)).P().Cmp(cad.proj[lv].get(uint(j)).P()) < 0
 		})
-		proj_mcallum(cad, Level(lv))
+
+		for i := 0; i < cad.proj[lv].Len(); i++ {
+			cad.proj[lv].doProj(cad, i)
+		}
 	}
 	{
 		lv := 0
@@ -243,12 +249,12 @@ func (cad *CAD) PrintProj(args ...interface{}) {
 
 func (cad *CAD) FprintProjs(b io.Writer, lv Level) {
 	pj := cad.proj[lv]
-	for i, pf := range pj.gets() {
+	for _, pf := range pj.gets() {
 		ss := ' '
 		if pf.Input() {
 			ss = 'i'
 		}
-		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, i, ss, pf.Deg(), pf.P())
+		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, pf.Index(), ss, pf.Deg(), pf.P())
 	}
 }
 

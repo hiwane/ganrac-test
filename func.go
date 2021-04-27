@@ -128,8 +128,8 @@ Examples*
   > print(C, "proj");
   > print(C, "proji");
   > cadlift(C);
-  > print(C, "cells");
-  > print(C, "cells", 1);
+  > print(C, "signatures");
+  > print(C, "signatures", 1);
   > print(C, "cell", 1, 1);
   > print(C, "stat");
 `},

@@ -103,8 +103,9 @@ func (cad *CAD) Lift(index ...int) error {
 				}
 			}
 		}
+		err := cad.root.valid(cad)
 		cad.stage = 2
-		return cad.root.valid(cad)
+		return err
 	}
 	c := cad.root
 	if len(index) == 1 && index[0] == -1 { // 指定なしと区別するため，root は -1 で表現
@@ -132,6 +133,165 @@ func (cad *CAD) Lift(index ...int) error {
 	} else {
 		return fmt.Errorf("already lifted %v", index)
 	}
+}
+
+func (cell *Cell) setParentChildren() {
+	for _, c := range cell.children {
+		c.parent = cell
+	}
+}
+
+func (cell *Cell) cloneSetParentChildren(parent *Cell) []*Cell {
+	// rebuild CAD 用.
+	// truth value が決定していないセルの子供のコピーを生成する.
+
+	cs := make([]*Cell, len(cell.children))
+	for i, c := range cell.children {
+		cs[i] = new(Cell)
+		*cs[i] = *c
+		cs[i].parent = parent
+		if c.truth < 0 {
+			cs[i].children = c.cloneSetParentChildren(cs[i])
+		}
+	}
+	return cs
+}
+
+func (cell *Cell) same_sig(old *Cell, num int) bool {
+	if cell == old {
+		return true
+	}
+	if old.parent.index == 6 {
+		fmt.Printf(" @ <%d> %v %v %v\n", num, cell.Index(), cell.signature, old.signature)
+	}
+	for i := 0; i < num; i++ {
+		if cell.signature[i] != old.signature[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
+	// proj_num すでに構築済みの射影因子数
+	if cell.lv+1 < lv {
+		for _, c := range cell.children {
+			c.rlift(cad, lv, proj_num)
+		}
+		return nil
+	}
+	if cell.truth >= 0 {
+		return nil
+	}
+	// cell.lv + 1 == lv
+	pfs := cad.proj[cell.lv+1]
+	num := pfs.Len()
+	if num == len(cell.children[0].signature) {
+		// もう持ち上げ済み
+		return nil
+	}
+	if num == proj_num[lv] {
+		for _, c := range cell.children {
+			c.rlift(cad, lv+1, proj_num)
+		}
+		return nil
+	}
+	fmt.Printf("rlift(%v, #child=%d) ... #proj=%d/%d/%d\n", cell.Index(), len(cell.children), proj_num[lv], num, len(cell.children[0].signature))
+	cad.stat.rlift++
+
+	oldcs := cell.children
+	ciso := make([][]*Cell, 0, num-proj_num[lv]+1)
+	signs := make([]sign_t, proj_num[lv], num)
+	copy(signs, cell.children[len(cell.children)-1].signature)
+
+	for i := proj_num[lv]; i < num; i++ {
+		pf := pfs.get(uint(i))
+		c, s := cell.make_cells(cad, pf)
+		ciso = append(ciso, c)
+		signs = append(signs, s)
+	}
+
+	// すでに構築済みのものの signature/multiplicity 領域の拡張
+	cs := make([]*Cell, 0, len(cell.children)/2)
+	for i := 1; i < len(cell.children); i += 2 {
+		c := cell.children[i]
+		sig := c.signature
+		c.signature = make([]sign_t, num)
+		copy(c.signature, sig)
+		mul := c.multiplicity
+		c.multiplicity = make([]int8, num)
+		copy(c.multiplicity, mul)
+		cs = append(cs, c)
+
+		for j := 0; j < len(mul); j++ {
+			if mul[j] > 0 {
+				c.index = uint(j)
+			}
+		}
+	}
+	ciso = append(ciso, cs)
+
+	// merge して
+	cs = cad.cellmerge(ciso, cell.hasSection())
+
+	// sector 作って
+	cs = cad.addSector(cell, cs)
+
+	// signature 設定して
+	cell.set_signatures(cs, signs)
+
+	cs = cell.children
+	undefined := false
+
+	cs[0].truth = oldcs[0].truth
+	cs[0].children = oldcs[0].children
+	cs[0].setParentChildren()
+	cs[0].rlift(cad, lv+1, proj_num)
+
+	if err := cs[0].valid(cad); err != nil {
+		cs[0].Print("signatures")
+		panic(err.Error())
+	}
+
+	m := 1
+	for i := 1; i < len(cs); i += 2 {
+		if m < len(oldcs) && cs[i].same_sig(oldcs[m], proj_num[lv]) {
+			for mm := 0; mm < 2; mm++ {
+				cs[i+mm].truth = oldcs[m+mm].truth
+				cs[i+mm].children = oldcs[m+mm].children
+				cs[i+mm].setParentChildren()
+			}
+			m += 2
+			fmt.Printf("caseA: i=%d, m=%d %v\n", i, m, cs[i].Index())
+		} else {
+			for mm := 0; mm < 2; mm++ {
+				cs[i+mm].truth = oldcs[m-1].truth
+				cs[i+mm].children = oldcs[m-1].cloneSetParentChildren(cs[i+mm])
+			}
+			fmt.Printf("caseB: i=%d, m=%d %v [%d,%d,%d]\n", i, m, cs[i].Index(),
+				cs[i].truth, cs[i+1].truth, oldcs[m-1].truth)
+		}
+		for mm := 0; mm < 2; mm++ {
+			cs[i+mm].rlift(cad, lv+1, proj_num)
+
+			if err := cs[i+mm].valid(cad); err != nil {
+				cs[i+mm].Print("signatures")
+				panic(err.Error())
+			}
+		}
+	}
+	if m+2 < len(oldcs) {
+		panic(fmt.Sprintf("m=%d, old=%d\n", m, len(oldcs)))
+	}
+
+	cell.lift_term(cad, undefined)
+	cad.root.Print("signatures")
+
+	if err := cell.valid(cad); err != nil {
+		cell.Print("signatures")
+		panic(err.Error())
+	}
+	return nil
 }
 
 func (cell *Cell) lift(cad *CAD) error {
@@ -192,6 +352,80 @@ func (cell *Cell) lift(cad *CAD) error {
 	// }
 
 	// signature 設定して
+	cell.set_signatures(cs, signs)
+
+	cs = cell.children
+	undefined := false
+	for _, c := range cs {
+		switch c.evalTruth(cad.fml, cad).(type) {
+		case *AtomT:
+			cad.stat.true_cell++
+			c.truth = t_true
+		case *AtomF:
+			cad.stat.false_cell++
+			c.truth = t_false
+		default:
+			undefined = true
+		}
+		cad.stat.cell++
+	}
+
+	// 真偽値確認して
+	cell.lift_term(cad, undefined)
+
+	return nil
+}
+
+func (cell *Cell) lift_term(cad *CAD, undefined bool) {
+	cs := cell.children
+	if cad.q[cell.lv+1] >= 0 {
+		qx := cad.q[cell.lv+1]
+		for _, c := range cs {
+			if c.truth == qx {
+				// exists なら true があった.
+				// forall なら false があった
+				cell.truth = qx
+
+				//.... さらに親に伝播?
+				cell.set_parent_and_truth_other(cad)
+				return
+			}
+		}
+		if !undefined {
+			// 全ての子供の真偽値が決まっていた
+			cell.truth = 1 - qx
+			cell.set_parent_and_truth_other(cad)
+			return
+		}
+
+		// quantifier なら親の真偽値に影響する
+		cad.stack.push(cell)
+	}
+	if !undefined {
+		// 子供のセルの真偽値がすべて確定
+		return
+	}
+
+	// section を追加
+	// @TODO ほんとは拡大次数が高い=計算量が大きそうなものからいれたい
+	// rebuild CAD のときに子供が既にいるかもしれないのでチェックが必要
+	for i := 1; i < len(cs); i += 2 {
+		if cs[i].truth < 0 && cs[i].children == nil {
+			cad.stack.push(cs[i])
+		}
+	}
+	// sector をあとで．
+	for i := 0; i < len(cs); i += 2 {
+		if cs[i].truth < 0 && cs[i].children == nil {
+			cad.setSamplePoint(cs, i)
+			cad.stack.push(cs[i])
+		}
+	}
+
+	return
+}
+
+func (cell *Cell) set_signatures(cs []*Cell, signs []sign_t) {
 	c := cs[len(cs)-1]
 	for j := 0; j < len(c.signature); j++ {
 		c.signature[j] = signs[j]
@@ -210,65 +444,6 @@ func (cell *Cell) lift(cad *CAD) error {
 		}
 	}
 	cell.children = cs
-
-	undefined := false
-	for _, c = range cs {
-		switch c.evalTruth(cad.fml, cad).(type) {
-		case *AtomT:
-			cad.stat.true_cell++
-			c.truth = t_true
-		case *AtomF:
-			cad.stat.false_cell++
-			c.truth = t_false
-		default:
-			undefined = true
-		}
-		cad.stat.cell++
-	}
-	if cad.q[cell.lv+1] >= 0 {
-		qx := cad.q[cell.lv+1]
-		for _, c = range cs {
-			if c.truth == qx {
-				// exists なら true があった.
-				// forall なら false があった
-				cell.truth = qx
-
-				//.... さらに親に伝播?
-				cell.set_parent_and_truth_other(cad)
-				return nil
-			}
-		}
-		if !undefined {
-			// 全ての子供の真偽値が決まっていた
-			cell.truth = 1 - qx
-			cell.set_parent_and_truth_other(cad)
-			return nil
-		}
-
-		// quantifier なら親の真偽値に影響する
-		cad.stack.push(cell)
-	}
-	if !undefined {
-		// 子供のセルの真偽値がすべて確定
-		return nil
-	}
-
-	// section を追加
-	// @TODO ほんとは拡大次数が高い=計算量が大きそうなものからいれたい
-	for i := 1; i < len(cs); i += 2 {
-		if cs[i].truth < 0 {
-			cad.stack.push(cs[i])
-		}
-	}
-	// sector をあとで．
-	for i := 0; i < len(cs); i += 2 {
-		if cs[i].truth < 0 {
-			cad.setSamplePoint(cs, i)
-			cad.stack.push(cs[i])
-		}
-	}
-
-	return nil
 }
 
 func (cell *Cell) evalTruth(formula Fof, cad *CAD) Fof {
@@ -455,21 +630,21 @@ func (cell *Cell) fusion(c *Cell) {
 func (cad *CAD) cellmerge(ciso [][]*Cell, dup bool) []*Cell {
 	// dup: 同じ根を表現する可能性がある場合は true
 
-	for i, cs := range ciso { // @DEBUG
-		// @DEBUG. ciso[i] に属する cell の index には i が設定されていること.
-		for j, c := range cs {
-			if dup && c.index != uint(i) {
-				fmt.Printf("i=%d, j=%d, index=%d\n", i, j, c.index)
-				c.Print()
-				panic("ge")
-			}
-			if j != 0 {
-				if s, b := cad.cellcmp(cs[j-1], c); !b || s >= 0 {
-					panic("go")
-				}
-			}
-		}
-	}
+	// for i, cs := range ciso { // @DEBUG
+	// 	// @DEBUG. ciso[i] に属する cell の index には i が設定されていること.
+	// 	for j, c := range cs {
+	// 		if dup && c.index != uint(i) {
+	// 			fmt.Printf("i=%d, j=%d, index=%d\n", i, j, c.index)
+	// 			c.Print()
+	// 			panic("ge")
+	// 		}
+	// 		if j != 0 {
+	// 			if s, b := cad.cellcmp(cs[j-1], c); !b || s >= 0 {
+	// 				panic("go")
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	if len(ciso) == 0 {
 		return []*Cell{}
@@ -511,7 +686,6 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 				panic("kk")
 			}
 			hcr := cad.proj[ci.lv].hasCommonRoot(cad, ci.parent, cj.index, ci.index)
-			fmt.Printf("hcr=%v\n", hcr)
 			if hcr == PF_EVAL_NO {
 				// 共通根は持たない.
 				fusion_improve = false
@@ -554,7 +728,6 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 	_FUSION_IMPROVE:
 		if fusion_improve {
 			// 一致した
-			fmt.Printf("fusion!\n")
 			cj.fusion(ci)
 			cret = append(cret, ci)
 			i++
@@ -680,12 +853,7 @@ func (cell *Cell) make_cells_try1(cad *CAD, pf ProjFactor, pr RObj) (*Poly, []*C
 	// returns (p, c, s)
 	// 子供セルが作れたら， p=nil, s=pfに cell 代入したときの主係数の符号
 	// 子供セルが作れなかったら p != nil, (c,s) は使わない
-	fmt.Printf("make_cells_try1(%v, %d) pr=%v->%v\n", cell.Index(), pf.Index(), pf.P(), pr)
-	if p, ok := pr.(*Poly); ok {
-		fmt.Printf("p[%v,%d,%d]=%v\n", p.isUnivariate(), p.lv, pf.P().lv, p)
-	} else {
-		fmt.Printf("ppp=%v\n", pr)
-	}
+	fmt.Printf("  make_cells_try1(%v, %d) pr=%v->%v\n", cell.Index(), pf.Index(), pf.P(), pr)
 
 	switch p := pr.(type) {
 	case *Poly:
@@ -722,7 +890,6 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 
 	p := pf.P()
 
-	fmt.Printf("P[%d] =%v\n", cell.lv, p)
 	if cell.de || cell.defpoly != nil {
 		// projection factor の情報から，ゼロ値を決める
 		pp := NewPoly(p.lv, len(p.c))
@@ -755,7 +922,6 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 			case NObj:
 				return []*Cell{}, sign_t(px.Sign())
 			}
-			fmt.Printf("p[%d] =%v\n", c.lv, p)
 		}
 	}
 
@@ -987,12 +1153,28 @@ func (cell *Cell) valid(cad *CAD) error {
 		}
 	}
 
+	idx := cell.Index()
+	if len(idx) > 0 && (cad.stage < 2 || cad.q[cell.lv] == q_free) {
+		c := cad.root
+		for _, x := range idx {
+			c = c.children[x]
+		}
+		if c != cell {
+			return fmt.Errorf("cell=%v... but ...", idx)
+		}
+	}
+
 	if cell.children != nil {
 		nt := 0
 		nf := 0
 		ntc := 0
 		nfc := 0
 		children := make([]*Cell, 0, len(cell.children))
+		for i, c := range children {
+			if c.index != uint(i) {
+				return fmt.Errorf("index invalid. expect=%d, actual=%v", i, c.Index())
+			}
+		}
 		for i := 0; i < len(cell.children); i += 2 {
 			children = append(children, cell.children[i])
 		}
@@ -1014,6 +1196,9 @@ func (cell *Cell) valid(cad *CAD) error {
 				if c.children != nil {
 					nfc++
 				}
+			}
+			if c.parent != cell && (cad.stage < 2 || cell.truth < 0) {
+				return fmt.Errorf("%v.parent=%v != %v invalid [%p:%p]", c.Index(), c.parent.Index(), cell.Index(), c.parent, cell)
 			}
 		}
 
@@ -1037,7 +1222,7 @@ func (cell *Cell) valid(cad *CAD) error {
 		}
 		if errmes != "" {
 			cell.Print("cellp")
-			cell.Print("cells")
+			cell.Print("signatures")
 			return fmt.Errorf("%s: index=%v, truth=%d, true=(%d/%d), false=(%d/%d)", errmes, cell.Index(), cell.truth, ntc, nt, nfc, nf)
 		}
 	}

@@ -2,6 +2,7 @@ package ganrac
 
 import (
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -20,7 +21,7 @@ type CADSfc struct {
 	lt, lf, t3 []*Cell
 	evaltbl    [][]bool
 	freen      int
-	cpair      [][][]*Cell
+	cpair      [][][4]*Cell
 }
 
 type sfcAtom struct {
@@ -45,11 +46,6 @@ func NewCADSfc(cad *CAD) *CADSfc {
 	sfc.evaltbl[1] = []bool{false, false, true, true, false, false, true} // sgn=0
 	sfc.evaltbl[2] = []bool{false, false, false, false, true, true, true} // sgn>0
 
-	sfc.cpair = make([][][]*Cell, sfc.freen)
-	for i := 0; i < sfc.freen; i++ {
-		sfc.cpair[i] = make([][]*Cell, 0)
-	}
-
 	return sfc
 }
 
@@ -73,7 +69,7 @@ func (sfc *CADSfc) add_conflicting_pairs(cells []*Cell, min, max int) {
 }
 
 func (sfc *CADSfc) add_conflicting_pair(ctrue, cfalse *Cell) {
-	a := make([]*Cell, 4)
+	var a [4]*Cell
 	a[2] = ctrue
 	a[3] = cfalse
 
@@ -103,6 +99,7 @@ func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int)
 			ct = c
 		} else {
 			c.Print()
+			c.parent.Print("signatures")
 			panic("s")
 		}
 	}
@@ -138,7 +135,7 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 
 	cs, t := sfc.pdqv22_split_leaf(cells, min, max)
 	if t == 0x3 {
-		if lv == len(sfc.cad.q) {
+		if lv == sfc.freen {
 			t |= 0x8
 		} else {
 			t |= 0x4
@@ -189,13 +186,26 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 	return t
 }
 
-func (sfc *CADSfc) pdq(root *Cell) int {
+func (sfc *CADSfc) pdq() int {
 	// return 0 if projection definable
 	// return 1 if projection undefinable
 	// return 2 undetermined
-	cells := []*Cell{root}
+	sfc.lt = make([]*Cell, 0)
+	sfc.lf = make([]*Cell, 0)
+	sfc.t3 = make([]*Cell, 0)
+
+	sfc.cpair = make([][][4]*Cell, sfc.freen)
+	for i := 0; i < sfc.freen; i++ {
+		sfc.cpair[i] = make([][4]*Cell, 0)
+	}
+
+	cells := []*Cell{sfc.cad.root}
+	sfc.cad.root.children[2].Print()
+
+	fmt.Printf("pdq() start!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
 	t := sfc.pdqv22(0, cells, 0, 1)
-	fmt.Printf("pdq() t=%x, [%x %x]\n", t, t&0xc, t&0x8)
+	fmt.Printf("  pdq() t=%#x, [%#x %#x] [t=%d,f=%d]\n", t, t&0xc, t&0x8,
+		len(sfc.lt), len(sfc.lf))
 	if (t & (0x4 | 0x8)) == 0 {
 		return SFC_PROJ_DEFINABLE
 	} else if (t & 0x8) != 0 {
@@ -208,20 +218,28 @@ func (sfc *CADSfc) pdq(root *Cell) int {
 func (sfc *CADSfc) gen_atoms() []*sfcAtom {
 	a := make([]*sfcAtom, 0) // @TODO
 	for i := 0; i < sfc.freen; i++ {
-		for j := 0; j < sfc.cad.proj[i].Len(); j++ {
+		for j, pf := range sfc.cad.proj[i].gets() {
 			for _, op := range []OP{EQ, LE, GE, NE, LT, GT} {
-				if sfc.cad.proj[i].get(uint(j)).Index() != uint(j) {
-					panic("hey")
+				if pf.Index() != uint(j) {
+					panic(fmt.Sprintf("hey; j=%d, pf=%d: %v", j, pf.Index(), pf.P()))
 				}
 				a = append(a, &sfcAtom{i, uint(j), op})
 			}
 		}
 	}
-	fmt.Printf("genatoms=%d\n", len(a))
+	fmt.Printf("  genatoms=%d\n", len(a))
 	return a
 }
 
 func (sfc *CADSfc) eval(ctable []*Cell, ta *sfcAtom) bool {
+	if len(ctable[ta.lv].signature) <= int(ta.index) {
+		fmt.Printf("sfc.eval() %v: %d\n", ta, len(ctable[ta.lv].signature))
+		fmt.Printf("root=%p:%p, %p:%p\n",
+			sfc.cad.root, sfc.cad.root.children[2],
+			ctable[ta.lv].parent, ctable[ta.lv])
+		ctable[ta.lv].Print()
+		sfc.cad.root.Print("signatures")
+	}
 	return sfc.evaltbl[ctable[ta.lv].signature[ta.index]+1][ta.op]
 }
 
@@ -270,7 +288,7 @@ func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
 			break
 		}
 	}
-	// init(a,b,c,x);F=ex([x],a*x^2+b*x+c==0); C=cadinit(F); cadproj(C); cadlift(C); print(C, "cells"); cadsfc(C);
+	// init(a,b,c,x);F=ex([x],a*x^2+b*x+c==0); C=cadinit(F); cadproj(C); cadlift(C); print(C, "signatures"); cadsfc(C);
 	if idx == len(s) {
 		return h
 	} else if len(h)+1 >= maxn {
@@ -430,31 +448,36 @@ func (sfc *CADSfc) simplesf(la []*sfcAtom) Fof {
 }
 
 func (cad *CAD) Sfc() (Fof, error) {
-	if cad.root.truth == 0 {
+	if cad.root.truth == t_false {
 		return falseObj, nil
-	} else if cad.root.truth == 1 {
+	} else if cad.root.truth == t_true {
 		return trueObj, nil
 	} else if cad.stage != 2 {
 		return nil, fmt.Errorf("invalid stage")
 	}
 
 	sfc := NewCADSfc(cad)
-	t := sfc.pdq(cad.root)
+	t := sfc.pdq()
 	if len(sfc.lt) == 0 {
 		return falseObj, nil
 	}
 	if len(sfc.lf) == 0 {
 		return trueObj, nil
 	}
-	for t >= 1 {
+	for ccc := 0; t >= 1; ccc++ {
 		if t == 1 {
-
+			sfc.make_pdf()
 		} else {
+			panic(fmt.Sprintf("unsupported pdq=%d", t))
 
 		}
-		panic(fmt.Sprintf("unsupported pdq=%d", t))
+		t = sfc.pdq()
+		if ccc > 5 {
+			panic("ho")
+		}
 	}
 
+	cad.FprintProj(os.Stdout)
 	la := sfc.gen_atoms()
 	return sfc.simplesf(la), nil
 }

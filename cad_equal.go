@@ -38,7 +38,7 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 		if c.defpoly == nil {
 			continue
 		}
-		fmt.Printf("sym_zero_chk_node(): p=%v\n", p)
+		fmt.Printf("      symsex_zero_chk(): p=%v\n", p)
 		if len(c.defpoly.c) == 2 { // 1次である. 代入で消去
 			deg := p.Deg(c.lv)
 			if deg == 0 {
@@ -52,7 +52,7 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 				dens[i] = dens[i-1].Mul(coef1)
 			}
 			q := p.subst_frac(c.defpoly.c[0], dens, c.lv)
-			fmt.Printf("subst q=%v\n", q)
+			fmt.Printf("      symsex_zero_chk() subst q=%v\n", q)
 			switch qq := q.(type) {
 			case *Poly:
 				p = qq
@@ -68,8 +68,8 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 				panic("??") // @DEBUG
 			}
 			r := p.reduce(c.defpoly)
-			fmt.Printf("sym_zero_chk_node(): q=%v\n", p)
-			fmt.Printf("sym_zero_chk_node(): r=%v\n", r)
+			fmt.Printf("      symsex_zero_chk(): q=%v\n", p)
+			fmt.Printf("      symsex_zero_chk(): r=%v\n", r)
 			return r.IsZero()
 		}
 	}
@@ -96,7 +96,7 @@ func (cad *CAD) sym_zero_chk(p *Poly, c *Cell) bool {
 	}
 
 	ret := cad.symde_zero_chk(p, c)
-	fmt.Printf("sym_zero_chk() ret=%v\n", ret)
+	fmt.Printf("      sym_zero_chk() ret=%v\n", ret)
 	return ret
 }
 

@@ -73,10 +73,12 @@ type CADStat struct {
 	false_cell   int
 	precision    int
 	lift         int
+	rlift        int
 }
 
 type CAD struct {
 	fml      Fof           // qff
+	output   Fof           // qff
 	q        []int8        // quantifier
 	proj     []ProjFactors // [level]
 	pl4const []*ProjLink   // 定数用 0, +, -
@@ -285,7 +287,7 @@ func (cad *CAD) Fprint(b io.Writer, args ...interface{}) error {
 		return cad.FprintProj(b, args[1:]...)
 	case "proji":
 		cad.FprintInput(b, args[1:]...)
-	case "cells", "cell", "cellp", "fcells", "tcells":
+	case "sig", "signatures", "cell", "cellp", "fcells", "tcells":
 		aa := make([]interface{}, len(args)+1)
 		copy(aa[1:], args)
 		aa[0] = cad
@@ -370,7 +372,7 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 	}
 
 	switch s {
-	case "cells", "tcells", "fcells":
+	case "sig", "signatures", "tcells", "fcells":
 		if cell.children == nil {
 			return fmt.Errorf("invalid argument [no child]")
 		}
@@ -382,7 +384,7 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 			truth = t_false
 		}
 
-		fmt.Fprintf(b, "%s() :: %v\n", s, args[1:])
+		fmt.Fprintf(b, "%s(%v) :: index=%v, truth=%d\n", s, args[1:], cell.Index(), cell.truth)
 		if cad != nil {
 			fmt.Fprintf(b, "         (")
 			for i, pf := range cad.proj[cell.lv+1].gets() {
@@ -428,7 +430,7 @@ func (cell *Cell) Fprint(b io.Writer, args ...interface{}) error {
 			fmt.Fprintf(b, "\n")
 		}
 	case "cell":
-		fmt.Fprintf(b, "--- information about the cell %v ---\n", cell.Index())
+		fmt.Fprintf(b, "--- information about the cell %v %p ---\n", cell.Index(), cell)
 		fmt.Fprintf(b, "lv=%d:%s, de=%v, exdeg=%d, truth=%d sgn=%d\n",
 			cell.lv, varstr(cell.lv), cell.de, cell.ex_deg, cell.truth, cell.sgn_of_left)
 		var num int

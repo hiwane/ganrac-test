@@ -37,7 +37,7 @@ var qeExampleTable []qeExTable = []qeExTable{
 func GetExampleFof(name string) *QeExample {
 	if name == "" {
 		fmt.Printf("label\t# free\t# q \tdeg(f)\tdeg(q)\tatom\n")
-		fmt.Printf("=====\t======\t====\t======\t======\t====\n")
+		fmt.Printf("=======\t======\t====\t======\t======\t====\n")
 		for _, t := range qeExampleTable {
 			q := t.f()
 			v := q.Input.maxVar()
@@ -193,20 +193,30 @@ func exMakePdf() *QeExample {
 	q.Input = NewQuantifier(false, []Level{1}, newFmlAnds(
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), EQ),
 		NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 1), one), LT)))
-	q.Output = q.Input
+	q.Output = newFmlOrs(
+		NewAtom(NewPolyCoef(0, -1, 0, 2), LT),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(0, 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 1, 1), GE)))
 	q.Ref = "Christopher W. Brown. Solution formula construction for truth invariant CAD's. Thesis p65 1999"
-
 	return q
 }
 
 func exMakePdf2() *QeExample {
+	// [ y^2 + x^2 - 1 <= 0 /\ 5 x + 3 < 0 ] \/ 5 y^2 + 4 x y - 4 y + 2 x^2 - 2 x < 0 \/ [ y^2 + x^2 - 1 <= 0 /\ 5 y + 2 x - 2 < 0 ]
 	q := new(QeExample)
 	q.Input = NewQuantifier(false, []Level{2}, newFmlAnds(
 		NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), 0, 1), EQ),
 		NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, -1, 1), 2), 1), LT)))
-	q.Output = q.Input
+	q.Output = newFmlOrs(
+		newFmlAnds(
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), LE),
+			NewAtom(NewPolyCoef(0, 3, 5), LT)),
+		NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -2, 2), NewPolyCoef(0, -4, 4), 5), LT),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), LE),
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, -2, 2), 5), LT)))
 	q.Ref = "Christopher W. Brown. Solution formula construction for truth invariant CAD's. Thesis p65 1999"
-
 	return q
 }
 

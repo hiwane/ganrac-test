@@ -17,13 +17,16 @@ type ProjFactorMC struct {
 }
 
 type ProjFactorsMC struct {
-	pf        []ProjFactor
+	pf []ProjFactor
+
+	// resultant[i][j] = res(pf[i], pf[j]) where i > j
 	resultant [][]*ProjLink
 }
 
 func newProjFactorsMC() *ProjFactorsMC {
 	pfs := new(ProjFactorsMC)
 	pfs.pf = make([]ProjFactor, 0)
+	pfs.resultant = make([][]*ProjLink, 0)
 	return pfs
 }
 
@@ -47,22 +50,18 @@ func (pfs *ProjFactorsMC) Len() int {
 	return len(pfs.pf)
 }
 
-func proj_mcallum(cad *CAD, lv Level) {
-	pj := cad.proj[lv].(*ProjFactorsMC)
-	for _, _pf := range pj.gets() {
-		pf := _pf.(*ProjFactorMC)
-		pf.proj_coeff(cad)
-		pf.proj_discrim(cad)
-	}
+func (pfs *ProjFactorsMC) doProj(cad *CAD, i int) {
+	pf := pfs.pf[i].(*ProjFactorMC)
+	pf.proj_coeff(cad)
+	pf.proj_discrim(cad)
 
-	pj.resultant = make([][]*ProjLink, pj.Len())
-	for i := 0; i < len(pj.pf); i++ {
-		pj.resultant[i] = make([]*ProjLink, i)
-		for j := 0; j < i; j++ {
-			dd := cad.g.ox.Resultant(pj.get(uint(i)).P(), pj.get(uint(j)).P(), lv)
-			cad.stat.resultant++
-			pj.resultant[i][j] = cad.addProjRObj(dd)
-		}
+	r := make([]*ProjLink, i)
+	pfs.resultant = append(pfs.resultant, r)
+	for j := 0; j < i; j++ {
+		pj := pfs.get(uint(j)).P()
+		dd := cad.g.ox.Resultant(pf.p, pj, pf.p.lv)
+		cad.stat.resultant++
+		pfs.resultant[i][j] = cad.addProjRObj(dd)
 	}
 }
 
