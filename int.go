@@ -9,6 +9,7 @@ var mone *Int = NewInt(-1) // -1
 var zero *Int = newInt()   // 0
 var one *Int = NewInt(1)
 var two *Int = NewInt(2)
+var four *Int = NewInt(4)
 
 type Int struct {
 	Number

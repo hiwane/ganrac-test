@@ -18,6 +18,15 @@ type dcsr struct {
 	point bool
 }
 
+func (p *dcsr) toIntv(prec uint) *Interval {
+	x := p.low.toIntv(prec).(*Interval)
+	if !p.point {
+		xi := p.low.upperBound().toIntv(prec).(*Interval)
+		x.sup = xi.sup
+	}
+	return x
+}
+
 func (p *dcsr) String() string {
 	upp := p.low.upperBound()
 	if p.point {
@@ -180,6 +189,13 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 	for ; p.c[i].IsZero(); i++ {
 	}
 	if i > 0 {
+		if len(p.c) == i+1 {
+			// p=x^n
+			ret := make([]*dcsr, 1)
+			ret[0] = &dcsr{newBinInt(), i, nil, true}
+			return ret
+		}
+
 		stack.addret(newBinInt(), i, true)
 		q := NewPoly(p.lv, len(p.c)-i)
 		copy(q.c, p.c[i:])

@@ -52,7 +52,9 @@ func (x *BinInt) Format(s fmt.State, format rune) {
 			f.SetPrec(uint(w) + 10)
 		}
 		f.SetInt(x.n)
+		f.SetMantExp(f, x.m)
 		f.Format(s, format)
+		return
 	case FORMAT_DUMP: // dump
 		fmt.Fprintf(s, "(bin %v %d)", x.n, x.m)
 		return
@@ -244,8 +246,7 @@ func (z *BinInt) ToIntRat() NObj {
 
 func (z *BinInt) Float() float64 {
 	f := new(big.Float)
-	f.SetInt(z.n)
-	f = f.SetMantExp(f, z.m)
+	z.setToBigFloat(f)
 	ff, _ := f.Float64()
 	return ff
 }

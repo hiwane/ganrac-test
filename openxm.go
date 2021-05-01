@@ -9,6 +9,7 @@ import (
 	"math/big"
 )
 
+// http://www.math.sci.kobe-u.ac.jp/OpenXM/Current/index-spec.html
 const (
 	OX_COMMAND   int32 = 513 // 0x201
 	OX_DATA      int32 = 514 // 0x202

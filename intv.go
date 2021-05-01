@@ -198,6 +198,11 @@ func (x *Interval) MulInt64(y int64) *Interval {
 func (x *Interval) Mul(yy RObj) RObj {
 	y := yy.(*Interval)
 	z := newInterval(MaxPrec(x, y))
+	if x.IsZero() {
+		return x
+	} else if y.IsZero() {
+		return y
+	}
 	if x.inf.Sign() >= 0 {
 		if y.inf.Sign() >= 0 {
 			z.inf.Mul(x.inf, y.inf)
@@ -253,7 +258,7 @@ func (x *Interval) Mul(yy RObj) RObj {
 		}
 	}
 
-	if true {
+	if false {
 		k := new(big.Float)
 		k.SetPrec(z.Prec())
 		for _, xx := range []*big.Float{x.inf, x.sup} {
@@ -352,7 +357,7 @@ func (x *Interval) Equals(v interface{}) bool {
 	return false
 }
 
-func (x *Interval) Subst(v []RObj, lv []Level, n int) RObj {
+func (x *Interval) Subst(v []RObj, lv []Level, idx int) RObj {
 	return x
 }
 

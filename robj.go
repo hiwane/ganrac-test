@@ -6,6 +6,7 @@ import (
 
 // ring ring
 // in R[x], in R
+// *Poly, *Int, *Rat, *BinInt, *Interval
 type RObj interface {
 	GObj
 	equaler

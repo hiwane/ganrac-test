@@ -634,6 +634,87 @@ func (x *Poly) Pow(y *Int) RObj {
 	return z.Mul(t)
 }
 
+// 区間の代入なので 2 乗を利用したい．
+func (z *Poly) SubstIntv(x *Interval, lv Level, prec uint) RObj {
+	d := z.Deg(lv)
+
+	if d <= 0 {
+		return z
+	}
+
+	var x2 *Interval
+	if d > 1 {
+		if x.inf.Sign() > 0 || x.sup.Sign() < 0 {
+			x2 = x.Mul(x).(*Interval)
+		} else {
+			x2 = newInterval(prec)
+			x2.inf.SetInt64(0)
+			if x.inf.IsInf() || x.sup.IsInf() {
+				x2.sup.SetInf(false)
+			} else {
+				x2.sup.Neg(x.inf)
+				if c := x2.sup.Cmp(x.sup); c < 0 {
+					x2.sup.Mul(x.sup, x.sup)
+				} else {
+					x2.sup.Mul(x.inf, x.inf)
+				}
+			}
+		}
+	}
+
+	return z.subst_intv(x, x2, lv, prec)
+}
+
+// 区間の代入なので 2 乗を利用したい．
+func (z *Poly) subst_intv(x, x2 *Interval, lv Level, prec uint) RObj {
+	if z.lv > lv {
+		p := NewPoly(z.lv, len(z.c))
+		for i := 0; i < len(z.c); i++ {
+			switch zc := z.c[i].(type) {
+			case *Poly:
+				p.c[i] = zc.subst_intv(x, x2, lv, prec)
+			case NObj:
+				p.c[i] = zc
+			default:
+				fmt.Printf("panic! %v\n", zc)
+			}
+		}
+		return p
+	} else if z.lv < lv {
+		return z
+	}
+
+	var modd int
+	var meven int
+	if len(z.c)%2 == 0 {
+		// 奇数次
+		modd = len(z.c) - 1
+		meven = len(z.c) - 2
+
+	} else {
+		// 偶数次
+		modd = len(z.c) - 2
+		meven = len(z.c) - 1
+	}
+	fmt.Printf("zc[%d]=%v, x=%v\n", modd, z.c[modd], x)
+	var a RObj
+	var b RObj
+	if z.c[modd].IsZero() {
+		a = z.c[modd]
+	} else {
+		a = z.c[modd].Mul(x)
+	}
+	b = z.c[meven]
+
+	for i := modd - 2; i >= 0; i -= 2 {
+		a = Add(a.Mul(x2), z.c[i])
+	}
+	for i := meven - 2; i >= 0; i -= 2 {
+		b = Add(b.Mul(x2), z.c[i])
+	}
+	return Add(a, b)
+}
+
 func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 	// lvs: sorted
 

@@ -122,3 +122,19 @@ func (z *List) getiInt(i int) *Int {
 func (z *List) geti(i int) GObj {
 	return z.v[i]
 }
+
+func (z *List) Subst(xs []RObj, lvs []Level) *List {
+	p := NewList()
+	for i := 0; i < len(z.v); i++ {
+		p.Append(gobjSubst(z.v[i], xs, lvs))
+	}
+	return p
+}
+
+func (z *List) toIntv(prec uint) *List {
+	p := NewList()
+	for i := 0; i < len(z.v); i++ {
+		p.Append(gobjToIntv(z.v[i], prec))
+	}
+	return p
+}

@@ -19,6 +19,7 @@ const (
 )
 
 // ganrac object
+// RObj, NObj, Fof, List, *String
 type GObj interface {
 	fmt.Formatter
 	String() string
@@ -35,4 +36,34 @@ type indeter interface {
 
 type equaler interface {
 	Equals(v interface{}) bool
+}
+
+type subster interface {
+	Subst(xs []RObj, lvs []Level) GObj
+}
+
+func gobjToIntv(g GObj, prec uint) GObj {
+	switch a := g.(type) {
+	case RObj:
+		return a.toIntv(prec)
+	case *List:
+		return a.toIntv(prec)
+	default:
+		return a
+	}
+}
+
+func gobjSubst(g GObj, rr []RObj, lv []Level) GObj {
+	switch f := g.(type) {
+	case subster:
+		return f.Subst(rr, lv)
+	case *List:
+		return f.Subst(rr, lv)
+	case RObj:
+		return f.Subst(rr, lv, 0)
+	case Fof:
+		return f.Subst(rr, lv)
+	default:
+		return f
+	}
 }

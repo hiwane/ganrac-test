@@ -178,7 +178,7 @@ func (pl *ProjLink) merge(p *ProjLink) {
 	}
 }
 
-func (cad *CAD) Projection(algo ProjectionAlgo) error {
+func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 
 	// projection の準備
@@ -186,6 +186,7 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 
 	for lv := len(cad.proj) - 1; lv > 0; lv-- {
 
+		// sfc のために，「簡単」な論理式を前に置く
 		sort.Slice(cad.proj[lv].gets(), func(i, j int) bool {
 			return cad.proj[lv].get(uint(i)).P().Cmp(cad.proj[lv].get(uint(j)).P()) < 0
 		})
@@ -218,8 +219,16 @@ func (cad *CAD) Projection(algo ProjectionAlgo) error {
 	cad.stage = 1
 
 	cad.PrintProj()
+	projs := NewList()
+	for lv := 0; lv < len(cad.proj); lv++ {
+		pp := NewList()
+		projs.Append(pp)
+		for i := 0; i < cad.proj[lv].Len(); i++ {
+			pp.Append(cad.proj[lv].get(uint(i)).P())
+		}
+	}
 
-	return nil
+	return projs, nil
 }
 
 func (cad *CAD) get_projlink_num(sign int) *ProjLink {
