@@ -26,6 +26,10 @@ const (
 
 	PROJ_McCallum = 0
 	PROJ_HONG     = 1
+
+	CAD_STAGE_INITED int8 = 0
+	CAD_STAGE_PROJED int8 = 1
+	CAD_STAGE_LIFTED int8 = 2
 )
 
 type qIntrval struct {
@@ -81,6 +85,7 @@ type CAD struct {
 	output   Fof           // qff
 	q        []int8        // quantifier
 	proj     []ProjFactors // [level]
+	u        []*Interval   // [level]
 	pl4const []*ProjLink   // 定数用 0, +, -
 	stack    *cellStack
 	root     *Cell
@@ -94,20 +99,47 @@ func qeCAD(fml Fof) Fof {
 	return fml
 }
 
-func (stat CADStat) Fprint(b io.Writer) {
-	fmt.Fprintf(b, "CAD stat....\n")
-	fmt.Fprintf(b, "===========\n")
-	fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
-	fmt.Fprintf(b, " - # of lifting         : %d\n", stat.lift)
-	fmt.Fprintf(b, "\n")
-	fmt.Fprintf(b, "CA stat....\n")
-	fmt.Fprintf(b, "===========\n")
-	fmt.Fprintf(b, " - discrim on proj      : %8d\n", stat.discriminant)
-	fmt.Fprintf(b, " - resultant on proj    : %8d\n", stat.resultant)
-	fmt.Fprintf(b, " - factorization over Z : %8d\n", stat.fctr)
-	fmt.Fprintf(b, " - real root in Z[x]    : %8d\n", stat.qrealroot)
-	fmt.Fprintf(b, " - real root in intv[x] : %8d / %d\n", stat.irealroot_ok, stat.irealroot)
+func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
+	if cad.stage >= CAD_STAGE_PROJED {
+		fmt.Fprintf(b, "CAD proj. stat....\n")
+		fmt.Fprintf(b, "=========================\n")
+		fmt.Fprintf(b, "LV | # proj | deg | tdeg | npr\n")
+		for lv := len(cad.q) - 1; lv >= 0; lv-- {
+			deg := 0
+			tdeg := 0
+			npr := 0
+			for _, p := range cad.proj[lv].gets() {
+				d := p.P().deg()
+				if d > deg {
+					deg = d
+				}
+				if p.Sign() != 0 {
+					npr++
+				}
+			}
 
+			fmt.Fprintf(b, "%2d |%7d |%4d |%5d |%4d\n", lv, cad.proj[lv].Len(), deg, tdeg, npr)
+		}
+		fmt.Fprintf(b, "\n")
+	}
+	if cad.stage >= CAD_STAGE_LIFTED {
+		fmt.Fprintf(b, "CAD cell stat....\n")
+		fmt.Fprintf(b, "========================================\n")
+		fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
+		fmt.Fprintf(b, " - # of lifting         : %d\n", stat.lift)
+		fmt.Fprintf(b, "\n")
+	}
+	fmt.Fprintf(b, "CA stat....\n")
+	fmt.Fprintf(b, "==========================================\n")
+	if cad.stage >= CAD_STAGE_PROJED {
+		fmt.Fprintf(b, " - discrim on proj      : %8d\n", stat.discriminant)
+		fmt.Fprintf(b, " - resultant on proj    : %8d\n", stat.resultant)
+		fmt.Fprintf(b, " - factorization over Z : %8d\n", stat.fctr)
+	}
+	if cad.stage >= CAD_STAGE_LIFTED {
+		fmt.Fprintf(b, " - real root in Z[x]    : %8d\n", stat.qrealroot)
+		fmt.Fprintf(b, " - real root in intv[x] : %8d / %d\n", stat.irealroot_ok, stat.irealroot)
+	}
 }
 
 func (c *CAD) Tag() uint {
@@ -130,6 +162,7 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 
 	c := new(CAD)
 	c.g = g
+	c.stage = CAD_STAGE_INITED
 	v := prenex_formula.maxVar()
 	c.q = make([]int8, v)
 	for i := 0; i < len(c.q); i++ {
@@ -282,7 +315,7 @@ func (cad *CAD) Fprint(b io.Writer, args ...interface{}) error {
 
 	switch s.s {
 	case "stat":
-		cad.stat.Fprint(b)
+		cad.stat.Fprint(b, cad)
 	case "proj":
 		return cad.FprintProj(b, args[1:]...)
 	case "proji":

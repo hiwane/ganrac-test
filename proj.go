@@ -19,6 +19,10 @@ type ProjFactor interface {
 	Input() bool
 	SetInputT(b bool)
 
+	// 数値手法による評価
+	Sign() sign_t
+	SetSign(sgn sign_t)
+
 	// 係数の符号を返す
 	evalCoeff(cad *CAD, cell *Cell, deg int) OP
 
@@ -36,6 +40,8 @@ type ProjFactor interface {
 
 	// 表示用
 	FprintProjFactor(b io.Writer, cad *CAD)
+
+	numEval(cad *CAD) // 数値評価
 }
 
 type ProjFactors interface {
@@ -65,6 +71,7 @@ type ProjFactorBase struct {
 	p     *Poly
 	index uint
 	input bool // 入力の論理式に含まれるか.
+	sgn   sign_t
 }
 
 func (pfb *ProjFactorBase) P() *Poly {
@@ -85,6 +92,39 @@ func (pfb *ProjFactorBase) Input() bool {
 
 func (pfb *ProjFactorBase) SetInputT(b bool) {
 	pfb.input = (pfb.input || b)
+}
+
+func (pfb *ProjFactorBase) Sign() sign_t {
+	return pfb.sgn
+}
+
+func (pfb *ProjFactorBase) SetSign(b sign_t) {
+	if !pfb.input { // 入力は消せないでしょう
+		pfb.sgn = b
+	}
+}
+
+func (pfb *ProjFactorBase) numEval(cad *CAD) {
+	if pfb.input || len(cad.u) == 0 {
+		return
+	}
+
+	prec := uint(53)
+	p := pfb.P().toIntv(prec).(*Poly)
+	for lv := p.lv; lv >= 0; lv-- {
+		qq := p.SubstIntv(cad.u[lv], lv, prec)
+		if q, ok := qq.(*Interval); ok {
+			if q.inf.Sign() > 0 {
+				pfb.SetSign(1)
+				return
+			} else if q.sup.Sign() < 0 {
+				pfb.SetSign(-1)
+				return
+			}
+			return
+		}
+		p = qq.(*Poly)
+	}
 }
 
 func (pfb *ProjFactorBase) Lv() Level {
@@ -178,13 +218,32 @@ func (pl *ProjLink) merge(p *ProjLink) {
 	}
 }
 
+func (cad *CAD) getU() []*Interval {
+	_, t, f := cad.fml.simplNum(cad.g, nil, nil)
+	cad.u = make([]*Interval, len(cad.q))
+	for lv := 0; lv < len(cad.q); lv++ {
+		us := t.getU(f, Level(lv))
+		u := newInterval(53)
+		u.sup = us[len(us)-1].sup
+		u.inf = us[0].inf
+		cad.u[lv] = u
+	}
+	return cad.u
+}
+
 func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 
 	// projection の準備
 	cad.initProj(algo)
+	cad.getU()
 
 	for lv := len(cad.proj) - 1; lv > 0; lv-- {
+
+		// 数値評価.
+		for i := cad.proj[lv].Len() - 1; i >= 0; i-- {
+			cad.proj[lv].get(uint(i)).numEval(cad)
+		}
 
 		// sfc のために，「簡単」な論理式を前に置く
 		sort.Slice(cad.proj[lv].gets(), func(i, j int) bool {
@@ -216,7 +275,6 @@ func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	// for _, pf := range cad.proj[0].gets() {
 	// 	pf.coeff = coef
 	// }
-	cad.stage = 1
 
 	cad.PrintProj()
 	projs := NewList()
@@ -228,6 +286,7 @@ func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 		}
 	}
 
+	cad.stage = CAD_STAGE_PROJED
 	return projs, nil
 }
 
@@ -262,6 +321,10 @@ func (cad *CAD) FprintProjs(b io.Writer, lv Level) {
 		ss := ' '
 		if pf.Input() {
 			ss = 'i'
+		} else if pf.Sign() > 0 {
+			ss = '+'
+		} else if pf.Sign() < 0 {
+			ss = '-'
 		}
 		fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, pf.Index(), ss, pf.Deg(), pf.P())
 	}
@@ -279,7 +342,7 @@ func (pl *ProjLink) Fprint(b io.Writer) {
 		panic("!")
 	}
 	for i, pf := range pl.projs {
-		fmt.Fprintf(b, " <%d,%3d>^%d", pf.Lv(), pf.Index(), pl.multiplicity[i])
+		fmt.Fprintf(b, " P(%d,%3d)^%d", pf.Lv(), pf.Index(), pl.multiplicity[i])
 	}
 	fmt.Fprintf(b, "\n")
 }

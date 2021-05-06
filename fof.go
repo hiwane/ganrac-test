@@ -792,14 +792,14 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 			} else {
 				fmt.Fprintf(b, ",")
 			}
-			fmt.Fprintf(b, "%s", varlist[lv].v)
+			fmt.Fprintf(b, "%s", varstr(lv))
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
 		fmt.Fprintf(b, ")")
 	case 'P': // Tex
 		for _, lv := range p.q {
-			fmt.Fprintf(b, "\\forall %s ", varlist[lv].v)
+			fmt.Fprintf(b, "\\forall %s ", varstr(lv))
 		}
 		p.fml.Format(b, format)
 	case FORMAT_DUMP: // dump
@@ -841,14 +841,14 @@ func (p *Exists) Format(b fmt.State, format rune) {
 			} else {
 				fmt.Fprintf(b, ",")
 			}
-			fmt.Fprintf(b, "%s", varlist[lv].v)
+			fmt.Fprintf(b, "%s", varstr(lv))
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
 		fmt.Fprintf(b, ")")
 	case FORMAT_TEX: // Tex
 		for _, lv := range p.q {
-			fmt.Fprintf(b, "\\exists %s ", varlist[lv].v)
+			fmt.Fprintf(b, "\\exists %s ", varstr(lv))
 		}
 		p.fml.Format(b, format)
 	case FORMAT_DUMP: // dump

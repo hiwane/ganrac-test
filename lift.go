@@ -104,7 +104,7 @@ func (cad *CAD) Lift(index ...int) error {
 			}
 		}
 		err := cad.root.valid(cad)
-		cad.stage = 2
+		cad.stage = CAD_STAGE_LIFTED
 		return err
 	}
 	c := cad.root
@@ -889,6 +889,9 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 	// returns (children, sign(lc))
 
 	p := pf.P()
+	if sgn := pf.Sign(); sgn != 0 {
+		return []*Cell{}, sgn
+	}
 
 	if cell.de || cell.defpoly != nil {
 		// projection factor の情報から，ゼロ値を決める

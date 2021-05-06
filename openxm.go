@@ -347,7 +347,7 @@ func (ox *OpenXM) sendCMORecPoly(p *Poly) (map[Level]int32, error) {
 	err = ox.dataWrite(&cnt)
 	for i := len(b) - 1; i >= 0; i-- {
 		if b[i] {
-			ox.sendCMOString(varlist[i].v)
+			ox.sendCMOString(varstr(Level(i)))
 			cnt--
 		}
 	}

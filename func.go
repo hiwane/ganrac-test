@@ -378,7 +378,7 @@ func funcSimplify(g *Ganrac, name string, args []interface{}) (interface{}, erro
 		return nil, fmt.Errorf("%s() expected FOF", name)
 	}
 
-	c, t, f := c.simplNum(nil, nil)
+	c, t, f := c.simplNum(g, nil, nil)
 	fmt.Printf("true =%v\n", t)
 	fmt.Printf("false=%v\n", f)
 	return c, nil

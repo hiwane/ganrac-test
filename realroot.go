@@ -136,6 +136,8 @@ func (p *Poly) convertRange(low *BinInt) *Poly {
 	}
 	q = q.subsXinv()
 	if err := q.valid(); err != nil {
+		fmt.Printf("p=%v\n", p)
+		fmt.Printf("q=%v\n", q)
 		panic(err)
 	}
 	q = q.subst1(NewPolyCoef(p.lv, one, one), p.lv).(*Poly)

@@ -284,7 +284,13 @@ func (x *Interval) Mul(yy RObj) RObj {
 }
 
 func (x *Interval) Div(yy NObj) RObj {
-	return nil
+	// zero を含まないと仮定.
+	y := yy.(*Interval)
+	one := big.NewFloat(1.)
+	z := newInterval(y.Prec())
+	z.sup.Quo(one, y.inf)
+	z.inf.Quo(one, y.sup)
+	return x.Mul(z)
 }
 
 func (x *Interval) Pow(yy *Int) RObj {

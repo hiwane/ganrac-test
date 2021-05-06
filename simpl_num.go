@@ -19,9 +19,10 @@ type ninterval struct {
 	sup NObj
 }
 
-// nil は empty を表す.
+// nil は empty set を表す.
 type NumRegion struct {
-	// union of closed interval
+	// len(r[lv]) == 0 は  -inf <= x[lv] <= +inf を表す.
+	// もし，要素があれば, union of closed interval
 	r map[Level][]*ninterval
 }
 
@@ -65,15 +66,17 @@ func (m *NumRegion) Format(s fmt.State, format rune) {
 		return
 	}
 	fmt.Fprintf(s, "{")
+	sep := ""
 	for lv, vv := range m.r {
-		fmt.Fprintf(s, "%d: [", lv)
+		fmt.Fprintf(s, "%s%s:[", sep, varstr(lv))
 		for i, v := range vv {
 			if i != 0 {
 				fmt.Fprintf(s, ",")
 			}
 			v.Format(s, format)
 		}
-		fmt.Fprintf(s, "],")
+		fmt.Fprintf(s, "]")
+		sep = ", "
 	}
 	fmt.Fprintf(s, "}")
 }
@@ -85,6 +88,8 @@ func (_ *NumRegion) less(n, m *ninterval) bool {
 		if m.inf != nil {
 			return true
 		}
+	} else if m.inf == nil {
+		return false
 	} else {
 		c := n.inf.Cmp(m.inf)
 		if c < 0 {
@@ -104,13 +109,7 @@ func (_ *NumRegion) less(n, m *ninterval) bool {
 	return n.sup.Cmp(m.sup) < 0
 }
 
-func (nr *NumRegion) sort(nm []*ninterval) {
-	sort.Slice(nm, func(i, j int) bool {
-		return nr.less(nm[i], nm[j])
-	})
-}
-
-func (_ *NumRegion) max(n, m int) int {
+func (_ *NumRegion) maxInt(n, m int) int {
 	if n < m {
 		return m
 	} else {
@@ -122,21 +121,21 @@ func (_ *NumRegion) max(n, m int) int {
 func (m *NumRegion) intersect_lv(n *NumRegion, lv Level) []*ninterval {
 	mx, ok := m.r[lv]
 	if !ok {
-		return nil
+		return n.r[lv]
 	}
 	nx, ok := n.r[lv]
 	if !ok {
-		return nil
+		return mx
 	}
 
-	ret := make([]*ninterval, 0, m.max(len(mx), len(nx)))
+	ret := make([]*ninterval, 0, m.maxInt(len(mx), len(nx)))
 	i := 0
 	j := 0
 	for i < len(mx) && j < len(nx) {
 		if m.less(mx[i], nx[j]) {
 			// [m .... m]
 			//                 [n ..... n]
-			if mx[i].sup != nil && mx[i].sup.Cmp(nx[j].inf) <= 0 {
+			if mx[i].sup != nil && nx[j].inf != nil && mx[i].sup.Cmp(nx[j].inf) <= 0 {
 				// 重複なし.
 				i++
 				continue
@@ -157,7 +156,7 @@ func (m *NumRegion) intersect_lv(n *NumRegion, lv Level) []*ninterval {
 			}
 			ret = append(ret, x)
 		} else {
-			if nx[j].sup != nil && nx[j].sup.Cmp(mx[i].inf) <= 0 {
+			if nx[j].sup != nil && mx[i].inf != nil && nx[j].sup.Cmp(mx[i].inf) <= 0 {
 				// 重複なし.
 				j++
 				continue
@@ -204,9 +203,9 @@ func (m *NumRegion) union_lv(n *NumRegion, lv Level) []*ninterval {
 	nx, okn := n.r[lv]
 	if !okn && !okm {
 		return nil
-	} else if !okn {
+	} else if !okn || len(nx) == 0 {
 		return mx
-	} else if !okm {
+	} else if !okm || len(mx) == 0 {
 		return nx
 	}
 
@@ -221,7 +220,7 @@ func (m *NumRegion) union_lv(n *NumRegion, lv Level) []*ninterval {
 	ret := make([]*ninterval, 0, len(nm))
 	for _, a := range nm[1:] {
 		// 重なりがあるか.
-		if r.sup.Cmp(a.inf) <= 0 {
+		if a.inf != nil && r.sup != nil && r.sup.Cmp(a.inf) <= 0 {
 			// [r ..... r]
 			//              [a  ..... a]
 			ret = append(ret, r)
@@ -236,7 +235,7 @@ func (m *NumRegion) union_lv(n *NumRegion, lv Level) []*ninterval {
 			r = v
 		}
 	}
-	return ret
+	return append(ret, r)
 }
 
 func (m *NumRegion) union(n *NumRegion) *NumRegion {
@@ -260,8 +259,13 @@ func (m *NumRegion) union(n *NumRegion) *NumRegion {
 }
 
 func (m *NumRegion) del(qq []Level) *NumRegion {
+	if m == nil {
+		return m
+	}
 	for _, q := range qq {
-		delete(m.r, q)
+		if _, ok := m.r[q]; ok {
+			delete(m.r, q)
+		}
 	}
 	return m
 }
@@ -331,15 +335,15 @@ func (m *NumRegion) getU(n *NumRegion, lv Level) []*Interval {
 // assume: poly is univariate
 // returns (OP, pos, neg)
 // OP = (t,f) 以外で取りうる符号
-func (poly *Poly) simplNumUni(op OP, t, f *NumRegion) (OP, *NumRegion, *NumRegion) {
+func (poly *Poly) simplNumUniPoly(t, f *NumRegion) (OP, *NumRegion, *NumRegion) {
 	// 重根を持っていたら...?
-	fmt.Printf("simplNumUni(%v) t=%v, f=%v\n", poly, t, f)
 	roots := poly.realRootIsolation(-30)
-	if len(roots) == 0 {
+	fmt.Printf("   simplNumUniPoly(%v) t=%v, f=%v, #root=%v\n", poly, t, f, len(roots))
+	if len(roots) == 0 { // 符号一定
 		if poly.Sign() > 0 {
-			return GT, t, f
+			return GT, newNumRegion(), nil
 		} else {
-			return LT, t, f
+			return LT, nil, newNumRegion()
 		}
 	}
 	xs := t.getU(f, poly.lv)
@@ -350,8 +354,6 @@ func (poly *Poly) simplNumUni(op OP, t, f *NumRegion) (OP, *NumRegion, *NumRegio
 	if len(xs) > 0 { // T union F に対してやったほうが楽か.
 		idx := -1
 		rooti := roots[0].toIntv(prec)
-		fmt.Printf("xs=%v\n", xs)
-		fmt.Printf("root=%v\n", roots)
 		if xs[0].inf != nil && rooti.sup.Cmp(xs[0].inf) < 0 {
 			idx = 0
 		} else {
@@ -365,7 +367,6 @@ func (poly *Poly) simplNumUni(op OP, t, f *NumRegion) (OP, *NumRegion, *NumRegio
 				idx = len(xs)
 			}
 		}
-		fmt.Printf("rooti=%v, idx=%d\n", rooti, idx)
 
 		if idx >= 0 {
 			for _, root := range roots {
@@ -394,38 +395,49 @@ func (poly *Poly) simplNumUni(op OP, t, f *NumRegion) (OP, *NumRegion, *NumRegio
 			if idx >= 0 {
 				// 根が連結した known 領域のみに含まれていて,
 				// unknown 領域での符号が一定であることが確定した
-				var sgn int
-				if idx == len(xs)-1 || idx == 0 && len(poly.c)%2 == 1 {
-					sgn = poly.Sign()
-				} else if idx == 0 {
-					sgn = -poly.Sign()
-				} else {
-					x := roots[idx-1].upperBound().Add(roots[idx].low).Div(two)
-					x = poly.subst1(x, poly.lv)
-					sgn = x.Sign()
+				// 重根がないと仮定しているので，idx で符号が確定できる.
+				if 0 < idx && idx < len(xs) {
+					if poly.deg()%2 == 0 {
+						// 偶数次
+						if poly.Sign() > 0 {
+							return GT, newNumRegion(), nil
+						} else {
+							return LT, nil, newNumRegion()
+						}
+					} else {
+						// 奇数次
+						pinf := newNumRegion()
+						pinf.r[poly.lv] = append(pinf.r[poly.lv], &ninterval{roots[len(roots)-1].low.upperBound(), nil})
+						ninf := newNumRegion()
+						ninf.r[poly.lv] = append(ninf.r[poly.lv], &ninterval{nil, roots[0].low})
+						if poly.Sign() > 0 {
+							return OP_TRUE, pinf, ninf
+						} else {
+							return OP_TRUE, ninf, pinf
+						}
+					}
+				}
+
+				sgn := poly.Sign()
+				if idx != 0 {
+					// x = -inf
+					sgn *= 2*(len(poly.c)%2) - 1
 				}
 				if sgn > 0 {
-					return GT, nil, nil
+					return GT, newNumRegion(), nil
 				} else if sgn < 0 {
-					return LT, nil, nil
+					return LT, nil, newNumRegion()
 				}
 				panic("?")
 			}
 		}
 	}
 
-	if poly.Sign() < 0 {
-		op = op.neg()
-	}
-	var nr []*NumRegion
-	if op == EQ || op == NE {
-		nr = []*NumRegion{newNumRegion()}
-	} else {
-		nr = []*NumRegion{newNumRegion(), newNumRegion()}
-	}
+	nr := []*NumRegion{newNumRegion(), newNumRegion()}
+
 	var inf NObj
 	for i, intv := range roots {
-		nr[i%len(nr)].add(inf, intv.low, poly.lv)
+		nr[i%2].add(inf, intv.low, poly.lv)
 		if intv.point {
 			inf = intv.low
 		} else {
@@ -433,21 +445,17 @@ func (poly *Poly) simplNumUni(op OP, t, f *NumRegion) (OP, *NumRegion, *NumRegio
 		}
 	}
 	nr[len(roots)%len(nr)].add(inf, nil, poly.lv)
-	switch op {
-	case EQ:
-		return OP_TRUE, nil, nr[0]
-	case NE:
-		return OP_TRUE, nr[0], nil
-	case GT, GE:
-		return OP_TRUE, nr[len(roots)%2], nr[1-len(roots)%2]
-	case LT, LE:
-		return OP_TRUE, nr[1-len(roots)%2], nr[len(roots)%2]
-	default:
-		panic("unknown")
+
+	sgn := poly.Sign()
+	sgn *= (len(poly.c)%2)*2 - 1 // x=-inf での poly の符号
+	if sgn > 0 {
+		return OP_TRUE, nr[0], nr[1]
+	} else {
+		return OP_TRUE, nr[1], nr[0]
 	}
 }
 
-func (poly *Poly) simplNumNvar(op OP, t, f *NumRegion, dv Level) (OP, *NumRegion, *NumRegion) {
+func (poly *Poly) simplNumNvar(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRegion, *NumRegion) {
 	prec := uint(30)
 	p := poly.toIntv(prec).(*Poly)
 	for lv := poly.lv; lv >= 0; lv-- {
@@ -462,7 +470,7 @@ func (poly *Poly) simplNumNvar(op OP, t, f *NumRegion, dv Level) (OP, *NumRegion
 			p = pp
 		case *Interval:
 			// 区間 u での符号がきまった
-			fmt.Printf("simplNumNvar() interval=%f\n", pp)
+			fmt.Printf("   simplNumNvar() interval=%f\n", pp)
 			if ss := pp.Sign(); ss > 0 {
 				goto _GT
 			} else if ss < 0 {
@@ -476,7 +484,7 @@ func (poly *Poly) simplNumNvar(op OP, t, f *NumRegion, dv Level) (OP, *NumRegion
 		}
 	}
 
-	fmt.Printf("simplNumNvar() p[%d]=%f\n", dv, p)
+	fmt.Printf("   simplNumNvar() p[%d]=%f\n", dv, p)
 	if len(p.c) == 2 { // linear
 		if p.c[1].(*Interval).ContainsZero() {
 			return OP_TRUE, t, f
@@ -506,27 +514,25 @@ _LT:
 	return LT, t, f
 }
 
-func (poly *Poly) simplNumPoly(op OP, t, f *NumRegion, dv Level) (OP, *NumRegion, *NumRegion) {
+func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRegion, *NumRegion) {
 	if poly.isUnivariate() {
-		return poly.simplNumUni(op, t, f)
+		return poly.simplNumUniPoly(t, f)
 	}
-	tret := newNumRegion()
-	fret := newNumRegion()
+	pret := newNumRegion()
+	nret := newNumRegion()
+	op_ret := OP_TRUE
 	for v := poly.lv; v >= 0; v-- {
 		deg := poly.Deg(v)
 		if deg == 0 {
 			continue
 		}
-		s, t, f := poly.simplNumNvar(op, t, f, v)
-		if s != OP_TRUE {
-			if s&op == 0 {
-				return s, nil, nil
-			} else if s&op.not() == 0 {
-				return s, nil, nil
-			}
+		s, pos, neg := poly.simplNumNvar(g, t, f, v)
+		op_ret &= s
+		if op_ret == GT || op_ret == LT {
+			return op_ret, pos, neg
 		}
-		tret = tret.union(t)
-		fret = fret.union(f)
+		pret = pret.union(pos)
+		nret = nret.union(neg)
 		if deg != 2 || v > dv {
 			// \sum_i x_i^2 = 1 のようなケースで, 判別式爆発が起こる.
 			// v > dv は，多少でも削減するために限定する
@@ -536,86 +542,121 @@ func (poly *Poly) simplNumPoly(op OP, t, f *NumRegion, dv Level) (OP, *NumRegion
 		// 2次であれば，判別式が負なら符号が主係数の符号と一致することを利用する.
 		c2 := poly.Coef(v, 2)
 		if cp, ok := c2.(*Poly); ok {
-			s, _, _ = cp.simplNumPoly(NE, t, f, dv)
-			if s != LT && s != GT {
-				continue
+			var fml Fof
+			atom := NewAtom(cp, GT).simplFctr(g)
+			fml, pos, _ = atom.simplNum(g, t, f)
+			if _, ok := fml.(*AtomT); ok {
+				s = GT
+				neg = nil
+			} else {
+				atom = NewAtom(cp, LT).simplFctr(g)
+				fml, neg, _ = atom.simplNum(g, t, f)
+				if _, ok := fml.(*AtomT); ok {
+					s = LT
+				} else {
+					s = OP_TRUE
+				}
 			}
 		} else if c2.Sign() > 0 {
 			s = GT
+			pos = newNumRegion()
+			neg = nil
 		} else {
 			s = LT
+			pos = nil
+			neg = newNumRegion()
 		}
 		c1 := poly.Coef(v, 1)
 		c0 := poly.Coef(v, 0)
-		discrim := Sub(c1.Mul(c1), Mul(c2, c0).Mul(four)).(*Poly) // b^2-4ac
-		fmt.Printf("in=%v\n", poly)
-		fmt.Printf("discrim[%d]=%v\n", v, discrim)
-		sx, t, f := discrim.simplNumPoly(LE, t, f, v)
-		fmt.Printf("discrim[%d]=%x\n", v, sx)
-		if sx == LT {
-			// poly の符号が確定した.
-			return s, nil, nil
+		d := Sub(c1.Mul(c1), Mul(c2, c0).Mul(four))
+		var fml Fof
+		var neg2 *NumRegion
+		if dd, ok := d.(NObj); ok {
+			if dd.Sign() >= 0 {
+				continue
+			}
+			fml = trueObj
+			neg2 = newNumRegion()
+		} else {
+			discrim := Sub(c1.Mul(c1), Mul(c2, c0).Mul(four)).(*Poly) // b^2-4ac
+			atom := NewAtom(discrim, LT)
+			atom = atom.simplFctr(g)
+
+			fml, neg2, _ = atom.simplNum(g, t, f)
+			fmt.Printf("discrim[%d]=%v: %v: neg=%v\n", dv, d, atom, neg2)
 		}
+		switch fml.(type) {
+		case *AtomT:
+			if s == GT {
+				return s, newNumRegion(), nil
+			} else if s == LT {
+				return s, nil, newNumRegion()
+			}
+		case *AtomF:
+			continue
+		}
+
+		fmt.Printf("-- neg2=%v\n", neg2)
+		fmt.Printf("-- pos=%v\n", pos)
+		pos = neg2.intersect(pos)
+		pret = pret.union(pos)
+
+		neg = neg2.intersect(neg)
+		nret = nret.union(neg)
 	}
 
-	return OP_TRUE, tret, fret
+	return OP_TRUE, pret, nret
 }
 
 ////////////////////////////////////////////////////////////////////////
 // simplNum
 ////////////////////////////////////////////////////////////////////////
 
-func (p *AtomT) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+func (p *AtomT) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 	return p, t, f
 }
 
-func (p *AtomF) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+func (p *AtomF) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 	return p, t, f
 }
 
-func (atom *Atom) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+func (atom *Atom) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 	// simplFctr 通過済みと仮定したいところだが.
 	if atom.op == NE || atom.op == GE || atom.op == GT {
 		p := atom.Not()
-		p, f, t = p.simplNum(t, f)
-		fmt.Printf("Atm.simplNum(NEG) p=%v\n", p)
+		p, f, t = p.simplNum(g, t, f)
 		return p.Not(), t, f
 	}
 
-	ts := make([]*NumRegion, 0, len(atom.p))
-	fs := make([]*NumRegion, 0, len(atom.p))
 	ps := make([]*Poly, 0, len(atom.p))
 	op := atom.op
 	if atom.op == EQ {
 		up := false
+		var neg *NumRegion
 		for _, p := range atom.p {
-			s, tt, ff := p.simplNumPoly(NE, t, f, p.lv)
+			s, pp, nn := p.simplNumPoly(g, t, f, p.lv)
 			if s == GT || s == LT {
 				up = true
 				continue
 			}
-			ts = append(ts, tt)
-			fs = append(fs, ff)
+			neg = neg.union(pp)
+			neg = neg.union(nn)
 			ps = append(ps, p)
 		}
 		if len(ps) == 0 {
 			return falseObj, t, f
 		}
-		for i, _ := range ps {
-			t = t.intersect(ts[i])
-			f = f.union(fs[i])
-		}
 		if up {
 			atom = newAtoms(ps, op)
 		}
-		return atom, t, f
+		return atom, nil, neg
 	}
 	if len(atom.p) > 1 {
-		// 一変数じゃないとやってられない....
+		// 一多項式じゃないとやってられない....
 		var pmul RObj = one
 
 		for _, p := range atom.p {
-			s, _, _ := p.simplNumPoly(NE, t, f, p.lv)
+			s, _, _ := p.simplNumPoly(g, t, f, p.lv)
 			if s != GT && s != LT {
 				ps = append(ps, p)
 				pmul = p.Mul(pmul)
@@ -623,7 +664,7 @@ func (atom *Atom) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 				op = op.neg()
 			}
 		}
-		a, t, f := NewAtom(pmul, op).simplNum(t, f)
+		a, t, f := NewAtom(pmul, op).simplNum(g, t, f)
 		switch a.(type) {
 		case *AtomT, *AtomF:
 			return a, t, f
@@ -637,27 +678,29 @@ func (atom *Atom) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 			}
 		}
 	}
-	s, t, f := atom.p[0].simplNumPoly(op, t, f, atom.p[0].lv)
-	fmt.Printf("atm.simplNum(): s=%v, t=%f, f=%f\n", s, t, f)
+	s, pp, nn := atom.p[0].simplNumPoly(g, t, f, atom.p[0].lv) // @TODO
+	fmt.Printf("   atm.simplNum(): s=%v, pos=%f, neg=%f\n", s, pp, nn)
+
+	// op は　LT or LE
 	if s == OP_TRUE {
-		return atom, t, f
+		return atom, nn, pp
 	} else if s&atom.op == 0 {
-		return falseObj, t, f
+		return falseObj, nil, newNumRegion()
 	} else if s&atom.op.not() == 0 {
-		return trueObj, t, f
+		return trueObj, newNumRegion(), nil
 	} else {
-		return atom, t, f
+		return atom, nn, pp
 	}
 }
 
-func (p *FmlAnd) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+func (p *FmlAnd) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 	ts := make([]*NumRegion, 0, len(p.fml))
 	fs := make([]*NumRegion, 0, len(p.fml))
 	fmls := make([]Fof, 0, len(p.fml))
-	fmt.Printf("And.simplNum And=%v\n", p)
+	fmt.Printf("   And.simplNum And=%v\n", p)
 	for i := range p.fml {
-		fml, tt, ff := p.fml[i].simplNum(t, f)
-		fmt.Printf("And.simplNum[%d] %v -> %v\n", i, p.fml[i], fml)
+		fml, tt, ff := p.fml[i].simplNum(g, t, f)
+		fmt.Printf("@@ And.simplNum[1st,%d/%d] %v -> %v, %v\n", i+1, len(p.fml), p.fml[i], fml, ff)
 		if _, ok := fml.(*AtomF); ok {
 			return falseObj, nil, nil
 		}
@@ -668,52 +711,52 @@ func (p *FmlAnd) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 		ts = append(ts, tt)
 		fs = append(fs, ff)
 	}
-	fmt.Printf("And.simplNum fmls=%v\n", fmls)
+	fmt.Printf("   And.simplNum fmls=%v\n", fmls)
 	if len(fmls) <= 1 {
 		if len(fmls) == 0 {
 			return trueObj, nil, nil
 		}
 		return fmls[0], ts[0], fs[0]
 	}
+
+	var tret *NumRegion
+	fret := f
 	for i, fml := range fmls {
 		ff := f
 		tt := t
 		for j := 0; j < len(fmls); j++ {
 			if j != i {
 				ff = ff.union(fs[j])
-				tt = tt.intersect(fs[j])
+				tt = tt.intersect(ts[j])
 			}
 		}
-		tt = tt.union(t)
-		fmt.Printf("And.simplNum(%d) tt=%e, ff=%e\n", i, tt, ff)
-		fmls[i], ts[i], fs[i] = fml.simplNum(tt, ff)
+		fmls[i], tt, ff = fml.simplNum(g, tt, ff)
 		if _, ok := fmls[i].(*AtomF); ok {
-			return falseObj, nil, nil
+			return falseObj, nil, newNumRegion()
 		}
+		tret = tret.intersect(tt)
+		fret = fret.union(ff)
+		fmt.Printf("@@ And.simplNum[2nd,%d/%d] %v, Fi=%v, Fret=%v\n", i+1, len(fmls), fmls[i], ff, fret)
 	}
-	tt := t
-	ff := f
-	for i, _ := range fmls {
-		tt = tt.intersect(ts[i])
-		ff = ff.union(fs[i])
-	}
+	tret = tret.union(t)
 	fml := newFmlAnds(fmls...)
-	return fml, tt, ff
+	fmt.Printf("## And.simplNum[end,%d] %v\n", len(fmls), fret)
+	return fml, tret, fret
 }
 
-func (p *FmlOr) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+func (p *FmlOr) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
 	// @TODO サボり
 	q := p.Not()
-	q, f, t = q.simplNum(f, t)
+	q, f, t = q.simplNum(g, f, t)
 	return q.Not(), t, f
 }
 
-func (p *ForAll) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
-	fml, t, f := p.fml.simplNum(t, f)
+func (p *ForAll) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+	fml, t, f := p.fml.simplNum(g, t, f)
 	return NewQuantifier(true, p.q, fml), t.del(p.q), f.del(p.q)
 }
 
-func (p *Exists) simplNum(t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
-	fml, t, f := p.fml.simplNum(t, f)
+func (p *Exists) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegion) {
+	fml, t, f := p.fml.simplNum(g, t, f)
 	return NewQuantifier(false, p.q, fml), t.del(p.q), f.del(p.q)
 }

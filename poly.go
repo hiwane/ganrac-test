@@ -696,7 +696,6 @@ func (z *Poly) subst_intv(x, x2 *Interval, lv Level, prec uint) RObj {
 		modd = len(z.c) - 2
 		meven = len(z.c) - 1
 	}
-	fmt.Printf("zc[%d]=%v, x=%v\n", modd, z.c[modd], x)
 	var a RObj
 	var b RObj
 	if z.c[modd].IsZero() {

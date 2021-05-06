@@ -5,5 +5,5 @@ type simpler interface {
 	simplFctr(g *Ganrac) Fof           // CA を要求
 
 	// symbolic-numeric simplification
-	simplNum(true_region, false_region *NumRegion) (Fof, *NumRegion, *NumRegion)
+	simplNum(g *Ganrac, true_region, false_region *NumRegion) (Fof, *NumRegion, *NumRegion)
 }

@@ -219,6 +219,9 @@ func (sfc *CADSfc) gen_atoms() []*sfcAtom {
 	a := make([]*sfcAtom, 0) // @TODO
 	for i := 0; i < sfc.freen; i++ {
 		for j, pf := range sfc.cad.proj[i].gets() {
+			if pf.Sign() != 0 {
+				continue
+			}
 			for _, op := range []OP{EQ, LE, GE, NE, LT, GT} {
 				if pf.Index() != uint(j) {
 					panic(fmt.Sprintf("hey; j=%d, pf=%d: %v", j, pf.Index(), pf.P()))

@@ -52,13 +52,20 @@ func (pfs *ProjFactorsMC) Len() int {
 
 func (pfs *ProjFactorsMC) doProj(cad *CAD, i int) {
 	pf := pfs.pf[i].(*ProjFactorMC)
-	pf.proj_coeff(cad)
-	pf.proj_discrim(cad)
+	if pf.Sign() == 0 {
+		pf.proj_coeff(cad)
+		pf.proj_discrim(cad)
+	}
 
 	r := make([]*ProjLink, i)
 	pfs.resultant = append(pfs.resultant, r)
 	for j := 0; j < i; j++ {
 		pj := pfs.get(uint(j)).P()
+		if pf.Sign() != 0 || pf.Sign() != 0 {
+			pfs.resultant[i][j] = cad.pl4const[1]
+			continue
+		}
+
 		dd := cad.g.ox.Resultant(pf.p, pj, pf.p.lv)
 		cad.stat.resultant++
 		pfs.resultant[i][j] = cad.addProjRObj(dd)
