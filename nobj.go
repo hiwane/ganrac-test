@@ -6,6 +6,7 @@ const (
 	NTAG_RAT
 	NTAG_BININT
 	NTAG_INTERVAL
+	NTAG_MOD
 )
 
 // numeric

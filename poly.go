@@ -3,6 +3,7 @@ package ganrac
 import (
 	"fmt"
 	"io"
+	"math/rand"
 )
 
 type Level int8
@@ -73,6 +74,9 @@ func (z *Poly) Clone() *Poly {
 }
 
 func (z *Poly) valid() error {
+	if z == nil {
+		return fmt.Errorf("poly is null")
+	}
 	if z.c == nil {
 		return fmt.Errorf("coefs is null")
 	}
@@ -425,10 +429,10 @@ func (x *Poly) Mul(yy RObj) RObj {
 		return z
 	}
 	z := NewPoly(x.lv, len(y.c)+len(x.c)-1)
-	for i := 0; i < len(z.c); i++ {
+	for i := range z.c {
 		z.c[i] = zero
 	}
-	for i := 0; i < len(x.c); i++ {
+	for i := range x.c {
 		if x.c[i].IsZero() {
 			continue
 		}
@@ -597,6 +601,13 @@ func (x *Poly) sdiv(y *Poly) RObj {
 }
 
 func (x *Poly) powi(y int64) RObj {
+	if y <= 1 {
+		if y == 0 {
+			return one
+		} else {
+			return x
+		}
+	}
 	return x.Pow(NewInt(y))
 }
 
@@ -1211,4 +1222,27 @@ func (p *Poly) Cmp(q *Poly) int {
 	}
 
 	return 0
+}
+
+func randPoly(r rand.Source, varn, deg, ccoef, num int) *Poly {
+	var ret RObj = zero
+
+	coef := int64(ccoef)
+	for i := 1; ; i++ {
+		var vv RObj
+
+		c := r.Int63()%(2*coef) - coef
+		vv = NewInt(c)
+		for j := 0; j < varn; j++ {
+			d := r.Int63() % int64(deg+1)
+			if d != 0 {
+				v := NewPolyVar(Level(j)).powi(d)
+				vv = v.Mul(vv)
+			}
+		}
+		ret = Add(ret, vv)
+		if p, ok := ret.(*Poly); i >= num && ok {
+			return p
+		}
+	}
 }

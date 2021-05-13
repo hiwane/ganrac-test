@@ -46,7 +46,6 @@ func TestIRootCountRand(t *testing.T) {
 }
 
 func TestIRealRoot1(t *testing.T) {
-	NewGANRAC()
 	for i, s := range []struct {
 		p      *Poly
 		prec   uint

@@ -74,7 +74,6 @@ func TestBinIntBase(t *testing.T) {
 }
 
 func TestBinIntSubst(t *testing.T) {
-	NewGANRAC()
 	for _, s := range []struct {
 		input  *Poly
 		num    int64

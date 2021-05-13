@@ -1,5 +1,8 @@
 package ganrac
 
+// George E. Collins
+// Quantifier elimination for real closed fields by cylindrical algebraic decomposition
+
 import (
 	"fmt"
 	"io"
@@ -10,6 +13,7 @@ import (
 type ProjectionAlgo int
 
 type sign_t int8
+type mult_t int8
 
 const (
 	t_undef  = -1 // まだ評価していない
@@ -56,7 +60,7 @@ type Cell struct {
 	nintv        *Interval // 数値計算. defpoly=multivariate, de=true
 	ex_deg       int       // 拡大次数
 	signature    []sign_t
-	multiplicity []int8
+	multiplicity []mult_t
 }
 
 type cellStack struct {
@@ -274,7 +278,7 @@ func NewCell(cad *CAD, parent *Cell, idx uint) *Cell {
 	} else {
 		cell.lv = parent.lv + 1
 		cell.signature = make([]sign_t, cad.proj[cell.lv].Len())
-		cell.multiplicity = make([]int8, cad.proj[cell.lv].Len())
+		cell.multiplicity = make([]mult_t, cad.proj[cell.lv].Len())
 	}
 	return cell
 }

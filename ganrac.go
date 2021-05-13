@@ -26,12 +26,11 @@ type Ganrac struct {
 func NewGANRAC() *Ganrac {
 	g := new(Ganrac)
 	g.varmap = make(map[string]interface{}, 100)
-	g.setBuiltinFuncTable()
-	g.logger = log.New(ioutil.Discard, "", 0)
 	g.InitVarList([]string{
 		"x", "y", "z", "w", "a", "b", "c", "d", "e", "f", "g", "h",
 	})
-
+	g.setBuiltinFuncTable()
+	g.logger = log.New(ioutil.Discard, "", 0)
 	g.sones = []token{
 		{"+", plus},
 		{"-", minus},

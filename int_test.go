@@ -154,6 +154,8 @@ func TestIntGcd(t *testing.T) {
 		a, b, expect string
 	}{
 		{"2790221028", "65587796069", "2297"},
+		{"1155036", "2448444", "12"},
+		{"1221773556", "576362964", "5988"},
 	} {
 		a := ParseInt(s.a, 10)
 		b := ParseInt(s.b, 10)
@@ -162,6 +164,42 @@ func TestIntGcd(t *testing.T) {
 		g := a.Gcd(b)
 		if !g.Equals(expect) {
 			t.Errorf("invalid gcd(%v,%v) expect=%v actual=%v", s.a, s.b, expect, g)
+		}
+	}
+}
+
+func TestIntGcdEx(t *testing.T) {
+	for _, s := range []struct {
+		a, b, expect int64
+	}{
+		{12 * 151, 12 * 157, 12},
+		{983, 991, 1},
+		{983, 673, 1},
+		{983, 991 * 673, 1},
+		{2 * 3 * 5 * 11 * 983, 191 * 991 * 673, 1},
+	} {
+		a := NewInt(s.a)
+		b := NewInt(s.b)
+		expect := NewInt(s.expect)
+
+		g := a.Gcd(b)
+		if !g.Equals(expect) {
+			t.Errorf("invalid gcd(%v,%v) expect=%v actual=%v", s.a, s.b, expect, g)
+			continue
+		}
+
+		g2, s2, t2 := a.GcdEx(b)
+		if !g2.Equals(expect) {
+			t.Errorf("invalid gcdEx(%v,%v) expect=%v actual=%v", s.a, s.b, expect, g2)
+			continue
+		}
+
+		sa := s2.Mul(a)
+		tb := t2.Mul(b)
+		satb := sa.Add(tb)
+		if !g2.Equals(satb) {
+			t.Errorf("invalid gcdEx(%v,%v)=(%v,%v,%v)", s.a, s.b, g2, s2, t2)
+			continue
 		}
 	}
 }

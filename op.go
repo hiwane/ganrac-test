@@ -32,6 +32,13 @@ func var2lv(v string) (Level, error) {
 	return 0, fmt.Errorf("undefined variable `%s`.", v)
 }
 
+func init() {
+	g := new(Ganrac)
+	g.InitVarList([]string{
+		"x", "y", "z", "w", "a", "b", "c", "d", "e", "f", "g", "h",
+	})
+}
+
 func (g *Ganrac) InitVarList(vlist []string) error {
 	for i, v := range vlist {
 		if v == "init" {

@@ -352,6 +352,41 @@ func (x *Int) Gcd(y *Int) *Int {
 	return v
 }
 
+func (x *Int) GcdEx(y *Int) (*Int, *Int, *Int) {
+	// extended Euclid algorithm
+	// returns (gcd, a, b) where gcd = a*x + b*y
+	r1 := x.n
+	r2 := y.n
+	a1 := big.NewInt(1)
+	a2 := big.NewInt(0)
+	b1 := a2
+	b2 := a1
+
+	for {
+		q := new(big.Int)
+		r := new(big.Int)
+		q.QuoRem(r1, r2, r)
+		if r.Sign() == 0 {
+			g := newInt()
+			g.n.Set(r2)
+			a := newInt()
+			a.n.Set(a2)
+			b := newInt()
+			b.n.Set(b2)
+			return g, a, b
+		}
+
+		r1, r2 = r2, r
+		a := new(big.Int)
+		a.Sub(a1, a.Mul(a2, q))
+		b := new(big.Int)
+		b.Sub(b1, b.Mul(b2, q))
+
+		a1, a2 = a2, a
+		b1, b2 = b2, b
+	}
+}
+
 func (x *Int) subst_poly(p *Poly, lv Level) RObj {
 	return p.Subst([]RObj{x}, []Level{lv}, 0)
 }

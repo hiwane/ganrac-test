@@ -458,8 +458,9 @@ func (poly *Poly) simplNumUniPoly(t, f *NumRegion) (OP, *NumRegion, *NumRegion) 
 func (poly *Poly) simplNumNvar(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRegion, *NumRegion) {
 	prec := uint(30)
 	p := poly.toIntv(prec).(*Poly)
+
 	for lv := poly.lv; lv >= 0; lv-- {
-		if lv != dv {
+		if lv == dv {
 			continue
 		}
 		xs := t.getU(f, lv)

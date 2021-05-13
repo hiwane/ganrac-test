@@ -22,6 +22,7 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"adam2-2", exAdam2_2},
 	{"adam3", exAdam3},
 	{"candj", exCandJ},
+	{"cycle3", exCyclic3},
 	{"easy7", exEasy7},
 	{"makepdf", exMakePdf},
 	{"makepd2", exMakePdf2},
@@ -163,6 +164,14 @@ func exCandJ() *QeExample {
 
 	q.Output = q.Input
 
+	return q
+}
+
+func exCyclic3() *QeExample {
+	q := new(QeExample)
+	q.Output = falseObj
+	// ex([y,z], z+y+x==0 && (y+x)*z+x*y==0 && x*y*z-1==0)
+	q.Input = NewQuantifier(false, []Level{1, 2}, newFmlAnds(NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), 1), EQ), NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 1)), NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1)), EQ), NewAtom(NewPolyCoef(2, -1, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 1))), EQ)))
 	return q
 }
 

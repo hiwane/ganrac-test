@@ -219,7 +219,7 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 		c.signature = make([]sign_t, num)
 		copy(c.signature, sig)
 		mul := c.multiplicity
-		c.multiplicity = make([]int8, num)
+		c.multiplicity = make([]mult_t, num)
 		copy(c.multiplicity, mul)
 		cs = append(cs, c)
 
@@ -719,7 +719,6 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 
 			if hcr == 1 {
 				// @TODO 虚根を持たない，かつ，他に重複がなければ一致が確定する
-				// @TODO 一方が線形なら重複が確定する
 			}
 
 			fusion_improve = cad.sym_equal(ci, cj)
@@ -775,7 +774,7 @@ func (cell *Cell) root_iso_q(cad *CAD, pf ProjFactor, p *Poly) []*Cell {
 		ff := fctrs.getiList(i)
 		q := ff.getiPoly(0)
 		ciso[i-1] = make([]*Cell, 0, len(q.c)-1)
-		r := int8(ff.getiInt(1).Int64())
+		r := mult_t(ff.getiInt(1).Int64())
 		if len(q.c) == 2 {
 			c := NewCell(cad, cell, pf.Index())
 			rat := NewRatFrac(q.c[0].(*Int), q.c[1].(*Int).Neg().(*Int))
@@ -1013,7 +1012,7 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 					// numeric 確定..
 					c := NewCell(cad, cell, pf.Index())
 					c.de = cell.de
-					c.multiplicity[pf.Index()] = int8(i)
+					c.multiplicity[pf.Index()] = mult_t(i)
 					c.intv.inf = zero
 					c.intv.sup = zero
 					return []*Cell{c}, sgn
@@ -1024,7 +1023,7 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 
 				c := NewCell(cad, cell, pf.Index())
 				c.de = cell.de
-				c.multiplicity[pf.Index()] = int8(i)
+				c.multiplicity[pf.Index()] = mult_t(i)
 				c.intv.inf = zero
 				c.intv.sup = zero
 				cells = append(cells, []*Cell{c})
@@ -1082,7 +1081,7 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 	return cad.cellmerge(cells, false), sgn
 }
 
-func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint, multiplicity int8) ([]*Cell, error) {
+func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint, multiplicity mult_t) ([]*Cell, error) {
 	// porg: 区間代入前
 	// pp: interval polynomial
 

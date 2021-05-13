@@ -105,7 +105,6 @@ func TestIntvOp(t *testing.T) {
 }
 
 func TestIntvSubst(t *testing.T) {
-	NewGANRAC()
 	prec := uint(20)
 	lv := Level(0)
 

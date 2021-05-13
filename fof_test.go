@@ -5,7 +5,6 @@ import (
 )
 
 func TestAtom(t *testing.T) {
-	NewGANRAC()
 	for _, s := range []struct {
 		op1, op2 OP
 	}{
@@ -60,7 +59,6 @@ func TestAtom(t *testing.T) {
 }
 
 func TestFmlAnd(t *testing.T) {
-	NewGANRAC()
 	fmls := []Fof{
 		NewAtom(NewPolyCoef(0, 1, 2, 3), GE),
 		NewAtom(NewPolyCoef(0, 2, 3, 4), NE),
@@ -100,7 +98,6 @@ func TestFmlAnd(t *testing.T) {
 }
 
 func TestFmlOr(t *testing.T) {
-	NewGANRAC()
 	fmls := []Fof{
 		NewAtom(NewPolyCoef(0, 1, 2, 3), GE),
 		NewAtom(NewPolyCoef(0, 2, 3, 4), NE),

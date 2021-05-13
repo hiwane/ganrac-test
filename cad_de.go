@@ -1,15 +1,22 @@
 package ganrac
 
+// H. Iwane, H. Yanami, H. Anai, K. Yokoyama
+// An effective implementation of symbolic–numeric cylindrical algebraic decomposition for quantifier elimination
+// symoblic numeric computation 2009.
+
+// Wang's rational reconstruction algo.
+// Monagan's maximal quotient rational reconstruction algo.
+
 import (
 	"fmt"
 )
 
 type cadSqfr struct {
 	p *Poly
-	r int8
+	r mult_t
 }
 
-func newCadSqfr(cell *Cell, p *Poly, r int8) *cadSqfr {
+func newCadSqfr(cell *Cell, p *Poly, r mult_t) *cadSqfr {
 	sq := new(cadSqfr)
 	sq.p = p.primpart()
 	if cell != nil {
@@ -32,13 +39,71 @@ func (cell *Cell) isDE() bool {
 	return n > 1
 }
 
-func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
-	// Simple EXtension
+func (cell *Cellmod) mod_monic(cad *CAD, p Uint) bool {
+	// 定義多項式の主係数を 1 にする
+	if cell.parent != nil {
+		if !cell.parent.mod_monic(cad, p) {
+			return false
+		}
+	}
+	if cell.defpoly == nil {
+		return true
+	}
+
+	lc := cell.defpoly.lc().(Moder)
+	if !lc.IsOne() {
+		lcinv := lc.inv_mod(cell.parent, p)
+		if lcinv == nil {
+			// 定義多項式の主係数非ゼロは保証しているが...?
+			return false
+		}
+		cell.defpoly = cell.defpoly.mul_mod(lcinv, p).(*Poly)
+	}
+	return true
+}
+
+func (cell *Cell) mod(cad *CAD, p Uint) (*Cellmod, bool) {
+	// mod する. 定義多項式があるところにしか興味がない
+	var cellp, cp, cold *Cellmod
 	for c := cell; c.lv >= 0; c = c.parent {
 		if c.defpoly == nil {
 			continue
 		}
-		fmt.Printf("      symsex_zero_chk(): p=%v\n", p)
+
+		cp = NewCellmod(c)
+		if cellp == nil {
+			cellp = cp
+		}
+		switch q := c.defpoly.mod(p).(type) {
+		case *Poly:
+			if q.lv != c.defpoly.lv || q.deg() != c.defpoly.deg() {
+				return nil, false
+			}
+			cp.defpoly = q
+		default:
+			return nil, false
+		}
+
+		if cold != nil {
+			cold.parent = cp
+		}
+		cold = cp
+	}
+	cold.parent = nil
+	cold.de = false
+	if !cellp.mod_monic(cad, p) {
+		// 定義多項式が因数分解された.
+		return cellp, false
+	}
+	return cellp, true
+}
+
+func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
+	// Simple Extension
+	for c := cell; c.lv >= 0; c = c.parent {
+		if c.defpoly == nil {
+			continue
+		}
 		if len(c.defpoly.c) == 2 { // 1次である. 代入で消去
 			deg := p.Deg(c.lv)
 			if deg == 0 {
@@ -52,7 +117,6 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 				dens[i] = dens[i-1].Mul(coef1)
 			}
 			q := p.subst_frac(c.defpoly.c[0], dens, c.lv)
-			fmt.Printf("      symsex_zero_chk() subst q=%v\n", q)
 			switch qq := q.(type) {
 			case *Poly:
 				p = qq
@@ -68,8 +132,6 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 				panic("??") // @DEBUG
 			}
 			r := p.reduce(c.defpoly)
-			fmt.Printf("      symsex_zero_chk(): q=%v\n", p)
-			fmt.Printf("      symsex_zero_chk(): r=%v\n", r)
 			return r.IsZero()
 		}
 	}
@@ -80,7 +142,8 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 }
 
 func (cad *CAD) sym_equal(ci, cj *Cell) bool {
-	// @TODO 同じ次数なら主係数有理数が起点のほうがいいか.
+	fmt.Printf("    sym_equal(%v,%v) deg=(%d,%d)\n", ci.Index(), cj.Index(), ci.defpoly.deg(), cj.defpoly.deg())
+
 	if len(ci.defpoly.c) > len(cj.defpoly.c) {
 		return cad.sym_zero_chk(ci.defpoly, cj)
 	} else {
@@ -89,14 +152,15 @@ func (cad *CAD) sym_equal(ci, cj *Cell) bool {
 }
 
 func (cad *CAD) sym_zero_chk(p *Poly, c *Cell) bool {
+	fmt.Printf("      sym_zero_chk(%v) START: p=%v\n", c.Index(), p)
 	if !c.parent.isDE() {
-		if len(c.defpoly.c) == 2 { // 1 次
+		if c.defpoly.deg() == 1 {
 			return cad.symsex_zero_chk(p, c)
 		}
 	}
 
 	ret := cad.symde_zero_chk(p, c)
-	fmt.Printf("      sym_zero_chk() ret=%v\n", ret)
+	fmt.Printf("      sym_zero_chk(%v) END: ret=%v\n", c.Index(), ret)
 	return ret
 }
 
@@ -207,54 +271,332 @@ func deg(p RObj) int {
 	}
 }
 
-func (cad *CAD) symde_gcd(porg, qorg *Poly, cell *Cell, need_t bool) (*Poly, RObj, RObj) {
-	// assume: porg.lv == qorg.lv
-	// returns (gcd(p, q), p/gcd(p, q), q/gcd(p,q))
-	// returns (nil, nil)
-
-	if porg.lv != qorg.lv {
-		panic(fmt.Sprintf("invalid p=[%d,%d], q=[%d,%d]", porg.lv, porg.deg(), qorg.lv, qorg.deg()))
+func (cad *CAD) symde_zero_chk_mod(forg *Poly, cell *Cellmod, p Uint) (bool, bool) {
+	// returns (a, b)
+	//     ... a := (forg == 0)
+	//     ... b := (DE)
+	for cell.lv > forg.lv {
+		cell = cell.parent
+	}
+	q, s2, _ := cad.symde_gcd_mod(cell.defpoly, forg, cell.parent, p, false)
+	if s2 == nil {
+		// 定義多項式が分解されてしまった
+		return false, false
+	}
+	if q == nil {
+		return false, true
+	}
+	if q.deg() < cell.defpoly.deg() {
+		// 定義多項式が分解できた.
+		cell.factor1 = q
+		return false, false
 	}
 
-	var p, q *Poly
+	return true, true
+}
+
+func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bool) (*Poly, RObj, RObj) {
+	// returns (g, a, b) where g = gcd(forg, gorg), g = a * forg + b * gorg
+	// returns (nil, nil, nil) .... DE
+	// returns (nil, a, b) .... gcd(forg, gorg) = 1
+	if forg.lv != gorg.lv {
+		panic(fmt.Sprintf("invalid p=[%d,%d], q=[%d,%d]", forg.lv, forg.deg(), gorg.lv, gorg.deg()))
+	}
+
+	var f, g *Poly
+	var s1, s2 Moder
+	var t1, t2 Moder
+
+	var s_1 int
+	if len(forg.c) < len(gorg.c) {
+		f = gorg
+		g = forg
+		s_1 = 0
+	} else {
+		f = forg
+		g = gorg
+		s_1 = 1
+	}
+
+	s1 = Uint(s_1)
+	s2 = Uint(1 - s_1)
+	t1 = s2
+	t2 = s1
+
+	for {
+		q, rr := f.divmod_poly_mod(g, cell, p)
+		if q == nil {
+			return nil, nil, nil
+		}
+		if q.IsZero() && rr.IsZero() {
+			// f は zero だった...
+			return g, s2, t2
+		}
+
+		s1, s2 = s2, s1.sub_mod(s2.mul_mod(q, p), p)
+		if need_t {
+			t1, t2 = t2, t1.sub_mod(t2.mul_mod(q, p), p)
+		}
+
+		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
+			rr = r.simpl_mod(cell, p)
+		}
+		switch r := rr.(type) {
+		case *Poly:
+			if r.lv == g.lv {
+				f, g = g, r
+				continue
+			} else {
+				c := cell
+				for r.lv != c.lv {
+					c = c.parent
+				}
+				ret, ok := cad.symde_zero_chk_mod(r, c, p)
+				if !ok {
+					return nil, nil, nil
+				}
+
+				if ret {
+					return g, s2, t2
+				} else {
+					return nil, forg, gorg
+				}
+			}
+		case Uint:
+			if r == 0 {
+				return g, s2, t2
+			} else {
+				return nil, forg, gorg
+			}
+		}
+	}
+}
+
+func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RObj, RObj) {
+
+	if forg.lv != gorg.lv {
+		panic(fmt.Sprintf("invalid p=[%d,%d], q=[%d,%d]", forg.lv, forg.deg(), gorg.lv, gorg.deg()))
+	}
+
+	var f, g *Poly
+
+	if len(forg.c) < len(gorg.c) {
+		f = gorg
+		g = forg
+	} else {
+		f = forg
+		g = gorg
+	}
+
+	var g_crt *Poly  // GCD
+	var s_crt *Poly  // f/GCD
+	var t_crt *Poly  // g/GCD
+	var f1_crt *Poly // factor1
+	var f2_crt *Poly // factor2
+	var pm *Int
+	pos := 0
+	tried := false
+
+	count := 0
+	for _, p := range lprime_table {
+		fp, ok := f.mod(p).(*Poly)
+		if !ok || fp.lv != f.lv || fp.deg() != f.deg() { // unlucky
+			continue
+		}
+		gp, ok := g.mod(p).(*Poly)
+		if !ok || gp.lv != g.lv || gp.deg() != g.deg() { // unlucky
+			continue
+		}
+		cellp, ok := cell.mod(cad, p)
+		if !ok {
+			unlucky := false
+			c := cellp
+			for ; c != nil; c = c.parent {
+				if c.factor1 != nil {
+					if c.parent == nil {
+						unlucky = true // 既約なはず.
+					}
+					break
+				}
+			}
+			if unlucky {
+				continue
+			}
+			if pos == 2 { // 他の素数では，この段階で共通因子なかった
+				continue
+			}
+
+			pos = 1
+			if f1_crt == nil || c.lv != f1_crt.lv && count >= 5 ||
+				c.lv == f1_crt.lv && f1_crt.deg() > c.factor1.deg() {
+				f1_crt = c.factor1
+				f2_crt = c.factor2
+				pm = NewInt(int64(p))
+				count = 0
+				tried = false
+				continue
+			}
+			if c.lv != f1_crt.lv {
+				// 前の素数でみつかったものが偽因子かも保険.
+				count++
+				continue
+			}
+			if f1_crt.deg() < c.factor1.deg() { // 偽因子
+				continue
+			}
+
+			// CRT する.
+			no_chg := true
+			f1_crt, _, ok = f1_crt.crt_interpol(c.factor1, pm, p)
+			if !ok {
+				no_chg = false
+			}
+			f2_crt, pm, ok = f2_crt.crt_interpol(c.factor2, pm, p)
+			if !ok {
+				no_chg = false
+			}
+
+			if no_chg && !tried {
+				// 試し割りして，うまくいったら，再帰する
+				tried = true
+			} else {
+				tried = false
+			}
+			continue
+		}
+		if cellp == nil { // unlucky
+			continue
+		}
+
+		pos = 2
+		gcd, s, t := cad.symde_gcd_mod(fp, gp, cellp, p, need_t)
+		if s == nil {
+			// 定義多項式が因数分解された.
+			// @TODO 共通化したいが...
+		}
+		if gcd == nil {
+			// 共通因子がなかった.
+			return nil, forg, gorg
+		}
+
+		if g_crt == nil || g_crt.deg() > gcd.deg() {
+			// 1回目
+			f1_crt = nil
+			f2_crt = nil
+
+			g_crt = gcd
+			if gcd.deg() < forg.deg() {
+				s_crt = s.(*Poly)
+			}
+			if need_t && gcd.deg() < gorg.deg() {
+				t_crt = t.(*Poly)
+			}
+			pm = NewInt(int64(p))
+			tried = false
+			continue
+		}
+
+		// 2 回目以降
+		if g_crt.deg() < gcd.deg() { // 偽因子
+			continue
+		}
+
+		no_chg := true
+		if s_crt != nil {
+			s_crt, _, ok = s_crt.crt_interpol(s.(*Poly), pm, p)
+			if !ok {
+				no_chg = false
+			}
+		}
+		if t_crt != nil {
+			t_crt, _, ok = t_crt.crt_interpol(t.(*Poly), pm, p)
+			if !ok {
+				no_chg = false
+			}
+		}
+		g_crt, pm, ok = g_crt.crt_interpol(g, pm, p)
+		if !ok {
+			no_chg = false
+		}
+
+		if no_chg && !tried {
+			// 試し割り
+			tried = true
+		} else {
+			tried = false
+		}
+		continue
+	}
+
+	panic("no more prime number")
+}
+
+func (cad *CAD) symde_gcd(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RObj, RObj) {
+	// assume: forg.lv == gorg.lv
+	// returns (gcd(f,g), f/gcd(f,g), g/gcd(f,g))
+	// returns (nil, forg, gord) if gcd=1
+
+	if forg.lv != gorg.lv {
+		panic(fmt.Sprintf("invalid p=[%d,%d], q=[%d,%d]", forg.lv, forg.deg(), gorg.lv, gorg.deg()))
+	}
+
+	var f, g *Poly
 	var s1, s2 RObj
 	var t1, t2 RObj
 
-	if len(porg.c) < len(qorg.c) {
+	if len(forg.c) < len(gorg.c) {
+		f = gorg
+		g = forg
 		s1 = one
 		s2 = zero
-		t1 = zero
-		t2 = one
-		p = qorg
-		q = porg
 	} else {
+		f = forg
+		g = gorg
 		s1 = zero
 		s2 = one
-		t1 = one
-		t2 = zero
-		p = porg
-		q = qorg
 	}
+	t1 = s2
+	t2 = s1
 
-	// deg(p) >= deg(q)
+	// CRT....
+	// for _, p := range lprime_table {
+	// 	fp, ok := f.mod(p).(*Poly)
+	// 	if !ok || fp.lv != f.lv || fp.deg() != f.deg() {
+	// 		continue
+	// 	}
+	// 	gp, ok := g.mod(p).(*Poly)
+	// 	if !ok || gp.lv != g.lv || gp.deg() != g.deg() {
+	// 		continue
+	// 	}
+	// 	cellp, ok := cell.mod(cad, p)
+	// 	if cellp == nil {
+	// 		continue
+	// 	}
+	//
+	// 	h, s, t := cad.symde_gcd_mod(fp, gp, cellp, p, s1, need_t)
+	//
+	//
+	// }
+
+	// deg(f) >= deg(g)
 	for {
-		fmt.Printf("gcd : p=[%d,%d], q=[%d,%d]\n", p.lv, len(p.c)-1, q.lv, len(q.c)-1)
-		a, b, rr := p.pquorem(q)
+		fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d>\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+		a, b, rr := f.pquorem(g)
 		s1, s2 = s2, Sub(Mul(s1, a), Mul(s2, b))
-		fmt.Printf("gcd : s1=[%d,%d], s2=[%d,%d]\n", lv(s1), deg(s1), lv(s2), deg(s2))
+		fmt.Printf("gcd : s1=[%d,%3d], s2=[%d,%3d]\n", lv(s1), deg(s1), lv(s2), deg(s2))
 		if need_t {
 			t1, t2 = t2, Sub(Mul(t1, a), Mul(t2, b))
-			fmt.Printf("gcd : t1=[%d,%d], t2=[%d,%d]\n", lv(t1), deg(t1), lv(t2), deg(t2))
+			fmt.Printf("gcd : t1=[%d,%3d], t2=[%d,%3d]\n", lv(t1), deg(t1), lv(t2), deg(t2))
 		}
 
-		if r, ok := rr.(*Poly); ok && (r.lv != q.lv || len(r.c) < len(q.c)) {
+		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
 			rr = cad.symde_normalize(r, cell)
 		}
 		switch r := rr.(type) {
 		case *Poly:
 			//			fmt.Printf("rpol[%d,%d,]=%v\n", porg.lv, r.lv, r)
-			if r.lv == q.lv {
-				p, q = q, r
+			if r.lv == g.lv {
+				f, g = g, r
 				continue
 			} else {
 				c := cell
@@ -263,15 +605,19 @@ func (cad *CAD) symde_gcd(porg, qorg *Poly, cell *Cell, need_t bool) (*Poly, ROb
 				}
 				ret := cad.symde_zero_chk(r, c) //?
 				if ret {
-					return q, s2, t2
+					fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END1\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+					return g, s2, t2
 				}
-				return nil, porg, qorg
+				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END2\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				return nil, forg, gorg
 			}
 		case NObj:
 			if r.IsZero() {
-				return q, s2, t2
+				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END3\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				return g, s2, t2
 			} else {
-				return nil, porg, qorg
+				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END4\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				return nil, forg, gorg
 			}
 		default:
 			panic("??")
@@ -280,6 +626,7 @@ func (cad *CAD) symde_gcd(porg, qorg *Poly, cell *Cell, need_t bool) (*Poly, ROb
 }
 
 func (cad *CAD) sym_sqfr(porg *Poly, cell *Cell) []*cadSqfr {
+	fmt.Printf("    sym_sqfr(%v) %v\n", cell.Index(), porg)
 	p := porg
 	if !p.isIntPoly() {
 		panic("unexpected")
@@ -296,7 +643,7 @@ func (cad *CAD) sym_sqfr(porg *Poly, cell *Cell) []*cadSqfr {
 	// fmt.Printf("sqfr: t%d: lv=%d, deg=%d\n", 0, t0.(*Poly).lv, len(t0.(*Poly).c)-1)
 
 	ret := make([]*cadSqfr, 0)
-	var i int8
+	var i mult_t
 	for i = 1; ; i++ {
 		tt, ok := t0.(*Poly)
 		if !ok || tt.lv != porg.lv {
