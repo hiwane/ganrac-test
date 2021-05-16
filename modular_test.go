@@ -57,7 +57,7 @@ func TestModularInvPoly(t *testing.T) {
 	}{
 		{
 			NewPolyCoef(0, 3, 5),
-			[]Uint{2, 3, 151, 17, lprime_table[10]},
+			[]Uint{2, 3, 151, 17, 99999217},
 		},
 	} {
 		for _, p := range s.p {
@@ -104,7 +104,10 @@ func TestModularInterpol(t *testing.T) {
 	r := rand.NewSource(seed)
 
 	for i := 0; i < 20; i++ {
-		f := randPoly(r, 3, 5, 100, 20)
+		ff := randPoly(r, 3, 5, 100, 20)
+		f := NewPoly(10, 2)
+		f.c[1] = one
+		f.c[0] = ff
 
 		var g *Poly
 		var p *Int
@@ -130,7 +133,7 @@ func TestModularInterpol(t *testing.T) {
 				g = fp
 				p = NewInt(int64(q))
 			} else {
-				g, p, _ = g.crt_interpol(fp, p, q)
+				g, _, p, _ = g.crt_interpol(fp, fp, p, q)
 				if g == nil {
 					t.Errorf("seed=%d, i=%d\nin =%v\nout=%v\nq =%v\nfp =%v\n", seed, i, f, g, q, fp)
 					return
@@ -165,7 +168,7 @@ func TestModularInterpolZ(t *testing.T) {
 	max := big.NewInt(1)
 	max.Lsh(max, 150)
 
-	primes := []Uint{5, 7, 3, lprime_table[0], lprime_table[10], 13, 17, 23}
+	primes := []Uint{5, 7, 3, 99999989, 99999773, 13, 17, 23}
 
 	type boo struct {
 		p   Uint
@@ -227,6 +230,50 @@ func TestModularInterpolZ(t *testing.T) {
 				t.Errorf("invalid b=%v, m3=%v, p=%v xx=%v\n", b, m3, b.p, xx)
 				return
 			}
+		}
+	}
+}
+
+func TestModularIntToRat(t *testing.T) {
+	for _, s := range []struct {
+		p        int64
+		a        int64
+		num, den int64
+	}{
+		//       mod          a   n / d
+		//		{         13,        11,  0,  1},
+		//		{         17,         4,  0,  5},
+		{53, 43, 3, 5},
+		{101, 41, 3, 5},
+		{1073741789, 644245074, 3, 5},
+		{1073741783, 858993427, 3, 5},
+		{1073741741, 429496697, 3, 5},
+		{1073741723, 858993379, 3, 5},
+		{1073741719, 644245032, 3, 5},
+		{1073741717, 214748344, 3, 5},
+		{1073741689, 644245014, 3, 5},
+		{11, 5, -1, 2},
+	} {
+		p := NewInt(s.p)
+		a := NewInt(s.a)
+		b := NewInt(s.p / 2)
+		b.n.Sqrt(b.n)
+
+		var n, d *big.Int
+		switch v := a.i2q(p, b).(type) {
+		case *Int:
+			n = v.n
+			d = one.n
+		case *Rat:
+			n = v.n.Num()
+			d = v.n.Denom()
+		default:
+			t.Errorf("in=%v\n... %v", s, v)
+			continue
+		}
+
+		if n.Cmp(big.NewInt(s.num)) != 0 || d.Cmp(big.NewInt(s.den)) != 0 {
+			t.Errorf("in=%v\nret=%v/%v", s, n, d)
 		}
 	}
 }

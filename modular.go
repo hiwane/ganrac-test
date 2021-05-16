@@ -25,6 +25,7 @@ type Moder interface {
 	inv_mod(cell *Cellmod, p Uint) Moder
 	simpl_mod(cell *Cellmod, p Uint) Moder
 	valid_mod(cell *Cellmod, p Uint) error
+	deg() int
 }
 
 func NewCellmod(cell *Cell) *Cellmod {
@@ -33,6 +34,14 @@ func NewCellmod(cell *Cell) *Cellmod {
 	c.lv = cell.lv
 	c.de = true
 	return c
+}
+
+func (q Uint) deg() int {
+	if q == 0 {
+		return -1
+	} else {
+		return 0
+	}
 }
 
 func (q Uint) valid_mod(cell *Cellmod, p Uint) error {
@@ -45,11 +54,11 @@ func (q Uint) valid_mod(cell *Cellmod, p Uint) error {
 func (q *Poly) valid_mod(cell *Cellmod, p Uint) error {
 	// 次数は定義多項式以下
 	// 係数は p 未満
-	for cell.lv > q.lv {
+	for cell != nil && cell.lv > q.lv {
 		cell = cell.parent
 	}
 
-	if q.lv <= cell.lv {
+	if cell != nil && q.lv <= cell.lv {
 		if q.deg() >= cell.defpoly.deg() {
 			return fmt.Errorf("deg invalid. lv=%d, deg=%d, defpoly=%d", q.lv, q.deg(), cell.defpoly.deg())
 		}
@@ -86,7 +95,7 @@ func (p Uint) valid() error {
 }
 
 func (p Uint) Format(s fmt.State, format rune) {
-	fmt.Fprintf(s, "%"+string(format), uint32(p))
+	fmt.Fprintf(s, "%d", uint32(p))
 }
 
 func (p Uint) IsZero() bool {
@@ -295,6 +304,11 @@ func (f Uint) mul_mod(gg Moder, p Uint) Moder {
 }
 
 func (f *Poly) mul_uint_mod(g Uint, p Uint) Moder {
+	if g == 0 {
+		return g
+	} else if g == 1 {
+		return f
+	}
 	z := NewPoly(f.lv, len(f.c))
 	for i, cc := range f.c {
 		switch c := cc.(type) {
@@ -315,13 +329,12 @@ func (f *Poly) mul_poly_mod(g *Poly, p Uint) Moder {
 		for i := range z.c {
 			z.c[i] = f.mul_mod(g.mcoef(i), p)
 		}
-		return z
-	} else if f.lv > g.lv {
-		z := NewPoly(f.lv, len(f.c))
-		for i := range z.c {
-			z.c[i] = g.mul_mod(f.mcoef(i), p)
+		if err := z.valid(); err != nil {
+			panic(fmt.Sprintf("invalid 1 %v:%z: <%v,%v>\n", err, z, f, g))
 		}
 		return z
+	} else if f.lv > g.lv {
+		return g.mul_poly_mod(f, p)
 	}
 	z := NewPoly(f.lv, len(f.c)+len(g.c)-1)
 	for i := range z.c {
@@ -338,6 +351,9 @@ func (f *Poly) mul_poly_mod(g *Poly, p Uint) Moder {
 		}
 	}
 
+	if err := z.valid(); err != nil {
+		panic(fmt.Sprintf("invalid 3 %v:%z: <%v,%v>\n", err, z, f, g))
+	}
 	return z
 }
 
@@ -352,7 +368,52 @@ func (f *Poly) mul_mod(gg Moder, p Uint) Moder {
 	}
 }
 
+func (gorg *Poly) monicize(cell *Cellmod, p Uint) (Moder, Moder) {
+	// returns (c.g, c) where c.g is monic && c is lv(c) < lv(g)
+	g := gorg
+	if err := gorg.valid(); err != nil {
+		panic(fmt.Sprintf("monicize: %v: %v\n", gorg, err))
+	}
+	switch lc := g.lc().(type) {
+	case Uint:
+		if !lc.IsOne() {
+			if lc == 0 {
+				panic(fmt.Sprintf("not normalized: %v\n", gorg))
+			}
+			inv := lc.inv_mod(cell, p)
+			g = g.mul_mod(inv, p).(*Poly)
+			return g, inv
+		} else {
+			return g, Uint(1)
+		}
+	case *Poly:
+		inv := lc.inv_mod(cell, p)
+		if inv == nil {
+			// 定義多項式が因数分解されてしまった?
+			return nil, nil
+		}
+		if inv.IsZero() {
+			// 主係数は 0 だった.
+			g.c[g.deg()] = Uint(0)
+			switch gg := g.normalize().(type) {
+			case *Poly:
+				if gg.lv == gorg.lv {
+					return gg.monicize(cell, p)
+				}
+				// 数になった.
+				return g, Uint(1)
+			case Uint:
+				return g, Uint(1)
+			}
+		}
+		g = g.mul_mod(inv, p).simpl_mod(cell, p).(*Poly)
+		return g, inv
+	}
+	panic("?")
+}
+
 func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder) {
+	// returns (q, r) where f = q * g + r && deg(r) < deg(g)
 	// assume: f.lv == gorg.lv
 
 	if len(f.c) < len(gorg.c) {
@@ -363,34 +424,30 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 	// g を monic にする
 	///////////////////////////
 	g := gorg
-	switch lc := g.lc().(type) {
+	if err := g.valid(); err != nil {
+		panic(fmt.Sprintf("divmode: %v : %v\n", g, err))
+	}
+	_g, _inv := g.monicize(cell, p)
+	switch gg := _g.(type) {
+	case *Poly:
+		if gg.lv != gorg.lv {
+			return Uint(0), f
+		}
+		g = gg
 	case Uint:
-		if !lc.IsOne() {
-			inv := lc.inv_mod(cell, p)
-			g = g.mul_mod(inv, p).(*Poly)
+		return Uint(0), f
+	default:
+		// 定義多項式が分解された
+		return nil, nil
+	}
+
+	// g に inv かけたから, g にもかけよう
+	switch inv := _inv.(type) {
+	case Uint:
+		if inv != 1 {
 			f = f.mul_mod(inv, p).(*Poly)
 		}
 	case *Poly:
-		inv := lc.inv_mod(cell, p)
-		if inv == nil {
-			// 定義多項式が因数分解されてしまった?
-			return nil, nil
-		}
-		if inv.IsZero() {
-			// 主係数は 0 だった.
-			gorg.c[gorg.deg()] = Uint(0)
-			switch gg := gorg.normalize().(type) {
-			case *Poly:
-				if gg.lv == gorg.lv {
-					return f.divmod_poly_mod(gg, cell, p)
-				}
-				// 数になった.
-				return Uint(0), f
-			case Uint:
-				return Uint(0), f
-			}
-		}
-		g = g.mul_mod(inv, p).simpl_mod(cell, p).(*Poly)
 		switch ff := f.mul_mod(inv, p).simpl_mod(cell, p).(type) {
 		case *Poly:
 			f = ff
@@ -402,6 +459,11 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 		}
 	}
 
+	// 以下では復帰前に剰余に対して gorg.lc() をかける必要あり
+	// F = f*inv, G = g*inv
+	//     F = Q * G + R
+	// inv*f = Q * inv*g + R
+	//     f = Q * g + R*lc
 	q := NewPoly(f.lv, len(f.c)-len(g.c)+1)
 	for i := range q.c {
 		q.c[i] = Uint(0)
@@ -409,12 +471,17 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 	for j := len(f.c); f.lv == g.lv && len(f.c) >= len(g.c); j-- {
 		dd := len(f.c) - len(g.c)
 		q.c[dd] = f.lc()
-		cxn := NewPoly(f.lv, dd+1)
-		for i := range cxn.c {
-			cxn.c[i] = Uint(0)
+		var gg Moder
+		if dd == 0 {
+			gg = g.mul_mod(q.c[dd].(Moder), p)
+		} else {
+			cxn := NewPoly(f.lv, dd+1)
+			for i := range cxn.c {
+				cxn.c[i] = Uint(0)
+			}
+			cxn.c[dd] = f.lc()
+			gg = g.mul_poly_mod(cxn, p)
 		}
-		cxn.c[dd] = f.lc()
-		gg := g.mul_poly_mod(cxn, p)
 		switch f2 := f.sub_mod(gg, p).(type) {
 		case *Poly:
 			if f.lv == f2.lv && len(f.c) <= len(f2.c) {
@@ -430,8 +497,17 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 			return q.normalize().(Moder), rr.(Moder)
 		}
 	}
+	if err := f.valid(); err != nil {
+		panic(fmt.Sprintf("invalid f %v: %v,  <%v,%v>\n", f, err, f, gorg))
+	}
 	rr := f.mul_mod(gorg.lc().(Moder), p).(Moder)
+	if err := rr.valid(); err != nil {
+		panic(fmt.Sprintf("invalid rr0  %v: %v,  <%v,%v>\n", rr, err, f, gorg))
+	}
 	rr = rr.simpl_mod(cell, p)
+	if err := rr.valid_mod(cell, p); err != nil {
+		panic(fmt.Sprintf("invalid rr1 %v: %v,  <%v,%v>\n", rr, err, f, gorg))
+	}
 
 	return q.normalize().(Moder), rr
 }
@@ -664,10 +740,103 @@ func (p *Int) _crt_init(q Uint) *pqinf_interpol_t {
 	return pqinf
 }
 
-func (f *Poly) crt_interpol(g *Poly, p *Int, q Uint) (*Poly, *Int, bool) {
-	// returns (新しいの, 更新されたか)
+func (f *Poly) crt_interpol(frr *Poly, g *Poly, p *Int, q Uint) (*Poly, *Poly, *Int, bool) {
+	// returns (新しいの, 新しいのRR, p*q, 更新されたか)
+	if !g.lc().IsOne() {
+		panic("invalid")
+	}
+
 	pqinf := p._crt_init(q)
 
 	f2 := f.interpol_poly(g, pqinf)
-	return f2, pqinf.pq, f.Equals(f2)
+
+	bound := newInt()
+	bound.n.Quo(pqinf.pq.n, two.n)
+	bound.n.Sqrt(bound.n)
+	fr2 := f2.i2q(pqinf.pq, bound)
+	if fr2 != nil {
+		fr2, _ = fr2.pp()
+	}
+	return f2, fr2, pqinf.pq, frr != nil && fr2 != nil && frr.Equals(fr2)
+}
+
+func (f *Poly) i2q(p, b *Int) *Poly {
+	q := NewPoly(f.lv, len(f.c))
+	for i := range f.c {
+		switch c := f.c[i].(type) {
+		case *Poly:
+			qq := c.i2q(p, b)
+			if qq == nil {
+				return nil
+			}
+			q.c[i] = qq
+		case *Int:
+			q.c[i] = c.i2q(p, b)
+		default:
+			panic("unsupported")
+		}
+		if q.c[i] == nil {
+			return nil
+		}
+	}
+
+	return q
+}
+
+func (x *Int) i2q(p, b *Int) RObj {
+	// rational reconstruction
+	// p > x, gcd(p, x) = 1
+	// b = sqrt(p/2)
+	// returns bx = a mod p && |a|,|b| < sqrt(p/2)
+	// returns nil
+	if x.IsZero() {
+		return x
+	}
+	r0 := p.n
+	r1 := x.n
+	t1 := one.n
+	t0 := zero.n
+
+	for r1.Cmp(b.n) > 0 {
+		q := new(big.Int)
+		r := new(big.Int)
+		q.QuoRem(r0, r1, r)
+
+		r0, r1 = r1, r
+
+		r = new(big.Int)
+		r.Mul(q, t1)
+		r.Sub(t0, r)
+
+		t0, t1 = t1, r
+	}
+	if t1.Cmp(b.n) <= 0 {
+		r := new(big.Int)
+		sgn := 1
+		// Go1.14 前は r1, t1 正を要求
+		if r1.Sign() < 0 {
+			r1.Neg(r1)
+			sgn *= -1
+		}
+		if t1.Sign() < 0 {
+			t1.Neg(t1)
+			sgn *= -1
+		}
+		r.GCD(nil, nil, r1, t1)
+		if r.CmpAbs(one.n) == 0 {
+			if sgn < 0 {
+				r1.Neg(r1)
+			}
+			if t1.Cmp(one.n) == 0 {
+				q := newInt()
+				q.n.Set(r1)
+				return q
+			} else {
+				q := newRat()
+				q.n.SetFrac(r1, t1)
+				return q
+			}
+		}
+	}
+	return nil
 }

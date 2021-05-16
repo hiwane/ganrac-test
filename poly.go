@@ -3,6 +3,7 @@ package ganrac
 import (
 	"fmt"
 	"io"
+	"math/big"
 	"math/rand"
 )
 
@@ -81,10 +82,26 @@ func (z *Poly) valid() error {
 		return fmt.Errorf("coefs is null")
 	}
 	if len(z.c) < 2 {
-		return fmt.Errorf("[%d,%d]poly deg()<1 ... %v", z.lv, len(z.c), z)
+		return fmt.Errorf("[lv=%d,deg=%d] poly deg()<1 ... `%v`", z.lv, len(z.c), z)
 	}
 	if z.c[len(z.c)-1].IsZero() {
-		return fmt.Errorf("lc should not be zero... %v", z)
+		st := ""
+		switch tt := z.c[z.deg()].(type) {
+		case *Poly:
+			st = "poly"
+		case *Int:
+			st = "int"
+		case Uint:
+			st = fmt.Sprintf("uint:%v", uint32(tt))
+		case *Rat:
+			st = "rat"
+		case NObj:
+			st = fmt.Sprintf("nobj<%d>", tt.numTag())
+		default:
+			st = "?"
+		}
+
+		return fmt.Errorf("[lv=%d,deg=%d]lc<%s:%v> should not be zero... `%v`", z.lv, z.deg(), st, z.c[z.deg()], z)
 	}
 	for i, c := range z.c {
 		if c == nil {
@@ -1245,4 +1262,66 @@ func randPoly(r rand.Source, varn, deg, ccoef, num int) *Poly {
 			return p
 		}
 	}
+}
+
+func (porg *Poly) pp() (*Poly, RObj) {
+	ps := make([]*Poly, 1)
+	ps[0] = porg
+
+	var lcm *big.Int
+	var gcd *big.Int
+	wk := new(big.Int)
+	for len(ps) > 0 {
+		p := ps[len(ps)-1]
+		ps = ps[:len(ps)-1]
+
+		for i := range p.c {
+			if p.c[i].IsZero() {
+				continue
+			}
+			switch c := p.c[i].(type) {
+			case *Poly:
+				ps = append(ps, c)
+			case *Int:
+				if gcd == nil {
+					gcd = new(big.Int)
+					gcd.Abs(c.n)
+				} else {
+					wk.Abs(c.n)
+					gcd.GCD(nil, nil, gcd, wk)
+				}
+			case *Rat:
+				if lcm == nil {
+					lcm = new(big.Int)
+					lcm.Set(c.n.Denom())
+				} else {
+					wk.GCD(nil, nil, lcm, c.n.Denom())
+					wk.Quo(c.n.Denom(), wk)
+					lcm.Mul(lcm, wk)
+				}
+				if gcd == nil {
+					gcd = new(big.Int)
+					gcd.Abs(c.n.Num())
+				} else {
+					wk.Abs(c.n.Num())
+					gcd.GCD(nil, nil, gcd, wk)
+				}
+			default:
+				panic("")
+			}
+		}
+	}
+
+	if lcm == nil {
+		q := newInt()
+		q.n = gcd
+		p := porg.Div(q)
+		return p.(*Poly), q
+	} else {
+		q := newRat()
+		q.n.SetFrac(lcm, gcd)
+		p := porg.Mul(q)
+		return p.(*Poly), q
+	}
+
 }

@@ -567,3 +567,28 @@ func TestPQuoRem(t *testing.T) {
 		}
 	}
 }
+
+func TestPP(t *testing.T) {
+	for ii, s := range []struct {
+		f *Poly
+	}{
+		{
+			NewPolyCoef(0, 1, 3, -2, -4, 0, 6, 5),
+		},
+	} {
+		for jj, c := range []NObj{one, two, NewInt(123456), NewRatInt64(12, 17), NewRatInt64(17, 2)} {
+			f := s.f.Mul(c).(*Poly)
+			q, c := f.pp()
+			if !q.Equals(s.f) {
+				t.Errorf("<1,%d,%d> c=%v\norg   =%v\ninput =%v\noutput=%v\n", ii, jj, c, s.f, f, q)
+				continue
+			}
+
+			q, c = f.Neg().(*Poly).pp()
+			if !q.Equals(s.f.Neg()) {
+				t.Errorf("<2,%d,%d> c=%v\norg   =%v\ninput =%v\noutput=%v\n", ii, jj, c, s.f, f, q)
+				continue
+			}
+		}
+	}
+}

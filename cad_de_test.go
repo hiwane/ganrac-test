@@ -55,7 +55,7 @@ func TestSymSqfr(t *testing.T) {
 			sqfr := cad.sym_sqfr(ppp, cell)
 			var q RObj = one
 			for i, sq := range sqfr {
-				fmt.Printf("<%d> [%v]^%d\n", i, sq.p, sq.r)
+				//fmt.Printf("<%d> [%v]^%d\n", i, sq.p, sq.r)
 				if sq.r != s.r[i] {
 					t.Errorf("<%d> r[%d] expect=%d actual=%d\nret=%v", ii, i, s.r[i], sq.r, sq.p)
 					break
@@ -156,6 +156,7 @@ func TestSymGcdMod(t *testing.T) {
 	} {
 		fp := s.f.mod(s.p).(*Poly)
 		gp := s.g.mod(s.p).(*Poly)
+		//		fmt.Printf("<%d>===TestSymGcdMod() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
 		cellp, ok := cell1.mod(cad, s.p)
 		if !ok {
 			t.Errorf("not ok ii=%d", ii)
@@ -175,21 +176,25 @@ func TestSymGcdMod(t *testing.T) {
 				continue
 			}
 
-			dega := 0
-			if ap, ok := a.(*Poly); ok && gcd.lv == ap.lv {
-				dega = ap.deg()
-			}
-
-			degb := 0
-			if bp, ok := b.(*Poly); ok && gcd.lv == bp.lv {
-				degb = bp.deg()
-			}
+			dega := a.deg()
+			degb := b.deg()
 
 			if degb > fp.deg()-gcd.deg() || dega > gp.deg()-gcd.deg() {
-				t.Errorf("invalid gcd <a3, %d, %d>: %d, %d\nf=%v, g=%v\nexpect=%v\nactual=%v\na=%v\nb=%v\n",
-					ii, s.p, dega, degb, s.f, s.g, s.expect, gcd, a, b)
-				continue
+				t.Errorf("invalid gcd <a3, %d, %d>: %d, %d\nf=%v -> %v\ng=%v -> %v\nexpect=%v\nactual=%v\na=%v\nb=%v\n",
+					ii, s.p, dega, degb, s.f, fp, s.g, gp, s.expect, gcd, a, b)
+				return
 			}
+
+			gg := fp.mul_mod(a, s.p).add_mod(gp.mul_mod(b, s.p), s.p)
+			if !gcd.Equals(gg) {
+				t.Errorf("invalid gcd <a4, %d, %d>: %d, %d\nf=%v, g=%v\nfp=%v\ngp=%v\nexpect=%v\nactual=%v\ngg    =%v\nfpa=%v\ngpb=%v -> %v\na=%v\nb=%v\n",
+					ii, s.p, dega, degb, s.f, s.g, fp, gp, s.expect, gcd, gg,
+					fp.mul_mod(a, s.p), gp.mul_mod(b, s.p),
+					fp.mul_mod(a, s.p).add_mod(gp.mul_mod(b, s.p), s.p),
+					a, b)
+				return
+			}
+
 		}
 		if (a == nil) != s.celf {
 			t.Errorf("invalid gcd <a4, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\na=%v\nb=%v\n",
@@ -197,8 +202,6 @@ func TestSymGcdMod(t *testing.T) {
 			continue
 		}
 		if a == nil {
-			fmt.Printf("cellp1=%v\n", cellp.factor1)
-			fmt.Printf("cellp2=%v\n", cellp.factor2)
 			if cellp.factor1 == nil {
 				t.Errorf("invalid gcd <a5, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\na=%v\nb=%v\n",
 					ii, s.p, s.f, s.g, s.expect, gcd, a, b)
@@ -211,21 +214,82 @@ func TestSymGcdMod(t *testing.T) {
 			}
 		}
 
+		gcd3, a3, b3 := cad.symde_gcd_mod(gp, fp, cellp, s.p, true)
+		if gcd3 == nil {
+			if gcd != nil {
+				t.Errorf("invalid gcd <b1, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v :: %v\na=%v\nb=%v\n",
+					ii, s.p, s.f, s.g, s.expect, gcd3, gcd, a3, b3)
+				continue
+
+			}
+
+		} else if (gcd == nil) != (gcd3 != nil) && !gcd3.Equals(gcd) && !gcd3.add_mod(gcd, s.p).IsZero() {
+			t.Errorf("invalid gcd <b2, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v :: %v\na=%v\nb=%v\n",
+				ii, s.p, s.f, s.g, s.expect, gcd3, gcd, a3, b3)
+			continue
+		}
+		if a3 != nil && (b3 == nil || a3.deg() != b.deg() || b3.deg() != a.deg()) {
+			t.Errorf("invalid gcd <b3, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v :: %v\na=%v :: %v\nb=%v :: %v\n",
+				ii, s.p, s.f, s.g, s.expect, gcd3, gcd, a3, b, b3, a)
+			continue
+
+		}
+
 		gcd2, a2, _ := cad.symde_gcd_mod(fp, gp, cellp, s.p, false)
 		if (gcd == nil) != (gcd2 == nil) {
-			t.Errorf("invalid gcd <b1, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
+			t.Errorf("invalid gcd <c1, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
 				ii, s.p, s.f, s.g, s.expect, gcd)
 			continue
 		}
 		if gcd != nil && !gcd.Equals(gcd2) {
-			t.Errorf("invalid gcd <b2, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
+			t.Errorf("invalid gcd <c2, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
 				ii, s.p, s.f, s.g, s.expect, gcd)
 			continue
 		}
 		if a != nil && !a.Equals(a2) {
-			t.Errorf("invalid gcd <b3, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
+			t.Errorf("invalid gcd <c3, %d, %d>\nf=%v, g=%v\nexpect=%v\nactual=%v\n",
 				ii, s.p, s.f, s.g, s.expect, gcd)
 			continue
+		}
+	}
+}
+
+func TestSymGcd(t *testing.T) {
+	cad := new(CAD)
+	cad.root = NewCell(cad, nil, 0)
+	cell0 := NewCell(cad, nil, 1)
+	cell0.lv = 0
+	cell0.parent = cad.root
+	cell0.defpoly = NewPolyCoef(0, -2, 0, 1) // x^2-2
+	cell1 := NewCell(cad, nil, 1)
+	cell1.lv = 1
+	cell1.parent = cell0
+	cell1.defpoly = NewPolyCoef(1, -1, -2, 1) // y^2-2*y-1: y = 1 +- x
+
+	for ii, s := range []struct {
+		f, g   *Poly
+		expect *Poly
+	}{
+		{
+			NewPolyCoef(2, NewPolyCoef(0, -2, 1), -1, 1), // z^2-z+x-2
+			NewPolyCoef(2, NewPolyCoef(0, -2, 3), -3, 1), // z^2-3*z+3*x-2
+			NewPolyCoef(2, NewPolyCoef(0, 0, -1), 1),
+		},
+	} {
+		//fmt.Printf("<%d>===TestSymGcd() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
+		cell0 := NewCell(cad, nil, 1)
+		cell0.lv = 0
+		cell0.parent = cad.root
+		cell0.defpoly = NewPolyCoef(0, -2, 0, 1) // x^2-2
+		cell1 := NewCell(cad, nil, 1)
+		cell1.lv = 1
+		cell1.parent = cell0
+		cell1.defpoly = NewPolyCoef(1, -1, -2, 1) // y^2-2*y-1: y = 1 +- x
+
+		gcd, _, _ := cad.symde_gcd2(s.f, s.g, cell1, true, 0)
+
+		if !gcd.Equals(s.expect) {
+			t.Errorf("i=%d\nf  =%v\ng  =%v\nexp=%v\nact=%v", ii, s.f, s.g, s.expect, gcd)
 		}
 	}
 }

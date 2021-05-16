@@ -211,6 +211,39 @@ func (cad *CAD) symde_normalize(p *Poly, cell *Cell) RObj {
 	return zero
 }
 
+func (cad *CAD) symde_zero_chk2(porg *Poly, cell *Cell, pi int) bool {
+	for cell.lv > porg.lv {
+		cell = cell.parent
+	}
+
+	q, s2, _ := cad.symde_gcd2(cell.defpoly, porg, cell, false, pi)
+	if q == nil {
+		return false
+	}
+
+	if len(q.c) < len(cell.defpoly.c) {
+		// 定義多項式が分解できた
+		for prec := uint(50); ; prec += uint(50) {
+			fmt.Printf("input p=%v\n", porg)
+			cell.Print()
+			fmt.Printf("s2=%v\n", s2)
+			fmt.Printf("q=%v\n", q)
+			x1 := cell.subst_intv(cad, q, prec).(*Interval)          // GCD
+			x2 := cell.subst_intv(cad, s2.(*Poly), prec).(*Interval) // 外
+
+			if x1.ContainsZero() && !x2.ContainsZero() {
+				cell.defpoly = q
+				return true
+			} else if !x1.ContainsZero() && x2.ContainsZero() {
+				cell.defpoly = s2.(*Poly)
+				return false
+			}
+			panic("!")
+		}
+	}
+	return true
+}
+
 // p が 0 か判定する
 func (cad *CAD) symde_zero_chk(porg *Poly, cell *Cell) bool {
 	for cell.lv > porg.lv {
@@ -288,14 +321,17 @@ func (cad *CAD) symde_zero_chk_mod(forg *Poly, cell *Cellmod, p Uint) (bool, boo
 	}
 	if q.deg() < cell.defpoly.deg() {
 		// 定義多項式が分解できた.
-		cell.factor1 = q
+		ff, _ := q.monicize(cell, p)
+		cell.factor1 = ff.(*Poly)
+		ff, _ = cell.defpoly.divmod_poly_mod(cell.factor1, cell.parent, p)
+		cell.factor2 = ff.(*Poly)
 		return false, false
 	}
 
 	return true, true
 }
 
-func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bool) (*Poly, RObj, RObj) {
+func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bool) (*Poly, Moder, Moder) {
 	// returns (g, a, b) where g = gcd(forg, gorg), g = a * forg + b * gorg
 	// returns (nil, nil, nil) .... DE
 	// returns (nil, a, b) .... gcd(forg, gorg) = 1
@@ -306,30 +342,44 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 	var f, g *Poly
 	var s1, s2 Moder
 	var t1, t2 Moder
+	var s_1 Uint
 
-	var s_1 int
 	if len(forg.c) < len(gorg.c) {
 		f = gorg
 		g = forg
-		s_1 = 0
 	} else {
+		s_1 = 1
 		f = forg
 		g = gorg
-		s_1 = 1
 	}
 
-	s1 = Uint(s_1)
-	s2 = Uint(1 - s_1)
+	s1 = s_1
+	s2 = Uint(1) - s_1
 	t1 = s2
 	t2 = s1
 
 	for {
+		if err := g.valid(); err != nil {
+			panic(fmt.Sprintf("invalid g %v: %v,  <%v,%v>\n", g, err, forg, gorg))
+		}
 		q, rr := f.divmod_poly_mod(g, cell, p)
 		if q == nil {
 			return nil, nil, nil
 		}
+		if err := rr.valid_mod(cell, p); err != nil {
+			panic(fmt.Sprintf("invalid r %v: %v,  <%v,%v>\n", rr, err, forg, gorg))
+		}
 		if q.IsZero() && rr.IsZero() {
 			// f は zero だった...
+			return g, s2, t2
+		}
+		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
+			rr = r.simpl_mod(cell, p)
+		}
+		if err := rr.valid_mod(cell, p); err != nil {
+			panic(fmt.Sprintf("invalid %v: %v,  <%v,%v>\n", rr, err, forg, gorg))
+		}
+		if rr.IsZero() {
 			return g, s2, t2
 		}
 
@@ -338,9 +388,6 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 			t1, t2 = t2, t1.sub_mod(t2.mul_mod(q, p), p)
 		}
 
-		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
-			rr = r.simpl_mod(cell, p)
-		}
 		switch r := rr.(type) {
 		case *Poly:
 			if r.lv == g.lv {
@@ -372,7 +419,46 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 	}
 }
 
-func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RObj, RObj) {
+func (cad *CAD) test_div(h, f, g *Poly, cell *Cell, pi int) bool {
+	// assume: f.lc(), g.lc() in Z
+	// return h == f*g*c
+	var uu RObj
+
+	if g == nil {
+		// f は主係数が整数.
+		_, _, uu = h.pquorem(f)
+	} else {
+		fg := f.Mul(g).(*Poly)
+		hc := h.lc()
+		fgc := fg.lc()
+		uu = fg.Mul(hc).Sub(h.Mul(fgc))
+	}
+
+	switch u := uu.(type) {
+	case *Int:
+		return u.IsZero()
+	case *Poly:
+		if u.lv != h.lv {
+			return cad.symde_zero_chk2(u, cell, pi+1)
+		}
+		for i := range u.c {
+			switch c := u.c[i].(type) {
+			case *Poly:
+				if !cad.symde_zero_chk2(c, cell, pi+1) {
+					return false
+				}
+			case *Int:
+				if !c.IsZero() {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	panic("?")
+}
+
+func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool, pi int) (*Poly, RObj, RObj) {
 
 	if forg.lv != gorg.lv {
 		panic(fmt.Sprintf("invalid p=[%d,%d], q=[%d,%d]", forg.lv, forg.deg(), gorg.lv, gorg.deg()))
@@ -380,25 +466,27 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 
 	var f, g *Poly
 
-	if len(forg.c) < len(gorg.c) {
-		f = gorg
-		g = forg
-	} else {
-		f = forg
-		g = gorg
-	}
+	f = forg
+	g = gorg
 
 	var g_crt *Poly  // GCD
 	var s_crt *Poly  // f/GCD
 	var t_crt *Poly  // g/GCD
 	var f1_crt *Poly // factor1
 	var f2_crt *Poly // factor2
+
+	var g_rr *Poly  // GCD
+	var s_rr *Poly  // f/GCD
+	var t_rr *Poly  // g/GCD
+	var f1_rr *Poly // factor1
+	var f2_rr *Poly // factor2
+
 	var pm *Int
 	pos := 0
 	tried := false
 
 	count := 0
-	for _, p := range lprime_table {
+	for pidx, p := range lprime_table[pi:] {
 		fp, ok := f.mod(p).(*Poly)
 		if !ok || fp.lv != f.lv || fp.deg() != f.deg() { // unlucky
 			continue
@@ -409,6 +497,10 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 		}
 		cellp, ok := cell.mod(cad, p)
 		if !ok {
+			if pos == 2 { // 他の素数では，この段階で共通因子なかった
+				continue
+			}
+
 			unlucky := false
 			c := cellp
 			for ; c != nil; c = c.parent {
@@ -422,15 +514,14 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 			if unlucky {
 				continue
 			}
-			if pos == 2 { // 他の素数では，この段階で共通因子なかった
-				continue
-			}
 
 			pos = 1
 			if f1_crt == nil || c.lv != f1_crt.lv && count >= 5 ||
 				c.lv == f1_crt.lv && f1_crt.deg() > c.factor1.deg() {
 				f1_crt = c.factor1
 				f2_crt = c.factor2
+				f1_rr = nil
+				f2_rr = nil
 				pm = NewInt(int64(p))
 				count = 0
 				tried = false
@@ -447,11 +538,11 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 
 			// CRT する.
 			no_chg := true
-			f1_crt, _, ok = f1_crt.crt_interpol(c.factor1, pm, p)
+			f1_crt, f1_rr, _, ok = f1_crt.crt_interpol(f1_rr, c.factor1, pm, p)
 			if !ok {
 				no_chg = false
 			}
-			f2_crt, pm, ok = f2_crt.crt_interpol(c.factor2, pm, p)
+			f2_crt, f2_rr, pm, ok = f2_crt.crt_interpol(f2_rr, c.factor2, pm, p)
 			if !ok {
 				no_chg = false
 			}
@@ -483,13 +574,21 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 			// 1回目
 			f1_crt = nil
 			f2_crt = nil
+			f1_rr = nil
+			f2_rr = nil
 
-			g_crt = gcd
-			if gcd.deg() < forg.deg() {
+			ggg, _ := gcd.monicize(cellp, p)
+			g_crt = ggg.(*Poly)
+			g_rr = nil
+			if _s, ok := s.(*Poly); ok && _s.lv == g_crt.lv {
+				s, _ = s.(*Poly).monicize(cellp, p)
 				s_crt = s.(*Poly)
+				s_rr = nil
 			}
-			if need_t && gcd.deg() < gorg.deg() {
+			if _t, ok := s.(*Poly); need_t && ok && _t.lv == g_crt.lv {
+				t, _ = t.(*Poly).monicize(cellp, p)
 				t_crt = t.(*Poly)
+				t_rr = nil
 			}
 			pm = NewInt(int64(p))
 			tried = false
@@ -503,24 +602,39 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, RO
 
 		no_chg := true
 		if s_crt != nil {
-			s_crt, _, ok = s_crt.crt_interpol(s.(*Poly), pm, p)
+			s, _ = s.(*Poly).monicize(cellp, p)
+			s_crt, s_rr, _, ok = s_crt.crt_interpol(s_rr, s.(*Poly), pm, p)
 			if !ok {
 				no_chg = false
 			}
 		}
 		if t_crt != nil {
-			t_crt, _, ok = t_crt.crt_interpol(t.(*Poly), pm, p)
+			t, _ = t.(*Poly).monicize(cellp, p)
+			t_crt, t_rr, _, ok = t_crt.crt_interpol(t_rr, t.(*Poly), pm, p)
 			if !ok {
 				no_chg = false
 			}
 		}
-		g_crt, pm, ok = g_crt.crt_interpol(g, pm, p)
+		ggg, _ := gcd.monicize(cellp, p)
+		g_crt, g_rr, pm, ok = g_crt.crt_interpol(g_rr, ggg.(*Poly), pm, p)
 		if !ok {
 			no_chg = false
 		}
 
 		if no_chg && !tried {
 			// 試し割り
+			if g_rr.deg() == forg.deg() {
+				return forg, one, zero
+			}
+			if g_rr.deg() == gorg.deg() {
+				return gorg, zero, one
+			}
+
+			if cad.test_div(forg, g_rr, s_rr, cell, pi+pidx) {
+				return g_rr, s_rr, t_rr
+			}
+			fmt.Printf("try failed\n")
+			panic("!")
 			tried = true
 		} else {
 			tried = false
