@@ -93,6 +93,7 @@ type CAD struct {
 	pl4const []*ProjLink   // 定数用 0, +, -
 	stack    *cellStack
 	root     *Cell
+	rootp    *Cellmod
 	g        *Ganrac
 	stat     CADStat
 	nwo      bool // well-oriented
@@ -214,6 +215,7 @@ _NEXT:
 	}
 
 	c.root = NewCell(c, nil, 0)
+	c.rootp = NewCellmod(c.root)
 	c.stack = newCellStack()
 	c.stack.push(c.root)
 

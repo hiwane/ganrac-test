@@ -734,8 +734,8 @@ func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
 		} else {
 			// 一致しないので区間を改善
 			for k := 0; ; k++ {
-				ci.improveIsoIntv(true)
-				cj.improveIsoIntv(false)
+				ci.improveIsoIntv(ci.defpoly, true)
+				cj.improveIsoIntv(cj.defpoly, false)
 				if s, _ := cad.cellcmp(cj, ci); s < 0 {
 					cret = append(cret, cj)
 					j++
@@ -926,17 +926,20 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 			}
 		}
 	}
-
 	p, c, s := cell.make_cells_try1(cad, pf, p)
 	if p == nil {
 		return c, s
 	}
 
-	p, c, s = cell.make_cells_try1(cad, pf, cell.reduce(p)) // とりあえず簡単化してみる
+	q := cell.reduce(p)
+
+	// @TODO ここで Z 上因数分解できるケースがある.
+	// adam2-1, 98-23, 85-19.
+
+	p, c, s = cell.make_cells_try1(cad, pf, q) // とりあえず簡単化してみる
 	if p == nil {
 		return c, s
 	}
-
 	return cell.make_cells_i(cad, pf, p)
 }
 
@@ -979,10 +982,8 @@ func (cell *Cell) subst_intv(cad *CAD, p *Poly, prec uint) RObj {
 	return pp
 }
 
-func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, sign_t) {
+func (cell *Cell) subst_intv_nozero(cad *CAD, p *Poly) *Poly {
 	prec := uint(53)
-
-	p := porg.Clone()
 	pp := cell.subst_intv(cad, p, prec).(*Poly)
 	if !pp.isUnivariate() {
 		panic("invalid")
@@ -990,16 +991,34 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 
 	for i, c := range pp.c {
 		if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
-			if cad.sym_zero_chk(porg.c[i].(*Poly), cell) {
+			if cad.sym_zero_chk(p.c[i].(*Poly), cell) {
 				pp.c[i] = zero.toIntv(prec)
 				p.c[i] = zero
 			} else {
 				// 精度をあげる
-				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, porg.c[i], c)
-				panic("unimplemented")
+				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, p.c[i], c)
+				for prec = uint(53 * 2); prec < 1000; prec += 53 {
+					cell.improveIsoIntv(p, true)
+					pp.c[i] = cell.subst_intv(cad, p.c[i].(*Poly), prec)
+					fmt.Printf("pp[%d]=%v\n", i, pp.c[i])
+					if !pp.c[i].(*Interval).ContainsZero() {
+						break
+					}
+				}
+				if prec >= 1000 {
+					panic(fmt.Sprintf("unimplemented; %d", prec))
+				}
 			}
 		}
 	}
+	return pp
+}
+
+func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, sign_t) {
+	prec := uint(53)
+
+	p := porg.Clone()
+	pp := cell.subst_intv_nozero(cad, p)
 
 	sgn := sign_t(pp.Sign())
 	cells := make([][]*Cell, 0)
@@ -1036,26 +1055,14 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 	if err == nil {
 		cells = append(cells, c)
 	} else if hmf := pf.hasMultiFctr(cad, cell); hmf != 0 {
-		ps := cad.sym_sqfr(p, cell)
+		ps := cad.sym_sqfr2(p, cell)
 
 		// もし分解されていなかったら...
 
 		for _, poly_mul := range ps {
 			prec = uint(53)
 			p := poly_mul.p
-			pp := cell.subst_intv(cad, poly_mul.p, prec).(*Poly)
-			for i, c := range pp.c {
-				if c.(*Interval).ContainsZero() && !c.(*Interval).IsZero() {
-					if cad.sym_zero_chk(p.c[i].(*Poly), cell) {
-						p.c[i] = zero
-						pp.c[i] = zero.toIntv(prec)
-					} else {
-						// 精度をあげる
-						fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, porg.c[i], c)
-						panic("unimplemented")
-					}
-				}
-			}
+			pp := cell.subst_intv_nozero(cad, p)
 
 			for prec := uint(53); ; prec += 53 {
 				c, err := cell.root_iso_i(cad, pf, p, pp, prec, poly_mul.r)
@@ -1108,12 +1115,15 @@ func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint,
 	return cells, nil
 }
 
-func (cell *Cell) improveIsoIntv(parent bool) {
+func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 	// 分離区間の改善
 	if parent && cell.lv >= 0 {
-		cell.parent.improveIsoIntv(parent)
+		cell.parent.improveIsoIntv(p, parent)
 	}
 	if cell.defpoly == nil {
+		return
+	}
+	if p.Deg(cell.lv) <= 0 {
 		return
 	}
 

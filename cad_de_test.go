@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+// func TestSymSqfr2(t *testing.T) {
+// 	p := NewPolyCoef(2,
+// 			NewPolyCoef(1, ParseInt("-4722201209543931678482839880788832023380506408746984383", 10), ParseInt("7037081672937279457168302335815099996936095844515446784", 10), ParseInt("-7370402196928139846235864997969418656470294922939858944", 10)),
+// 			NewPolyCoef(1, ParseInt("-937089791168204322416009923114557457813156603499642880", 10), ParseInt("695112178837912870216157370077032489892039416212357120", 10), ParseInt("-59907021258380514474371077442594431218361575250329600", 10)),
+// 			NewPolyCoef(1, ParseInt("-46489827399607932944452513320345263121254652785459200", 10), ParseInt("1412477194662381313033576520811520736137630973952000", 10), ParseInt("30100594890350423012826167438885134580526627998924800", 10)))
+// 	d := NewPolyCoef(1,
+// 			ParseInt("189708409272553183839474655", 10),
+// 			ParseInt("-1436744321078070999056602079", 10),
+// 			ParseInt("-5184691718935390049781415936", 10),
+// 			ParseInt("5196819548962240103538753536", 10))
+// }
+
 func TestSymSqfr(t *testing.T) {
 	// ox は必要ないのだけど．
 	g := NewGANRAC()
@@ -24,49 +36,67 @@ func TestSymSqfr(t *testing.T) {
 	cad.initProj(0)
 	g.ox = nil
 	cell := NewCell(cad, cad.root, 1)
-	cell.defpoly = NewPolyCoef(0, -2, 0, 1)
+	cell.defpoly = NewPolyCoef(0, -2, 0, 1) // x^2-2
 	for ii, s := range []struct {
 		p *Poly
 		r []mult_t
 		d []int
 	}{
-		{
+		{ // 0
 			NewPolyCoef(3, -3, 7, -5, 1),
 			[]mult_t{1, 2},
 			[]int{1, 1},
-		}, {
+		}, { // 1
 			NewPolyCoef(3, -5, 15, -16, 8, -3, 1),
 			[]mult_t{1, 3},
 			[]int{2, 1},
-		}, {
-			NewPolyCoef(3, NewInt(2), NewPolyCoef(0, 0, -2), NewInt(1)),
+		}, { // 2
+			NewPolyCoef(3, 2, NewPolyCoef(0, 0, -2), 1),
 			[]mult_t{2},
 			[]int{1},
-		}, {
-			NewPolyCoef(3, NewPolyCoef(0, 0, 0, 0, 0, -1), NewPolyCoef(0, 0, 10), NewInt(-12), NewPolyCoef(0, 0, -4), NewInt(8)),
+		}, { // 3
+			NewPolyCoef(3, NewPolyCoef(0, 0, -2), 6, NewPolyCoef(0, 0, -3), 1),
+			[]mult_t{3},
+			[]int{1},
+		}, { // 4
+			// x^4-a*x^3-3*a^2*x^2+5*a^3*x-2*a^4
+			NewPolyCoef(1, -8, NewPolyCoef(0, 0, 0, 0, 5), NewPolyCoef(0, 0, 0, -3), NewPolyCoef(0, 0, -1), 1),
+			[]mult_t{1, 3},
+			[]int{1, 1},
+		}, { // 5
+			NewPolyCoef(3, NewPolyCoef(0, 0, 0, 0, 0, -1), NewPolyCoef(0, 0, 10), -12, NewPolyCoef(0, 0, -4), 8),
 			[]mult_t{1, 3},
 			[]int{1, 1},
 		},
 	} {
-		for _, ppp := range []*Poly{
+
+		for jj, ppp := range []*Poly{
 			s.p, s.p.Neg().(*Poly),
 			s.p.subsXinv(), s.p.subsXinv().Neg().(*Poly)} {
 
-			sqfr := cad.sym_sqfr(ppp, cell)
+			// fmt.Printf("TestSymSqfr(%d,%d) ppp=%v ===========================\n", ii, jj, ppp)
+
+			sqfr := cad.sym_sqfr2(ppp, cell)
 			var q RObj = one
+			hasErr := false
 			for i, sq := range sqfr {
 				//fmt.Printf("<%d> [%v]^%d\n", i, sq.p, sq.r)
 				if sq.r != s.r[i] {
-					t.Errorf("<%d> r[%d] expect=%d actual=%d\nret=%v", ii, i, s.r[i], sq.r, sq.p)
-					break
+					t.Errorf("<%d,%d> r[%d] expect=%d actual=%d\nret=%v", ii, jj, i, s.r[i], sq.r, sq.p)
+					hasErr = true
+					return
 				}
 				if len(sq.p.c)-1 != s.d[i] {
 					t.Errorf("<%d> d[%d] expect=%d\nactual=%d\nret=%v", ii, i, s.d[i], sq.p, sq)
+					hasErr = true
 					break
 				}
 
 				qq := sq.p.Pow(NewInt(int64(sq.r)))
 				q = Mul(qq, q)
+			}
+			if hasErr {
+				break
 			}
 			qq := Sub(Mul(q, ppp.lc()), Mul(ppp, q.(*Poly).lc()))
 			if !qq.IsZero() {
@@ -101,6 +131,7 @@ func TestSymSqfr(t *testing.T) {
 func TestSymGcdMod(t *testing.T) {
 	cad := new(CAD)
 	cad.root = NewCell(cad, nil, 0)
+	cad.rootp = NewCellmod(cad.root)
 	cell0 := NewCell(cad, nil, 1)
 	cell0.lv = 0
 	cell0.parent = cad.root
@@ -156,7 +187,7 @@ func TestSymGcdMod(t *testing.T) {
 	} {
 		fp := s.f.mod(s.p).(*Poly)
 		gp := s.g.mod(s.p).(*Poly)
-		//		fmt.Printf("<%d>===TestSymGcdMod() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
+		fmt.Printf("<%d>===TestSymGcdMod() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
 		cellp, ok := cell1.mod(cad, s.p)
 		if !ok {
 			t.Errorf("not ok ii=%d", ii)
@@ -257,6 +288,7 @@ func TestSymGcdMod(t *testing.T) {
 func TestSymGcd(t *testing.T) {
 	cad := new(CAD)
 	cad.root = NewCell(cad, nil, 0)
+	cad.rootp = NewCellmod(cad.root)
 	cell0 := NewCell(cad, nil, 1)
 	cell0.lv = 0
 	cell0.parent = cad.root
@@ -276,7 +308,7 @@ func TestSymGcd(t *testing.T) {
 			NewPolyCoef(2, NewPolyCoef(0, 0, -1), 1),
 		},
 	} {
-		//fmt.Printf("<%d>===TestSymGcd() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
+		fmt.Printf("<%d>===TestSymGcd() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
 		cell0 := NewCell(cad, nil, 1)
 		cell0.lv = 0
 		cell0.parent = cad.root
@@ -286,7 +318,7 @@ func TestSymGcd(t *testing.T) {
 		cell1.parent = cell0
 		cell1.defpoly = NewPolyCoef(1, -1, -2, 1) // y^2-2*y-1: y = 1 +- x
 
-		gcd, _, _ := cad.symde_gcd2(s.f, s.g, cell1, true, 0)
+		gcd, _ := cad.symde_gcd2(s.f, s.g, cell1, 0)
 
 		if !gcd.Equals(s.expect) {
 			t.Errorf("i=%d\nf  =%v\ng  =%v\nexp=%v\nact=%v", ii, s.f, s.g, s.expect, gcd)

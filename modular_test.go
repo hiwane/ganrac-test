@@ -40,6 +40,7 @@ func TestModularInvUint(t *testing.T) {
 func TestModularInvPoly(t *testing.T) {
 	cad := new(CAD)
 	cad.root = NewCell(cad, nil, 0)
+	cad.rootp = NewCellmod(cad.root)
 	cell0 := NewCell(cad, nil, 1)
 	cell0.lv = 0
 	cell0.parent = cad.root
@@ -94,6 +95,38 @@ func TestModularInvPoly(t *testing.T) {
 				t.Errorf("a=%v, p=%d, b=%v, ab=%v", a, p, b, ab)
 				return
 			}
+		}
+	}
+}
+
+func TestModularInvPoly2(t *testing.T) {
+	cad := new(CAD)
+	cad.root = NewCell(cad, nil, 0)
+	cad.rootp = NewCellmod(cad.root)
+
+	cell_adam21 := NewCell(cad, nil, 1)
+	cell_adam21.lv = 0
+	cell_adam21.parent = cad.root
+	cell_adam21.defpoly = NewPolyCoef(0, 81249991, 81249992, 95312485, 29687508, 12499979, 12500027, 99999954, 50000029, 99999963, 14, 99999984, 1)
+
+	for ii, s := range []struct {
+		a    *Poly
+		p    Uint
+		cell *Cell
+	}{
+		{
+			NewPolyCoef(0, 49999995, 50000002, 62499957, 37500086, 99999832, 227, 99999709, 276, 99999781, 112, 99999949, 8),
+			99999989,
+			cell_adam21,
+		},
+	} {
+		cell, _ := s.cell.mod(cad, s.p)
+		a := s.a.mod(s.p)
+		inv := a.inv_mod(cell, s.p)
+		u := a.mul_mod(inv, s.p)
+		v := u.simpl_mod(cell, s.p)
+		if !v.IsOne() {
+			t.Errorf("TestModularInvPoly2(%d)\na=%v\nu=%v\nv=%v\n", ii, a, u, v)
 		}
 	}
 }

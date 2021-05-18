@@ -401,13 +401,13 @@ func (gorg *Poly) monicize(cell *Cellmod, p Uint) (Moder, Moder) {
 					return gg.monicize(cell, p)
 				}
 				// 数になった.
-				return g, Uint(1)
+				return gg, Uint(1)
 			case Uint:
-				return g, Uint(1)
+				return gg, Uint(1)
 			}
 		}
-		g = g.mul_mod(inv, p).simpl_mod(cell, p).(*Poly)
-		return g, inv
+		gg := g.mul_mod(inv, p).simpl_mod(cell, p)
+		return gg, inv
 	}
 	panic("?")
 }
@@ -435,6 +435,9 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 		}
 		g = gg
 	case Uint:
+		if gg == 0 {
+			return gg, gg
+		}
 		return Uint(0), f
 	default:
 		// 定義多項式が分解された
@@ -550,10 +553,13 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 
 	for ; cell.lv > f.lv; cell = cell.parent {
 	}
+	if cell == nil || cell.lv != f.lv {
+		panic(fmt.Sprintf("no-cell... %d: f=%v", cell.lv, f))
+	}
 
 	f0 := cell.defpoly
 	f1 := f
-	for i := len(f.c); i >= 0; i-- {
+	for i := len(f.c) * 3; i >= 0; i-- {
 		q, r := f0.divmod_poly_mod(f1, cell.parent, p)
 		if q == nil {
 			return nil
@@ -572,6 +578,14 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 		s1, s0 = s0.sub_mod(s1.mul_mod(q, p), p), s1
 		switch rr := r.(type) {
 		case *Poly:
+			if rr.lv != f1.lv {
+				rinv := rr.inv_mod(cell.parent, p)
+				if rinv == nil {
+					return rinv
+				}
+				return s1.mul_mod(rinv, p)
+			}
+
 			f1, f0 = rr, f1
 		case Uint:
 			if rr == 1 {
@@ -586,7 +600,8 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 		}
 	}
 
-	fmt.Printf("    f=%v\n", f)
+	fmt.Printf("inv_mod(%d)    f1=%v\n", p, f1)
+	fmt.Printf("inv_mod(%d)    rr=%v\n", p, f)
 	cell.cell.Print("cellp")
 	panic("why?")
 }
