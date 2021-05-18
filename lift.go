@@ -963,28 +963,38 @@ func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 	panic("unimplemented")
 }
 
-func (cell *Cell) subst_intv(cad *CAD, p *Poly, prec uint) RObj {
-	pp := p.toIntv(prec).(*Poly)
-	for c := cell; c != cad.root; c = c.parent {
-		if !p.hasVar(c.lv) {
-			continue
-		}
-		x := c.getNumIsoIntv(prec)
-		qq := pp.subst1(x, c.lv)
-		if qq.IsNumeric() {
-			return qq
-		}
-		pp = qq.(*Poly)
+func (cell *Cell) _subst_intv(p *Poly, prec uint) RObj {
+	for cell.lv > p.lv {
+		cell = cell.parent
 	}
-	if err := pp.valid(); err != nil {
+	for i, _c := range p.c {
+		if c, ok := _c.(*Poly); ok {
+			p.c[i] = cell._subst_intv(c, prec)
+		}
+	}
+	if err := p.valid(); err != nil {
 		panic(err)
 	}
-	return pp
+	if p.lv != cell.lv {
+		return p
+	}
+	x := cell.getNumIsoIntv(prec)
+	qq := p.subst1(x, p.lv)
+	return qq
+}
+
+func (cell *Cell) subst_intv(p *Poly, prec uint) RObj {
+	pp := p.toIntv(prec).(*Poly)
+	for cell.lv > p.lv {
+		cell = cell.parent
+	}
+
+	return cell._subst_intv(pp, prec)
 }
 
 func (cell *Cell) subst_intv_nozero(cad *CAD, p *Poly) *Poly {
 	prec := uint(53)
-	pp := cell.subst_intv(cad, p, prec).(*Poly)
+	pp := cell.subst_intv(p, prec).(*Poly)
 	if !pp.isUnivariate() {
 		panic("invalid")
 	}
@@ -999,7 +1009,7 @@ func (cell *Cell) subst_intv_nozero(cad *CAD, p *Poly) *Poly {
 				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, p.c[i], c)
 				for prec = uint(53 * 2); prec < 1000; prec += 53 {
 					cell.improveIsoIntv(p, true)
-					pp.c[i] = cell.subst_intv(cad, p.c[i].(*Poly), prec)
+					pp.c[i] = cell.subst_intv(p.c[i].(*Poly), prec)
 					fmt.Printf("pp[%d]=%v\n", i, pp.c[i])
 					if !pp.c[i].(*Interval).ContainsZero() {
 						break
@@ -1060,28 +1070,28 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		// もし分解されていなかったら...
 
 		for _, poly_mul := range ps {
-			prec = uint(53)
 			p := poly_mul.p
-			pp := cell.subst_intv_nozero(cad, p)
 
-			for prec := uint(53); ; prec += 53 {
+			for prec = uint(53); ; prec += 53 {
+				pp := cell.subst_intv_nozero(cad, p)
 				c, err := cell.root_iso_i(cad, pf, p, pp, prec, poly_mul.r)
 				if err == nil {
 					cells = append(cells, c)
 					break
 				}
-				panic("gege")
+				cell.improveIsoIntv(poly_mul.p, true)
 			}
 		}
 	} else {
 		// 係数の符号が確定している.
-		for prec := uint(53); ; prec += 53 {
+		for prec += 60; prec < 500; prec += 53 {
+			pp = cell.subst_intv_nozero(cad, p)
 			c, err := cell.root_iso_i(cad, pf, porg, pp, prec, 1)
 			if err == nil {
 				cells = append(cells, c)
 				break
 			}
-			panic("gege")
+			cell.improveIsoIntv(porg, true)
 		}
 	}
 
@@ -1123,25 +1133,29 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 	if cell.defpoly == nil {
 		return
 	}
-	if p.Deg(cell.lv) <= 0 {
+	if p != nil && p.Deg(cell.lv) <= 0 {
+		// 関係ないセルは改善しなくても良い
 		return
 	}
 
 	switch l := cell.intv.inf.(type) {
 	case *BinInt:
 		// binint ということは, realroot の出力であり，１変数多項式
-		m := l.midBinIntv()
-		v := m.subst_poly(cell.defpoly, cell.defpoly.lv)
-		if v.Sign() < 0 && cell.sgn_of_left < 0 || v.Sign() > 0 && cell.sgn_of_left > 0 {
-			cell.intv.inf = m
-			cell.intv.sup = m.upperBound()
-		} else if v.Sign() != 0 {
-			cell.intv.inf = l.halveIntv()
-			cell.intv.sup = m
-		} else {
-			cell.defpoly = nil
-			cell.intv.inf = l
-			cell.intv.sup = m
+		for ii := 0; ii < 30; ii++ {
+			m := l.midBinIntv()
+			v := m.subst_poly(cell.defpoly, cell.defpoly.lv)
+			if v.Sign() < 0 && cell.sgn_of_left < 0 || v.Sign() > 0 && cell.sgn_of_left > 0 {
+				cell.intv.inf = m
+				cell.intv.sup = m.upperBound()
+			} else if v.Sign() != 0 {
+				cell.intv.inf = l.halveIntv()
+				cell.intv.sup = m
+			} else {
+				cell.defpoly = nil
+				cell.intv.inf = l
+				cell.intv.sup = m
+				break
+			}
 		}
 		cell.nintv = nil
 		return
@@ -1151,8 +1165,33 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 		return
 	}
 
+	var prec uint
+	for prec = cell.nintv.Prec() + 64; prec < 1000; prec += 60 {
+		for _, point := range []float64{0.5, 0.25, 0.75, 0.125, 0.875} {
+			mid := cell.nintv.mid(point, prec)
+			vv := NewIntervalFloat(mid, prec)
+			pp := cell.defpoly.toIntv(prec).(*Poly)
+			p2 := cell.parent.subst_intv(pp, prec).(*Poly)
+			p3 := p2.subst1(vv, cell.lv).(*Interval)
+			if !p3.ContainsZero() {
+				iv := newInterval(prec)
+				if p3.Sign()*int(cell.sgn_of_left) > 0 {
+					iv.inf.Set(mid)
+					iv.sup.Set(cell.nintv.sup)
+				} else {
+					iv.inf.Set(cell.nintv.inf)
+					iv.sup.Set(mid)
+				}
+				cell.nintv = iv
+				return
+			}
+			cell.parent.improveIsoIntv(nil, true)
+			fmt.Printf("p[%v]=%v\n", prec, p3)
+		}
+	}
+
 	cell.Print()
-	panic("unimplemented")
+	panic(fmt.Sprintf("unimplemented: prec=%d", prec))
 }
 
 func (cell *Cell) valid(cad *CAD) error {

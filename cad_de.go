@@ -234,8 +234,8 @@ func (cad *CAD) symde_zero_chk2(porg *Poly, cell *Cell, pi int) bool {
 			cell.Print()
 			fmt.Printf("s2=%v\n", s2)
 			fmt.Printf("q=%v\n", q)
-			x1 := cell.subst_intv(cad, q, prec).(*Interval)  // GCD
-			x2 := cell.subst_intv(cad, s2, prec).(*Interval) // 外
+			x1 := cell.subst_intv(q, prec).(*Interval)  // GCD
+			x2 := cell.subst_intv(s2, prec).(*Interval) // 外
 
 			if x1.ContainsZero() && !x2.ContainsZero() {
 				cell.defpoly = q
@@ -244,7 +244,8 @@ func (cad *CAD) symde_zero_chk2(porg *Poly, cell *Cell, pi int) bool {
 				cell.defpoly = s2
 				return false
 			}
-			panic("!")
+
+			cell.improveIsoIntv(cell.defpoly, true)
 		}
 	}
 	return true
@@ -271,8 +272,8 @@ func (cad *CAD) symde_zero_chk(porg *Poly, cell *Cell) bool {
 			fmt.Printf("     s2=%v\n", s2)
 			fmt.Printf("      q=%v\n", q)
 
-			x1 := cell.subst_intv(cad, q, prec).(*Interval)          // GCD
-			x2 := cell.subst_intv(cad, s2.(*Poly), prec).(*Interval) // 外
+			x1 := cell.subst_intv(q, prec).(*Interval)          // GCD
+			x2 := cell.subst_intv(s2.(*Poly), prec).(*Interval) // 外
 
 			if x1.ContainsZero() && !x2.ContainsZero() {
 				cell.defpoly = q
@@ -342,9 +343,9 @@ func (cad *CAD) symde_zero_chk_mod(forg *Poly, cell *Cellmod, p Uint) (bool, boo
 	}
 	if q.deg() < cell.defpoly.deg() {
 		// 定義多項式が分解できた.
-		ff, _ := q.monicize(cell, p)
+		ff, _, _ := q.monicize(cell, p)
 		cell.factor1 = ff.(*Poly)
-		ff, _ = cell.defpoly.divmod_poly_mod(cell.factor1, cell.parent, p)
+		ff, _, _ = cell.defpoly.divmod_poly_mod(cell.factor1, cell.parent, p)
 		cell.factor2 = ff.(*Poly)
 		return false, false
 	}
@@ -383,15 +384,21 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 		if err := g.valid(); err != nil {
 			panic(fmt.Sprintf("invalid g %v: %v,  <%v,%v>\n", g, err, forg, gorg))
 		}
-		q, rr := f.divmod_poly_mod(g, cell, p)
-		if q == nil {
+		q, rr, gmod := f.divmod_poly_mod(g, cell, p)
+		if err := gmod.valid(); err != nil {
+			panic(fmt.Sprintf("invalid g %v: %v [%d,%d,%d]\n", gmod, err, deg(forg), deg(gorg), deg(f)))
+		}
+		if q == nil { // 定義多項式が分解された
 			return nil, nil, nil
+		}
+		if gg, ok := gmod.(*Poly); ok {
+			g = gg
 		}
 		if err := rr.valid_mod(cell, p); err != nil {
 			panic(fmt.Sprintf("invalid r %v: %v,  <%v,%v>\n", rr, err, forg, gorg))
 		}
 		if q.IsZero() && rr.IsZero() {
-			// f は zero だった...
+			// f は zero だった...前のループの結果を返す.
 			return g, s2, t2
 		}
 		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
@@ -411,10 +418,15 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 
 		switch r := rr.(type) {
 		case *Poly:
-			if r.lv == g.lv {
+			if r.lv == f.lv {
 				f, g = g, r
 				continue
 			} else {
+				fmt.Printf("f.%d=%v\n", forg.lv, forg)
+				fmt.Printf("g.%d=%v\n", gorg.lv, gorg)
+				fmt.Printf("g.%d=%v\n", g.lv, g)
+				fmt.Printf("cell.%d=%v\n", cell.lv, cell)
+				fmt.Printf("r.%d=%v\n", r.lv, r)
 				c := cell
 				for r.lv != c.lv {
 					c = c.parent
@@ -589,7 +601,7 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 			f1_rr = nil
 			f2_rr = nil
 
-			ggg, _ := gcd.monicize(cellp, p)
+			ggg, _, _ := gcd.monicize(cellp, p)
 			g_crt = ggg.(*Poly)
 			g_rr = nil
 			pm = NewInt(int64(p))
@@ -603,7 +615,7 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 		}
 
 		no_chg := true
-		ggg, _ := gcd.monicize(cellp, p)
+		ggg, _, _ := gcd.monicize(cellp, p)
 		g_crt, g_rr, pm, ok = g_crt.crt_interpol(g_rr, ggg.(*Poly), pm, p)
 		if !ok {
 			no_chg = false

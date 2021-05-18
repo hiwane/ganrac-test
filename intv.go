@@ -370,3 +370,12 @@ func (x *Interval) Subst(v []RObj, lv []Level, idx int) RObj {
 func (x *Interval) toIntv(prec uint) RObj {
 	return x
 }
+
+func (x *Interval) mid(p float64, prec uint) *big.Float {
+	l := big.NewFloat(p)
+	r := big.NewFloat(1 - p)
+	l.Mul(l, x.inf)
+	r.Mul(r, x.sup)
+	r.Add(l, r)
+	return r
+}

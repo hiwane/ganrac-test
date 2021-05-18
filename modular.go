@@ -368,8 +368,9 @@ func (f *Poly) mul_mod(gg Moder, p Uint) Moder {
 	}
 }
 
-func (gorg *Poly) monicize(cell *Cellmod, p Uint) (Moder, Moder) {
-	// returns (c.g, c) where c.g is monic && c is lv(c) < lv(g)
+func (gorg *Poly) monicize(cell *Cellmod, p Uint) (Moder, Moder, Moder) {
+	// returns (c.g, c, g) where c.g is monic && lv(c) < lv(g)
+	// g は数だったかもしれないし，適切に簡略化されたもの.
 	g := gorg
 	if err := gorg.valid(); err != nil {
 		panic(fmt.Sprintf("monicize: %v: %v\n", gorg, err))
@@ -382,69 +383,79 @@ func (gorg *Poly) monicize(cell *Cellmod, p Uint) (Moder, Moder) {
 			}
 			inv := lc.inv_mod(cell, p)
 			g = g.mul_mod(inv, p).(*Poly)
-			return g, inv
+			return g, inv, gorg
 		} else {
-			return g, Uint(1)
+			return g, Uint(1), gorg
 		}
 	case *Poly:
 		inv := lc.inv_mod(cell, p)
 		if inv == nil {
 			// 定義多項式が因数分解されてしまった?
-			return nil, nil
+			return nil, nil, gorg
 		}
 		if inv.IsZero() {
 			// 主係数は 0 だった.
 			g.c[g.deg()] = Uint(0)
 			switch gg := g.normalize().(type) {
 			case *Poly:
+				if err := gg.valid(); err != nil {
+					panic(fmt.Sprintf("monicize: %v: %v\n", gg, err))
+				}
 				if gg.lv == gorg.lv {
 					return gg.monicize(cell, p)
 				}
 				// 数になった.
-				return gg, Uint(1)
+				return gg, Uint(1), gg
 			case Uint:
-				return gg, Uint(1)
+				return gg, Uint(1), gg
 			}
 		}
 		gg := g.mul_mod(inv, p).simpl_mod(cell, p)
-		return gg, inv
+		if err := gorg.valid(); err != nil {
+			panic(fmt.Sprintf("monicize: %v: %v\n", gorg, err))
+		}
+		return gg, inv, gorg
 	}
 	panic("?")
 }
 
-func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder) {
-	// returns (q, r) where f = q * g + r && deg(r) < deg(g)
+func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder, Moder) {
+	// returns (q, r, g) where f = q * g + r && deg(r) < deg(g)
 	// assume: f.lv == gorg.lv
 
+	if err := f.valid(); err != nil {
+		panic(fmt.Sprintf("invalid f %v: %v %v\n", f, err, []int{deg(f), deg(gorg)}))
+	}
+	if err := gorg.valid(); err != nil {
+		panic(fmt.Sprintf("invalid g %v: %v %v\n", gorg, err, []int{deg(f), deg(gorg)}))
+	}
+
 	if len(f.c) < len(gorg.c) {
-		return Uint(0), f
+		return Uint(0), f, gorg
 	}
 
 	///////////////////////////
 	// g を monic にする
 	///////////////////////////
 	g := gorg
-	if err := g.valid(); err != nil {
-		panic(fmt.Sprintf("divmode: %v : %v\n", g, err))
-	}
-	_g, _inv := g.monicize(cell, p)
+	_g, _inv, gc := g.monicize(cell, p)
 	switch gg := _g.(type) {
 	case *Poly:
 		if gg.lv != gorg.lv {
-			return Uint(0), f
+			return Uint(0), f, gc
 		}
 		g = gg
 	case Uint:
 		if gg == 0 {
-			return gg, gg
+			return gg, gg, gc
 		}
-		return Uint(0), f
+		return Uint(0), f, gc
 	default:
 		// 定義多項式が分解された
-		return nil, nil
+		return nil, nil, gc
 	}
 
-	// g に inv かけたから, g にもかけよう
+	// g に inv かけたから, f にもかけよう
 	switch inv := _inv.(type) {
 	case Uint:
 		if inv != 1 {
@@ -455,10 +466,10 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 		case *Poly:
 			f = ff
 			if f.lv != g.lv {
-				return Uint(0), f
+				return Uint(0), f, gc
 			}
 		case Uint:
-			return Uint(0), ff
+			return Uint(0), ff, gc
 		}
 	}
 
@@ -497,25 +508,28 @@ func (f *Poly) divmod_poly_mod(gorg *Poly, cell *Cellmod, p Uint) (Moder, Moder)
 			f = f2
 		case Uint:
 			rr := f2.mul_mod(gorg.lc().(Moder), p)
-			return q.normalize().(Moder), rr.(Moder)
+			if err := rr.valid_mod(cell, p); err != nil {
+				panic(fmt.Sprintf("invalid rr1 %v: %v,  <%v,%v>\n", rr, err, f, gorg))
+			}
+			return q.normalize().(Moder), rr.(Moder), gc
 		}
 	}
 	if err := f.valid(); err != nil {
 		panic(fmt.Sprintf("invalid f %v: %v,  <%v,%v>\n", f, err, f, gorg))
 	}
-	rr := f.mul_mod(gorg.lc().(Moder), p).(Moder)
-	if err := rr.valid(); err != nil {
-		panic(fmt.Sprintf("invalid rr0  %v: %v,  <%v,%v>\n", rr, err, f, gorg))
-	}
+	rr := f.mul_mod(gorg.lc().(Moder), p)
 	rr = rr.simpl_mod(cell, p)
 	if err := rr.valid_mod(cell, p); err != nil {
 		panic(fmt.Sprintf("invalid rr1 %v: %v,  <%v,%v>\n", rr, err, f, gorg))
 	}
 
-	return q.normalize().(Moder), rr
+	return q.normalize().(Moder), rr, gc
 }
 
 func (u *Poly) simpl_mod(cell *Cellmod, p Uint) Moder {
+	if err := u.valid(); err != nil {
+		panic(fmt.Sprintf("invalid u %v: %v\n", u, err))
+	}
 	if cell == nil {
 		return u
 	}
@@ -523,7 +537,7 @@ func (u *Poly) simpl_mod(cell *Cellmod, p Uint) Moder {
 		cell = cell.parent
 	}
 	if cell.lv == u.lv {
-		_, vv := u.divmod_poly_mod(cell.defpoly, cell.parent, p)
+		_, vv, _ := u.divmod_poly_mod(cell.defpoly, cell.parent, p)
 		if vv == nil {
 			return nil
 		}
@@ -559,8 +573,8 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 
 	f0 := cell.defpoly
 	f1 := f
-	for i := len(f.c) * 3; i >= 0; i-- {
-		q, r := f0.divmod_poly_mod(f1, cell.parent, p)
+	for i := len(f.c) * 3; i >= 0; i-- { // 無限ループ対策....
+		q, r, _ := f0.divmod_poly_mod(f1, cell.parent, p)
 		if q == nil {
 			return nil
 		}
