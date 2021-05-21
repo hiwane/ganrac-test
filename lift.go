@@ -1084,11 +1084,36 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		}
 	}
 
+	// 偶関数か.
+	even := 1
+	for pp.isEven() {
+		even *= 2
+		qq := NewPoly(pp.lv, pp.deg()/2+1)
+		q := NewPoly(p.lv, len(qq.c))
+		for i := 0; i < len(qq.c); i++ {
+			qq.c[i] = pp.c[2*i]
+			q.c[i] = p.c[2*i]
+		}
+
+		pp = qq
+		p = q
+	}
+
 	c, err := cell.root_iso_i(cad, pf, p, pp, prec, 1)
 	if err == nil {
 		cells = append(cells, c)
 	} else if hmf := pf.hasMultiFctr(cad, cell); hmf != 0 {
-		ps := cad.sym_sqfr2(p, cell)
+
+		var ps []*cadSqfr
+		if hmf == PF_EVAL_YES && p.deg() == 2 {
+			// 2次のときは微分したら良いよ
+			jk := p.diff(p.lv).(*Poly)
+			jk, _ = jk.pp()
+			ps = []*cadSqfr{newCadSqfr(nil, jk, 2)}
+		} else {
+			ps = cad.sym_sqfr2(p, cell)
+		}
+
 		if hmf == PF_EVAL_YES && len(ps) == 1 && ps[0].r == 1 {
 			// 分解されなかった...
 			fmt.Printf("p=%v: hmf=%v\n", p, hmf)
@@ -1099,7 +1124,6 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		}
 
 		// もし分解されていなかったら...
-
 		for _, poly_mul := range ps {
 			p := poly_mul.p
 
@@ -1126,7 +1150,67 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		}
 	}
 
-	return cad.cellmerge(cells, false), sgn
+	ccc := cad.cellmerge(cells, false)
+	for even > 1 {
+		cx := make([]*Cell, 0, len(ccc))
+		for i := len(ccc) - 1; i >= 0; i-- {
+			c := ccc[i]
+			if c.Sign() > 0 {
+				c.Square(even) // 2乗する
+				cx = append(cx, c.Neg())
+			}
+		}
+		for _, c := range ccc {
+			if c.Sign() >= 0 {
+				cx = append(cx, c)
+			}
+		}
+		ccc = cx
+		break
+	}
+
+	return ccc, sgn
+}
+
+func (cell *Cell) Square(even int) {
+	p := NewPoly(cell.lv, cell.defpoly.deg()*even+1)
+	for i := 0; i < len(p.c); i++ {
+		p.c[i] = zero
+	}
+	for i := 0; i < len(cell.defpoly.c); i++ {
+		p.c[i*even] = cell.defpoly.c[i]
+	}
+	cell.defpoly = p
+	for e := 1; e < even; e *= 2 {
+		cell.nintv.inf.Sqrt(cell.nintv.inf)
+		cell.nintv.sup.Sqrt(cell.nintv.sup)
+	}
+}
+
+func (cell *Cell) Neg() *Cell {
+	c := new(Cell)
+	*c = *cell
+	c.nintv = newInterval(cell.nintv.Prec())
+	c.nintv.inf.Neg(cell.nintv.sup)
+	c.nintv.sup.Neg(cell.nintv.inf)
+	return c
+}
+
+func (cell *Cell) Sign() int {
+	if cell.intv.inf != nil {
+		if cell.intv.inf.Sign() > 0 {
+			return 1
+		} else if cell.intv.sup.Sign() < 0 {
+			return -1
+		}
+	} else {
+		if cell.nintv.inf.Sign() > 0 {
+			return 1
+		} else if cell.nintv.sup.Sign() < 0 {
+			return -1
+		}
+	}
+	return 0
 }
 
 func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint, multiplicity mult_t) ([]*Cell, error) {

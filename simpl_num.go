@@ -591,10 +591,10 @@ func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 			continue
 		}
 
-		pos = neg2.intersect(pos)	// 判別式が負 かつ 主係数が正
+		pos = neg2.intersect(pos) // 判別式が負 かつ 主係数が正
 		pret = pret.union(pos)
 
-		neg = neg2.intersect(neg)	// 判別式が負 かつ 主係数が負
+		neg = neg2.intersect(neg) // 判別式が負 かつ 主係数が負
 		nret = nret.union(neg)
 		// fmt.Printf("-- neg2=%v\n", neg2)
 		// fmt.Printf("-- pos=%v -> %v\n", pos, pret)

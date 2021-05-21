@@ -361,11 +361,11 @@ func (g *Ganrac) qe_andor(fof FofAO, opt QEopt, cond qeCond) Fof {
 			}
 		}
 
-	fmt.Printf("qeao [%4d,%d,1] %v\n", cond.depth, i, f)
+		fmt.Printf("qeao [%4d,%d,1] %v\n", cond.depth, i, f)
 		f = g.simplify(f, opt, cond2)
-	fmt.Printf("qeao [%4d,%d,2] %v\n", cond.depth, i, f)
+		fmt.Printf("qeao [%4d,%d,2] %v\n", cond.depth, i, f)
 		f = g.qe(f, opt, cond2)
-	fmt.Printf("qeao [%4d,%d,3] %v\n", cond.depth, i, f)
+		fmt.Printf("qeao [%4d,%d,3] %v\n", cond.depth, i, f)
 		fmls[i] = g.simplify(f, opt, cond2)
 		switch fmls[i].(type) {
 		case *AtomT:

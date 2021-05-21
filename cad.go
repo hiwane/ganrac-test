@@ -85,20 +85,20 @@ type CADStat struct {
 }
 
 type CAD struct {
-	fml      Fof           // qff
-	output   Fof           // qff
-	q        []int8        // quantifier
-	proj     []ProjFactors // [level]
-	u        []*Interval   // [level]
-	pl4const []*ProjLink   // 定数用 0, +, -
-	stack    *cellStack
-	root     *Cell
-	rootp    *Cellmod
-	g        *Ganrac
-	stat     CADStat
-	nwo      bool // well-oriented
-	stage    int8
-	VerboseLevel	int
+	fml          Fof           // qff
+	output       Fof           // qff
+	q            []int8        // quantifier
+	proj         []ProjFactors // [level]
+	u            []*Interval   // [level]
+	pl4const     []*ProjLink   // 定数用 0, +, -
+	stack        *cellStack
+	root         *Cell
+	rootp        *Cellmod
+	g            *Ganrac
+	stat         CADStat
+	nwo          bool // well-oriented
+	stage        int8
+	VerboseLevel int
 }
 
 func qeCAD(fml Fof) Fof {

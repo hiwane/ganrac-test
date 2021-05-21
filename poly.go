@@ -1331,3 +1331,12 @@ func (porg *Poly) pp() (*Poly, RObj) {
 	}
 
 }
+
+func (p *Poly) isEven() bool {
+	for i := 1; i < len(p.c); i += 2 {
+		if !p.c[i].IsZero() {
+			return false
+		}
+	}
+	return true
+}
