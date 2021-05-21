@@ -9,6 +9,31 @@ import (
 	"math/big"
 )
 
+func (cell *Cell) Precs() []uint {
+	prec := make([]uint, cell.lv+1)
+	c := cell
+	for c.lv >= 0 {
+		prec[c.lv] = c.Prec()
+		c = c.parent
+	}
+	return prec
+}
+
+func (cell *Cell) Prec() uint {
+	if cell.defpoly == nil {
+		return 0
+	}
+	switch l := cell.intv.inf.(type) {
+	case *BinInt:
+		if l.m > 0 {
+			return 0
+		} else {
+			return uint(-l.m)
+		}
+	}
+	return cell.nintv.Prec()
+}
+
 func (cell *Cell) Index() []uint {
 	// インデックスを返す. 論文は 1 始まりだが，0 始まりであることに注意
 	// つまり， section は奇数である
@@ -295,7 +320,9 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 }
 
 func (cell *Cell) lift(cad *CAD) error {
-	fmt.Printf("lift (%v)\n", cell.Index())
+	if cad.VerboseLevel >= 1 {
+		fmt.Printf("lift (%v)\n", cell.Index())
+	}
 	cad.stat.lift++
 	ciso := make([][]*Cell, cad.proj[cell.lv+1].Len())
 	signs := make([]sign_t, len(ciso))
@@ -511,10 +538,6 @@ func (cad *CAD) midSamplePoint(c, d *Cell) NObj {
 
 	rat := newRat()
 	f.Rat(rat.n)
-
-	fmt.Printf("c:%v, %v -> %v\n", c.Index(), c.intv.sup, ci.sup)
-	fmt.Printf("d:%v, %v -> %v\n", d.Index(), d.intv.inf, di.inf)
-	fmt.Printf("m:%v, %v\n", f, rat)
 
 	return rat
 }
@@ -852,7 +875,7 @@ func (cell *Cell) make_cells_try1(cad *CAD, pf ProjFactor, pr RObj) (*Poly, []*C
 	// returns (p, c, s)
 	// 子供セルが作れたら， p=nil, s=pfに cell 代入したときの主係数の符号
 	// 子供セルが作れなかったら p != nil, (c,s) は使わない
-	fmt.Printf("  make_cells_try1(%v, %d) pr=%v->%v\n", cell.Index(), pf.Index(), pf.P(), pr)
+	// fmt.Printf("  make_cells_try1(%v, %d) pr=%v->%v\n", cell.Index(), pf.Index(), pf.P(), pr)
 
 	switch p := pr.(type) {
 	case *Poly:
@@ -1066,6 +1089,14 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		cells = append(cells, c)
 	} else if hmf := pf.hasMultiFctr(cad, cell); hmf != 0 {
 		ps := cad.sym_sqfr2(p, cell)
+		if hmf == PF_EVAL_YES && len(ps) == 1 && ps[0].r == 1 {
+			// 分解されなかった...
+			fmt.Printf("p=%v: hmf=%v\n", p, hmf)
+			for _, poly_mul := range ps {
+				fmt.Printf("p=(%v)^(%d)\n", poly_mul.p, poly_mul.r)
+			}
+			panic("??")
+		}
 
 		// もし分解されていなかったら...
 
@@ -1156,6 +1187,7 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 				cell.intv.sup = m
 				break
 			}
+			l = cell.intv.inf.(*BinInt)
 		}
 		cell.nintv = nil
 		return
@@ -1165,6 +1197,7 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 		return
 	}
 
+	fmt.Printf("prec=%v\n", cell.nintv.Prec())
 	var prec uint
 	for prec = cell.nintv.Prec() + 64; prec < 1000; prec += 60 {
 		for _, point := range []float64{0.5, 0.25, 0.75, 0.125, 0.875} {
@@ -1173,6 +1206,7 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 			pp := cell.defpoly.toIntv(prec).(*Poly)
 			p2 := cell.parent.subst_intv(pp, prec).(*Poly)
 			p3 := p2.subst1(vv, cell.lv).(*Interval)
+			fmt.Printf("p[%v,%.3f]=%e: %v\n", prec, point, p3, cell.Precs())
 			if !p3.ContainsZero() {
 				iv := newInterval(prec)
 				if p3.Sign()*int(cell.sgn_of_left) > 0 {
@@ -1185,9 +1219,8 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 				cell.nintv = iv
 				return
 			}
-			cell.parent.improveIsoIntv(nil, true)
-			fmt.Printf("p[%v]=%v\n", prec, p3)
 		}
+		cell.parent.improveIsoIntv(nil, true)
 	}
 
 	cell.Print()

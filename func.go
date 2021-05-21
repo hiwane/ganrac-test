@@ -134,6 +134,7 @@ Examples*
   > print(C, "cell", 1, 1);
   > print(C, "stat");
 `},
+		{"qe", 1, 1, funcQE, true, "(FOF [, opt]): real quantifier elimination", ""},
 		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly): real root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x]): root bound", `
 Args
@@ -146,7 +147,7 @@ Examples
   3
 `},
 		{"save", 2, 3, funcSave, false, "(obj, fname): save object...", ""},
-		{"simpl", 1, 2, funcSimplify, false, "(Fof): simplify formula FoF", ""},
+		{"simpl", 1, 2, funcSimplify, true, "(Fof): simplify formula FoF", ""},
 		{"sleep", 1, 1, funcSleep, false, "(milisecond): zzz", ""},
 		// {"sqfr", 1, 1, funcSqfr, false, "(poly)* square-free factorization", ""},
 		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
@@ -378,6 +379,8 @@ func funcSimplify(g *Ganrac, name string, args []interface{}) (interface{}, erro
 		return nil, fmt.Errorf("%s() expected FOF", name)
 	}
 
+	c = c.simplFctr(g)
+	c = c.simplBasic(trueObj, falseObj)
 	c, t, f := c.simplNum(g, nil, nil)
 	fmt.Printf("true =%v\n", t)
 	fmt.Printf("false=%v\n", f)
@@ -601,6 +604,17 @@ func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	}
 
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
+}
+
+func funcQE(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	fof, ok := args[0].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected Fof: %v", name, args[0])
+	}
+
+	var opt QEopt
+
+	return g.QE(fof, opt), nil
 }
 
 func funcRealRoot(g *Ganrac, name string, args []interface{}) (interface{}, error) {

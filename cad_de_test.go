@@ -2,6 +2,7 @@ package ganrac
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 )
 
@@ -22,6 +23,7 @@ func TestSymSqfr(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestSymSqfr... (no ox)\n")
 		return
 	}
 	defer connc.Close()
@@ -37,57 +39,90 @@ func TestSymSqfr(t *testing.T) {
 	g.ox = nil
 	cell := NewCell(cad, cad.root, 1)
 	cell.defpoly = NewPolyCoef(0, -2, 0, 1) // x^2-2
+
+	// all([w], (y^2-x)*w^4+(z^2+2*x*z+(-x+1)*y^2-2*x*y-x)*w^2+(-x+1)*z^2<=0);
+	// lift(12, 7, 1)
+	cell_adam3y := NewCell(cad, cad.root, 7)
+	cell_adam3y.defpoly = NewPolyCoef(0, 5, 10, 4)
+	cell_adam3y.intv.inf = NewBinInt(big.NewInt(-741937353), -30)
+	cell_adam3y.intv.sup = NewBinInt(big.NewInt(-741937352), -30)
+
+	cell_adam3z := NewCell(cad, cell_adam3y, 1)
+	cell_adam3z.defpoly = NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, -40), 20, 1)
+	cell_adam3z.nintv = NewIntervalInt64(3, 53)
+	cell_adam3z.nintv.inf.SetFloat64(-18.506509)
+	cell_adam3z.nintv.sup.SetFloat64(-18.506507)
+
 	for ii, s := range []struct {
-		p *Poly
-		r []mult_t
-		d []int
+		p    *Poly
+		r    []mult_t
+		d    []int
+		cell *Cell
 	}{
 		{ // 0
 			NewPolyCoef(3, -3, 7, -5, 1),
 			[]mult_t{1, 2},
 			[]int{1, 1},
+			cell,
 		}, { // 1
 			NewPolyCoef(3, -5, 15, -16, 8, -3, 1),
 			[]mult_t{1, 3},
 			[]int{2, 1},
+			cell,
 		}, { // 2
 			NewPolyCoef(3, 2, NewPolyCoef(0, 0, -2), 1),
 			[]mult_t{2},
 			[]int{1},
+			cell,
 		}, { // 3
 			NewPolyCoef(3, NewPolyCoef(0, 0, -2), 6, NewPolyCoef(0, 0, -3), 1),
 			[]mult_t{3},
 			[]int{1},
+			cell,
 		}, { // 4
 			// x^4-a*x^3-3*a^2*x^2+5*a^3*x-2*a^4
 			NewPolyCoef(1, -8, NewPolyCoef(0, 0, 0, 0, 5), NewPolyCoef(0, 0, 0, -3), NewPolyCoef(0, 0, -1), 1),
 			[]mult_t{1, 3},
 			[]int{1, 1},
+			cell,
 		}, { // 5
 			NewPolyCoef(3, NewPolyCoef(0, 0, 0, 0, 0, -1), NewPolyCoef(0, 0, 10), -12, NewPolyCoef(0, 0, -4), 8),
 			[]mult_t{1, 3},
 			[]int{1, 1},
+			cell,
+		}, { // 6
+			NewPolyCoef(2, NewPolyCoef(1, 0, 0, -4), 0, NewPolyCoef(1, NewPolyCoef(0, -5, -10, -4), 10, 1), 0, NewPolyCoef(0, -5, 0, 1)),
+			[]mult_t{2},
+			[]int{2},
+			cell_adam3z,
 		},
 	} {
-
 		for jj, ppp := range []*Poly{
 			s.p, s.p.Neg().(*Poly),
 			s.p.subsXinv(), s.p.subsXinv().Neg().(*Poly)} {
 
 			// fmt.Printf("TestSymSqfr(%d,%d) ppp=%v ===========================\n", ii, jj, ppp)
 
-			sqfr := cad.sym_sqfr2(ppp, cell)
+			sqfr := cad.sym_sqfr2(ppp, s.cell)
 			var q RObj = one
 			hasErr := false
 			for i, sq := range sqfr {
 				//fmt.Printf("<%d> [%v]^%d\n", i, sq.p, sq.r)
 				if sq.r != s.r[i] {
-					t.Errorf("<%d,%d> r[%d] expect=%d actual=%d\nret=%v", ii, jj, i, s.r[i], sq.r, sq.p)
+					t.Errorf("<%d,%d,%d,r>\nexpect=%v\nactual=%d\nret=%v", ii, jj, i, s.r[i], sq.r, sq.p)
+					for i, sqx := range sqfr {
+						t.Errorf("<%d>: (%v)^(%d)", i, sqx.p, sqx.r)
+					}
 					hasErr = true
 					return
 				}
-				if len(sq.p.c)-1 != s.d[i] {
-					t.Errorf("<%d> d[%d] expect=%d\nactual=%d\nret=%v", ii, i, s.d[i], sq.p, sq)
+				if sq.p.deg() != s.d[i] {
+					t.Errorf("<%d,%d,%d,degree>\nexpect=%v\nactual=%d\nret=%v", ii, jj, i, s.d[i], sq.r, sq.p)
+
+					for i, sqx := range sqfr {
+						t.Errorf("<%d>: (%v)^(%d)", i, sqx.p, sqx.r)
+					}
+
 					hasErr = true
 					break
 				}
@@ -106,7 +141,7 @@ func TestSymSqfr(t *testing.T) {
 						for _, qc := range qx.c {
 							switch qcc := qc.(type) {
 							case *Poly:
-								if !cad.sym_zero_chk(qcc, cell) {
+								if !cad.sym_zero_chk(qcc, s.cell) {
 									flag = false
 								}
 							case NObj:
@@ -118,7 +153,7 @@ func TestSymSqfr(t *testing.T) {
 						if flag {
 							continue
 						}
-					} else if cad.sym_zero_chk(qx, cell) {
+					} else if cad.sym_zero_chk(qx, s.cell) {
 						continue
 					}
 				}
@@ -187,7 +222,8 @@ func TestSymGcdMod(t *testing.T) {
 	} {
 		fp := s.f.mod(s.p).(*Poly)
 		gp := s.g.mod(s.p).(*Poly)
-		fmt.Printf("<%d>===TestSymGcdMod() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
+
+		// fmt.Printf("<%d>===TestSymGcdMod() ======================================\nf=%v\ng=%v\n", ii, s.f, s.g)
 		cellp, ok := cell1.mod(cad, s.p)
 		if !ok {
 			t.Errorf("not ok ii=%d", ii)

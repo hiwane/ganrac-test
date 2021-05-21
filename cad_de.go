@@ -483,6 +483,134 @@ func (cad *CAD) test_div(h, f *Poly, cell *Cell, pi int) (bool, *Poly) {
 	panic("?")
 }
 
+type fctr_crt_t struct {
+	fint *Poly
+	frr  *Poly
+	pm   *Int
+}
+
+type fctr_cellcrt_t struct {
+	a     fctr_crt_t
+	b     fctr_crt_t
+	count int
+	tried bool
+}
+
+func (crt *fctr_crt_t) update(g *Poly, c *Cellmod, p Uint) bool {
+
+	if crt.fint == nil || crt.fint.deg() > g.deg() {
+		// 1回目.
+		ggg, _, _ := g.monicize(c, p)
+		crt.fint = ggg.(*Poly)
+
+		crt.frr = nil
+		crt.pm = NewInt(int64(p))
+		return false
+	}
+
+	if crt.fint.deg() < g.deg() { // 偽因子
+		return false
+	}
+
+	// CRT する.
+	var no_chg bool
+	ggg, _, _ := g.monicize(c, p)
+	crt.fint, crt.frr, crt.pm, no_chg = crt.fint.crt_interpol(crt.frr, ggg.(*Poly), crt.pm, p)
+	return no_chg
+}
+
+func (crt *fctr_cellcrt_t) update(cad *CAD, cell *Cell, cellp *Cellmod, p Uint) bool {
+	c := cellp
+	for ; c != nil; c = c.parent {
+		if c.factor1 != nil {
+			if c.parent == nil {
+				return false
+			}
+			break
+		}
+	}
+	if c == nil {
+		panic("????")
+	}
+
+	if crt.a.fint != nil && c.lv != crt.a.fint.lv && crt.count >= 5 {
+		// なんかヘンなのでリセット
+		crt.count = 0
+		crt.a.fint = nil
+		crt.b.fint = nil
+	} else if crt.a.fint != nil && c.lv != crt.a.fint.lv {
+		crt.count++
+		return false
+	} else if crt.a.fint != nil && crt.a.fint.deg() < c.factor1.deg() {
+		// 偽因子
+		return false
+	}
+
+	if c.factor1.deg()+c.factor2.deg() != c.defpoly.deg() {
+		panic("?")
+	}
+
+	crt.count = 0
+	no_chg := crt.a.update(c.factor1, c, p)
+	if crt.a.frr == nil {
+		// 1回目扱いだった
+		crt.b.fint = nil
+	}
+	no_chg = no_chg && crt.b.update(c.factor2, c, p)
+	if !no_chg {
+		return false
+	}
+
+	for ; cell.lv != c.lv; cell = cell.parent {
+		break
+	}
+
+	ab := crt.a.frr.Mul(crt.b.frr).(*Poly)
+	cs := make([]RObj, 0, 1)
+
+	switch d_ab := cell.defpoly.Mul(ab.lc()).Sub(ab.Mul(cell.defpoly.lc())).(type) {
+	case *Poly:
+		if d_ab.lv == cell.lv {
+			cs = d_ab.c
+		} else {
+			cs = append(cs, d_ab)
+		}
+	default:
+		cs = append(cs, d_ab)
+	}
+
+	for _, cci := range cs {
+		switch ci := cci.(type) {
+		case *Poly:
+			if !cad.sym_zero_chk(ci, cell.parent) {
+				return false
+			}
+		default:
+			if !ci.IsZero() {
+				return false
+			}
+		}
+	}
+
+	// どっちを選ぶか..
+	for prec := cell.Prec(); prec < 1000; prec += 53 {
+
+		x1 := cell.subst_intv(crt.a.frr, prec).(*Interval)
+		x2 := cell.subst_intv(crt.b.frr, prec).(*Interval)
+
+		if x1.ContainsZero() && !x2.ContainsZero() {
+			cell.defpoly = crt.a.frr
+			return true
+		} else if !x1.ContainsZero() && x2.ContainsZero() {
+			cell.defpoly = crt.b.frr
+			return false
+		}
+		cell.improveIsoIntv(nil, true)
+	}
+
+	panic("prec")
+}
+
 func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) {
 	// assume: forg.lv == gorg.lv
 	// returns (gcd(f,g), f/gcd(f,g) or nil)
@@ -497,19 +625,11 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 	f = forg
 	g = gorg
 
-	var g_crt *Poly  // GCD
-	var f1_crt *Poly // factor1
-	var f2_crt *Poly // factor2
+	var gcd_crt fctr_crt_t
+	var defp_crt fctr_cellcrt_t
 
-	var g_rr *Poly  // GCD
-	var f1_rr *Poly // factor1
-	var f2_rr *Poly // factor2
-
-	var pm *Int
 	pos := 0
 	tried := false
-
-	count := 0
 	for pidx, p := range lprime_table[pi:] {
 		fp, ok := f.mod(p).(*Poly)
 		if !ok || fp.lv != f.lv || fp.deg() != f.deg() { // unlucky
@@ -521,63 +641,16 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 		}
 		cellp, ok := cell.mod(cad, p)
 		if !ok {
-			if pos == 2 { // 他の素数では，この段階で共通因子なかった
+			if pos >= 2 { // 他の素数では，この段階で共通因子なかった
 				continue
 			}
 
-			unlucky := false
-			c := cellp
-			for ; c != nil; c = c.parent {
-				if c.factor1 != nil {
-					if c.parent == nil {
-						unlucky = true // 既約なはず.
-					}
-					break
-				}
-			}
-			if unlucky {
-				continue
-			}
-
-			pos = 1
-			if f1_crt == nil || c.lv != f1_crt.lv && count >= 5 ||
-				c.lv == f1_crt.lv && f1_crt.deg() > c.factor1.deg() {
-				f1_crt = c.factor1
-				f2_crt = c.factor2
-				f1_rr = nil
-				f2_rr = nil
-				pm = NewInt(int64(p))
-				count = 0
-				tried = false
-				continue
-			}
-			if c.lv != f1_crt.lv {
-				// 前の素数でみつかったものが偽因子かも保険.
-				count++
-				continue
-			}
-			if f1_crt.deg() < c.factor1.deg() { // 偽因子
-				continue
-			}
-
-			// CRT する.
-			no_chg := true
-			f1_crt, f1_rr, _, ok = f1_crt.crt_interpol(f1_rr, c.factor1, pm, p)
+			ok := defp_crt.update(cad, cell, cellp, p)
 			if !ok {
-				no_chg = false
+				continue
 			}
-			f2_crt, f2_rr, pm, ok = f2_crt.crt_interpol(f2_rr, c.factor2, pm, p)
-			if !ok {
-				no_chg = false
-			}
-
-			if no_chg && !tried {
-				// 試し割りして，うまくいったら，再帰する
-				tried = true
-			} else {
-				tried = false
-			}
-			continue
+			// cell が分解されたのでもう一度...
+			return cad.symde_gcd2(forg, gorg, cell, pi)
 		}
 		if cellp == nil { // unlucky
 			continue
@@ -587,48 +660,33 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 		gcd, s, _ := cad.symde_gcd_mod(fp, gp, cellp, p, false)
 		if s == nil {
 			// 定義多項式が因数分解された.
-			// @TODO 共通化したいが...
+			if pos > 2 {
+				continue
+			}
+
+			ok := defp_crt.update(cad, cell, cellp, p)
+			if !ok {
+				continue
+			}
+			// cell が分解されたのでもう一度...
+			return cad.symde_gcd2(forg, gorg, cell, pi)
 		}
-		if gcd == nil {
+
+		if gcd == nil && s != nil {
 			// 共通因子がなかった.
 			return nil, forg
 		}
 
-		if g_crt == nil || g_crt.deg() > gcd.deg() {
-			// 1回目
-			f1_crt = nil
-			f2_crt = nil
-			f1_rr = nil
-			f2_rr = nil
-
-			ggg, _, _ := gcd.monicize(cellp, p)
-			g_crt = ggg.(*Poly)
-			g_rr = nil
-			pm = NewInt(int64(p))
-			tried = false
-			continue
-		}
-
-		// 2 回目以降
-		if g_crt.deg() < gcd.deg() { // 偽因子
-			continue
-		}
-
-		no_chg := true
-		ggg, _, _ := gcd.monicize(cellp, p)
-		g_crt, g_rr, pm, ok = g_crt.crt_interpol(g_rr, ggg.(*Poly), pm, p)
-		if !ok {
-			no_chg = false
-		}
-
+		pos = 3
+		no_chg := gcd_crt.update(gcd, cellp, p)
 		if no_chg && !tried {
 			// 試し割り
-			if g_rr.deg() == forg.deg() {
+			if gcd_crt.frr.deg() == forg.deg() {
 				return forg, nil
 			}
 
-			if ok, q := cad.test_div(forg, g_rr, cell, pi+pidx); ok {
-				return g_rr, q
+			if ok, q := cad.test_div(forg, gcd_crt.frr, cell, pi+pidx); ok {
+				return gcd_crt.frr, q
 			}
 			fmt.Printf("try failed\n")
 			panic("!")

@@ -17,7 +17,11 @@ type Poly struct { // recursive expression
 }
 
 func NewPolyVar(lv Level) *Poly {
-	return varlist[lv].p
+	if int(lv) < len(varlist) {
+		return varlist[lv].p
+	} else {
+		return newPolyVarn(lv, 1)
+	}
 }
 
 func newPolyVarn(lv Level, deg int) *Poly {
@@ -284,18 +288,15 @@ func (z *Poly) write(b fmt.State, format rune, out_sgn bool, mul string) {
 						fmt.Fprintf(b, "%s", mul)
 					}
 				} else {
-					if i != len(z.c)-1 && i != 0 {
-						fmt.Fprintf(b, "+")
-					}
 					if i > 0 {
+						if out_sgn || i != len(z.c)-1 {
+							fmt.Fprintf(b, "+")
+						}
 						fmt.Fprintf(b, "(")
 						p.write(b, format, false, mul)
 						fmt.Fprintf(b, ")%s", mul)
 					} else {
-						if p.Sign() > 0 {
-							fmt.Fprintf(b, "+")
-						}
-						p.write(b, format, false, mul)
+						p.write(b, format, true, mul)
 					}
 				}
 			}
@@ -947,7 +948,12 @@ func (z *Poly) isMono() bool {
 			return false
 		}
 	}
-	return true
+	switch c := z.c[len(z.c)-1].(type) {
+	case *Poly:
+		return c.isMono()
+	default:
+		return true
+	}
 }
 
 func (z *Poly) LeadinfCoef() NObj {

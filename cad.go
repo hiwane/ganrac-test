@@ -98,6 +98,7 @@ type CAD struct {
 	stat     CADStat
 	nwo      bool // well-oriented
 	stage    int8
+	VerboseLevel	int
 }
 
 func qeCAD(fml Fof) Fof {

@@ -47,9 +47,11 @@ func TestSimplNum(t *testing.T) {
 				NewAtom(NewPolyCoef(1, 0, 1), GT),
 				NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 4), 0, 4), LE), NewAtom(NewPolyCoef(1, NewPolyCoef(0, -2, -1, 1), -1, 1), EQ)),
 			falseObj,
+		}, {
+			newFmlAnds(NewAtom(NewPolyCoef(1, -1, 1), GT), NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1), LT)),
+			newFmlAnds(NewAtom(NewPolyCoef(1, -1, 1), GT), NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1), LT)),
 		},
 	} {
-
 		fmt.Printf("===== in=%v\n", s.a)
 		o, tf, ff := s.a.simplNum(g, nil, nil)
 		if !o.Equals(s.expect) {

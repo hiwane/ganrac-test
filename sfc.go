@@ -200,7 +200,6 @@ func (sfc *CADSfc) pdq() int {
 	}
 
 	cells := []*Cell{sfc.cad.root}
-	sfc.cad.root.children[2].Print()
 
 	fmt.Printf("pdq() start!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
 	t := sfc.pdqv22(0, cells, 0, 1)

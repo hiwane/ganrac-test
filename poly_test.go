@@ -1,7 +1,11 @@
 package ganrac
 
 import (
+	"fmt"
+	"math/rand"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestPolyString(t *testing.T) {
@@ -61,6 +65,55 @@ func TestPolyString(t *testing.T) {
 		q := NewPolyCoef(p.lv, v.c0, v.c1, v.c2)
 		if q.String() != v.exp || !p.Equals(q) || !q.Equals(p) {
 			t.Errorf("invalid poly.mul q=%v, exp=%s, [%d,%d,%d]", q, v.exp, v.c2, v.c1, v.c0)
+		}
+	}
+
+	for ii, s := range []struct {
+		f *Poly
+		s string
+	}{
+		{
+			NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(0, 0, -1)), 1),
+			"w-x*z",
+		}, {
+			NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(0, 0, 1)), 1),
+			"w+x*z",
+		}, {
+			NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(0, 1, -1)), 1),
+			"w+(-x+1)*z",
+		}, {
+			NewPolyCoef(3, NewPolyCoef(2, 3, 2), NewPolyCoef(0, 0, 1)),
+			"x*w+2*z+3",
+		}, {
+			NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, -40, -80), NewPolyCoef(0, 0, -8)), 0, 5),
+			"5*z^2-8*x*y-80*x-40",
+		},
+	} {
+		a := fmt.Sprintf("%v", s.f)
+		if a != s.s {
+			t.Errorf("<%d>\nexpect=%s\nactual=%s", ii, s.s, a)
+		}
+	}
+}
+
+func TestPolyStrRandom(t *testing.T) {
+	seed := time.Now().UnixNano()
+	r := rand.NewSource(seed)
+
+	g := NewGANRAC()
+
+	for i := 0; i < 100; i++ {
+		ff := randPoly(r, 4, 2, 5, 4)
+		s := fmt.Sprintf("%v;", ff)
+		u, err := g.Eval(strings.NewReader(s))
+		if err != nil {
+			t.Errorf("parse %v:\nff=%v\nst=%s", err, ff, s)
+			continue
+		}
+
+		if !ff.Equals(u) {
+			t.Errorf("cmp\nff=%v\nst=%s\nev=%v", ff, s, u)
+			continue
 		}
 	}
 }

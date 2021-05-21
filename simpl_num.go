@@ -3,8 +3,7 @@ package ganrac
 // a symbolic-numeric method for formula simplification
 // 数値数式手法による論理式の簡単化, 岩根秀直, JSSAC 2017
 
-// NOTE:
-// F=example("adam2-1")[0]; F;simpl(F); で落ちる
+// @TODO y^2-x<=0 && z^2+2*x*z+(-x+1)*y^2-2*x*y-x<=0 && x-1>=0 で -1<y<1 は真
 
 import (
 	"fmt"
@@ -143,7 +142,7 @@ func (m *NumRegion) intersect_lv(n *NumRegion, lv Level) []*ninterval {
 
 			x := new(ninterval)
 			x.inf = nx[j].inf
-			if mx[i].sup == nil || mx[i].sup.Cmp(nx[j].sup) > 0 {
+			if mx[i].sup == nil || (nx[j].sup != nil) && mx[i].sup.Cmp(nx[j].sup) > 0 {
 				// [m ....... m]
 				//   [n...n]
 				x.sup = nx[j].sup
@@ -338,7 +337,7 @@ func (m *NumRegion) getU(n *NumRegion, lv Level) []*Interval {
 func (poly *Poly) simplNumUniPoly(t, f *NumRegion) (OP, *NumRegion, *NumRegion) {
 	// 重根を持っていたら...?
 	roots := poly.realRootIsolation(-30)
-	fmt.Printf("   simplNumUniPoly(%v) t=%v, f=%v, #root=%v\n", poly, t, f, len(roots))
+	// fmt.Printf("   simplNumUniPoly(%v) t=%v, f=%v, #root=%v\n", poly, t, f, len(roots))
 	if len(roots) == 0 { // 符号一定
 		if poly.Sign() > 0 {
 			return GT, newNumRegion(), nil
@@ -471,7 +470,6 @@ func (poly *Poly) simplNumNvar(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 			p = pp
 		case *Interval:
 			// 区間 u での符号がきまった
-			fmt.Printf("   simplNumNvar() interval=%f\n", pp)
 			if ss := pp.Sign(); ss > 0 {
 				goto _GT
 			} else if ss < 0 {
@@ -485,23 +483,19 @@ func (poly *Poly) simplNumNvar(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 		}
 	}
 
-	fmt.Printf("   simplNumNvar() p[%d]=%f\n", dv, p)
+	// fmt.Printf("   simplNumNvar() p[%d]=%f\n", dv, p)
 	if len(p.c) == 2 { // linear
 		if p.c[1].(*Interval).ContainsZero() {
 			return OP_TRUE, t, f
 		}
-		x := p.c[0].Div(p.c[1].Neg().(NObj)).(*Interval)
-		if ss := x.Sign(); ss > 0 {
-			goto _GT
-		} else if ss < 0 {
-			goto _LT
-		} else if x.inf.Sign() == 0 {
-			goto _GE
-		} else if x.sup.Sign() == 0 {
-			goto _LE
-		} else {
-			return OP_TRUE, t, f
-		}
+		// x := p.c[0].Div(p.c[1].Neg().(NObj)).(*Interval)
+		// if ss := x.Sign(); ss > 0 {
+		// } else if ss < 0 {
+		// } else if x.inf.Sign() == 0 {
+		// } else if x.sup.Sign() == 0 {
+		// } else {
+		// }
+		return OP_TRUE, t, f
 	}
 
 	return OP_TRUE, t, f
@@ -584,7 +578,7 @@ func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 			atom = atom.simplFctr(g)
 
 			fml, neg2, _ = atom.simplNum(g, t, f)
-			fmt.Printf("discrim[%d]=%v: %v: neg=%v\n", dv, d, atom, neg2)
+			// fmt.Printf("discrim[%d]=%v: %v: neg=%v\n", dv, d, atom, neg2)
 		}
 		switch fml.(type) {
 		case *AtomT:
@@ -597,13 +591,14 @@ func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 			continue
 		}
 
-		fmt.Printf("-- neg2=%v\n", neg2)
-		fmt.Printf("-- pos=%v\n", pos)
-		pos = neg2.intersect(pos)
+		pos = neg2.intersect(pos)	// 判別式が負 かつ 主係数が正
 		pret = pret.union(pos)
 
-		neg = neg2.intersect(neg)
+		neg = neg2.intersect(neg)	// 判別式が負 かつ 主係数が負
 		nret = nret.union(neg)
+		// fmt.Printf("-- neg2=%v\n", neg2)
+		// fmt.Printf("-- pos=%v -> %v\n", pos, pret)
+		// fmt.Printf("-- neg=%v -> %v\n", neg, nret)
 	}
 
 	return OP_TRUE, pret, nret
@@ -680,7 +675,7 @@ func (atom *Atom) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumReg
 		}
 	}
 	s, pp, nn := atom.p[0].simplNumPoly(g, t, f, atom.p[0].lv) // @TODO
-	fmt.Printf("   atm.simplNum(): s=%v, pos=%f, neg=%f\n", s, pp, nn)
+	// fmt.Printf("   atm.simplNum(): s=%v, pos=%f, neg=%f\n", s, pp, nn)
 
 	// op は　LT or LE
 	if s == OP_TRUE {
@@ -698,10 +693,10 @@ func (p *FmlAnd) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegi
 	ts := make([]*NumRegion, 0, len(p.fml))
 	fs := make([]*NumRegion, 0, len(p.fml))
 	fmls := make([]Fof, 0, len(p.fml))
-	fmt.Printf("   And.simplNum And=%v\n", p)
+	// fmt.Printf("   And.simplNum And=%v\n", p)
 	for i := range p.fml {
 		fml, tt, ff := p.fml[i].simplNum(g, t, f)
-		fmt.Printf("@@ And.simplNum[1st,%d/%d] %v -> %v, %v\n", i+1, len(p.fml), p.fml[i], fml, ff)
+		// fmt.Printf("@@ And.simplNum[1st,%d/%d] %v -> %v, %v\n", i+1, len(p.fml), p.fml[i], fml, ff)
 		if _, ok := fml.(*AtomF); ok {
 			return falseObj, nil, nil
 		}
@@ -712,7 +707,7 @@ func (p *FmlAnd) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegi
 		ts = append(ts, tt)
 		fs = append(fs, ff)
 	}
-	fmt.Printf("   And.simplNum fmls=%v\n", fmls)
+	// fmt.Printf("   And.simplNum fmls=%v\n", fmls)
 	if len(fmls) <= 1 {
 		if len(fmls) == 0 {
 			return trueObj, nil, nil
@@ -737,11 +732,11 @@ func (p *FmlAnd) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegi
 		}
 		tret = tret.intersect(tt)
 		fret = fret.union(ff)
-		fmt.Printf("@@ And.simplNum[2nd,%d/%d] %v, Fi=%v, Fret=%v\n", i+1, len(fmls), fmls[i], ff, fret)
+		// fmt.Printf("@@ And.simplNum[2nd,%d/%d] %v, Fi=%v, Fret=%v\n", i+1, len(fmls), fmls[i], ff, fret)
 	}
 	tret = tret.union(t)
 	fml := newFmlAnds(fmls...)
-	fmt.Printf("## And.simplNum[end,%d] %v\n", len(fmls), fret)
+	// fmt.Printf("## And.simplNum[end,%d] %v\n", len(fmls), fret)
 	return fml, tret, fret
 }
 

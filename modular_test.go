@@ -133,7 +133,6 @@ func TestModularInvPoly2(t *testing.T) {
 
 func TestModularInterpol(t *testing.T) {
 	seed := time.Now().UnixNano()
-	fmt.Printf("TestModularInterpol() seed=%v\n", seed)
 	r := rand.NewSource(seed)
 
 	for i := 0; i < 20; i++ {

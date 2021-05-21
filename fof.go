@@ -17,17 +17,38 @@ type Fof interface {
 	simpler
 	fofTag() uint
 	IsQff() bool
+	IsQuantifier() bool
+	isPrenex() bool
 	Not() Fof
 	hasFreeVar(lv Level) bool
 	hasVar(lv Level) bool
 	maxVar() Level
 	numAtom() int
+	sotd() int
 	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
 	Subst(xs []RObj, lvs []Level) Fof
-	valid() error // for DEBUG. 実装として適切な形式になっているか
+	replaceVar(xs []RObj, lvs []Level) Fof // xs は *Poly 次数1 主係数1 定数項0 な変数
+	valid() error                          // for DEBUG. 実装として適切な形式になっているか
 	Deg(lv Level) int
 	FmlLess(a Fof) bool
 	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
+	nonPrenex() Fof
+	varShift(lv Level) Fof
+}
+
+type FofQ interface {
+	Fof
+	gen(lvv []Level, fml Fof) Fof
+	Qs() []Level
+	Fml() Fof
+	isForAll() bool
+}
+
+type FofAO interface {
+	Fof
+	gen(fml []Fof) Fof
+	Fmls() []Fof
+	isAnd() bool
 }
 
 // AtomT, AtomF, Atom, FmlAnd, FmlOr, ForAll, Exists
@@ -51,6 +72,10 @@ const (
 	FTAG_ALL   uint = 0x106
 	FTAG_EX    uint = 0x107
 )
+
+///////////////////////
+// Fof define
+///////////////////////
 
 type AtomT struct {
 }
@@ -97,6 +122,74 @@ func (op OP) not() OP {
 	return 7 - op
 }
 
+///////////////////////
+// FofQ
+///////////////////////
+
+func (p *ForAll) gen(q []Level, fml Fof) Fof {
+	return NewQuantifier(true, q, fml)
+}
+
+func (p *Exists) gen(q []Level, fml Fof) Fof {
+	return NewQuantifier(false, q, fml)
+}
+
+func (p *ForAll) Fml() Fof {
+	return p.fml
+}
+
+func (p *Exists) Fml() Fof {
+	return p.fml
+}
+
+func (p *ForAll) Qs() []Level {
+	return p.q
+}
+
+func (p *Exists) Qs() []Level {
+	return p.q
+}
+
+func (p *ForAll) isForAll() bool {
+	return true
+}
+
+func (p *Exists) isForAll() bool {
+	return false
+}
+
+///////////////////////
+// AO / And-Or
+///////////////////////
+
+func (p *FmlAnd) Fmls() []Fof {
+	return p.fml
+}
+
+func (p *FmlOr) Fmls() []Fof {
+	return p.fml
+}
+
+func (p *FmlAnd) gen(fml []Fof) Fof {
+	return newFmlAnds(fml...)
+}
+
+func (p *FmlOr) gen(fml []Fof) Fof {
+	return newFmlOrs(fml...)
+}
+
+func (p *FmlAnd) isAnd() bool {
+	return true
+}
+
+func (p *FmlOr) isAnd() bool {
+	return false
+}
+
+///////////////////////
+// FOF function
+///////////////////////
+
 func (p *Atom) IsQff() bool {
 	return true
 }
@@ -104,6 +197,7 @@ func (p *Atom) IsQff() bool {
 func (p *AtomT) IsQff() bool {
 	return true
 }
+
 func (p *AtomF) IsQff() bool {
 	return true
 }
@@ -133,6 +227,62 @@ func (p *Exists) IsQff() bool {
 	return false
 }
 
+func (p *Atom) isPrenex() bool {
+	return true
+}
+
+func (p *AtomT) isPrenex() bool {
+	return true
+}
+
+func (p *AtomF) isPrenex() bool {
+	return true
+}
+
+func (p *FmlAnd) isPrenex() bool {
+	return p.IsQff()
+}
+
+func (p *FmlOr) isPrenex() bool {
+	return p.IsQff()
+}
+
+func (p *ForAll) isPrenex() bool {
+	return p.fml.isPrenex()
+}
+
+func (p *Exists) isPrenex() bool {
+	return p.fml.isPrenex()
+}
+
+func (p *Atom) IsQuantifier() bool {
+	return false
+}
+
+func (p *AtomT) IsQuantifier() bool {
+	return false
+}
+
+func (p *AtomF) IsQuantifier() bool {
+	return false
+}
+
+func (p *FmlAnd) IsQuantifier() bool {
+	return false
+}
+
+func (p *FmlOr) IsQuantifier() bool {
+	return false
+}
+
+func (p *ForAll) IsQuantifier() bool {
+	return true
+}
+
+func (p *Exists) IsQuantifier() bool {
+	return true
+}
+
 func (p *Atom) hasFreeVar(lv Level) bool {
 	for _, pp := range p.p {
 		if pp.hasVar(lv) {
@@ -145,6 +295,7 @@ func (p *Atom) hasFreeVar(lv Level) bool {
 func (p *AtomT) hasFreeVar(lv Level) bool {
 	return false
 }
+
 func (p *AtomF) hasFreeVar(lv Level) bool {
 	return false
 }
@@ -196,6 +347,7 @@ func (p *Atom) hasVar(lv Level) bool {
 func (p *AtomT) hasVar(lv Level) bool {
 	return false
 }
+
 func (p *AtomF) hasVar(lv Level) bool {
 	return false
 }
@@ -239,6 +391,7 @@ func (p *Atom) maxVar() Level {
 func (p *AtomT) maxVar() Level {
 	return Level(0)
 }
+
 func (p *AtomF) maxVar() Level {
 	return Level(0)
 }
@@ -341,6 +494,7 @@ func (p *Atom) Tag() uint {
 func (p *AtomT) Tag() uint {
 	return TAG_FOF
 }
+
 func (p *AtomF) Tag() uint {
 	return TAG_FOF
 }
@@ -382,6 +536,7 @@ func (p *Atom) valid() error {
 func (p *AtomT) valid() error {
 	return nil
 }
+
 func (p *AtomF) valid() error {
 	return nil
 }
@@ -493,6 +648,7 @@ func (p *AtomT) Equals(qq interface{}) bool {
 	_, ok := qq.(*AtomT)
 	return ok
 }
+
 func (p *AtomF) Equals(qq interface{}) bool {
 	_, ok := qq.(*AtomF)
 	return ok
@@ -579,6 +735,7 @@ func (p *Exists) Equals(qq interface{}) bool {
 func (p *AtomT) String() string {
 	return "true"
 }
+
 func (p *AtomT) Format(s fmt.State, format rune) {
 	switch format {
 	case FORMAT_TEX:
@@ -1034,6 +1191,72 @@ func (p *Exists) Subst(xs []RObj, lvs []Level) Fof {
 	return substQuantifier(false, fml, p.q, lvs)
 }
 
+func (p *AtomT) replaceVar(xs []RObj, lvs []Level) Fof {
+	return p
+}
+
+func (p *AtomF) replaceVar(xs []RObj, lvs []Level) Fof {
+	return p
+}
+
+func (p *Atom) replaceVar(xs []RObj, lvs []Level) Fof {
+	pp := make([]RObj, 0, len(p.p))
+	for _, q := range p.p {
+		qc := q.Subst(xs, lvs, 0)
+		pp = append(pp, qc.(*Poly))
+	}
+	return NewAtoms(pp, p.op)
+}
+
+func (p *FmlAnd) replaceVar(xs []RObj, lvs []Level) Fof {
+	q := new(FmlAnd)
+	q.fml = make([]Fof, len(p.fml))
+	for i := 0; i < len(p.fml); i++ {
+		q.fml[i] = p.fml[i].replaceVar(xs, lvs)
+	}
+	return q
+}
+
+func (p *FmlOr) replaceVar(xs []RObj, lvs []Level) Fof {
+	q := new(FmlOr)
+	q.fml = make([]Fof, len(p.fml))
+	for i := 0; i < len(p.fml); i++ {
+		q.fml[i] = p.fml[i].replaceVar(xs, lvs)
+	}
+	return q
+}
+
+func (p *ForAll) replaceVar(xs []RObj, lvs []Level) Fof {
+	fml := p.fml.replaceVar(xs, lvs)
+	qq := make([]Level, len(p.q))
+	copy(qq, p.q)
+	for i, q := range p.q {
+		for j, lv := range lvs {
+			if lv == q {
+				qq[i] = xs[j].(*Poly).lv
+				break
+			}
+		}
+	}
+	return NewQuantifier(true, qq, fml)
+}
+
+func (p *Exists) replaceVar(xs []RObj, lvs []Level) Fof {
+	fml := p.fml.replaceVar(xs, lvs)
+	qq := make([]Level, len(p.q))
+	copy(qq, p.q)
+	for i, q := range p.q {
+		for j, lv := range lvs {
+			if lv == q {
+				qq[i] = xs[j].(*Poly).lv
+				break
+			}
+		}
+	}
+	fmt.Printf("qq=%v\n", qq)
+	return NewQuantifier(false, qq, fml)
+}
+
 func NewBool(b bool) Fof {
 	if b {
 		return trueObj
@@ -1435,6 +1658,58 @@ func (p *Exists) Deg(lv Level) int {
 	return p.fml.Deg(lv)
 }
 
+func (p *AtomT) sotd() int {
+	return 0
+}
+
+func (p *AtomF) sotd() int {
+	return 0
+}
+
+func (p *Atom) sotd() int {
+	m := 0
+	for _, f := range p.p {
+		m += f.sotd()
+	}
+	return m
+}
+
+func (p *Poly) sotd() int {
+	m := 0
+	for i, cc := range p.c {
+		if c, ok := cc.(*Poly); ok {
+			m += i * c.sotd()
+		} else {
+			m += i
+		}
+	}
+	return m
+}
+
+func (p *FmlAnd) sotd() int {
+	m := 0
+	for _, f := range p.fml {
+		m += f.sotd()
+	}
+	return m
+}
+
+func (p *FmlOr) sotd() int {
+	m := 0
+	for _, f := range p.fml {
+		m += f.sotd()
+	}
+	return m
+}
+
+func (p *ForAll) sotd() int {
+	return p.fml.sotd()
+}
+
+func (p *Exists) sotd() int {
+	return p.fml.sotd()
+}
+
 func (p *Atom) vsDeg(lv Level) int {
 	n := 0
 	for _, pp := range p.p {
@@ -1519,4 +1794,164 @@ func (p *ForAll) FmlLess(q Fof) bool {
 
 func (p *Exists) FmlLess(q Fof) bool {
 	return p.fofTag() < q.fofTag()
+}
+
+func (p *Atom) nonPrenex() Fof {
+	return p
+}
+
+func (p *AtomT) nonPrenex() Fof {
+	return p
+}
+
+func (p *AtomF) nonPrenex() Fof {
+	return p
+}
+
+func (p *FmlAnd) nonPrenex() Fof {
+	fml := make([]Fof, len(p.fml))
+	for i, f := range p.fml {
+		fml[i] = f.nonPrenex()
+	}
+	return newFmlAnds(fml...)
+}
+
+func (p *FmlOr) nonPrenex() Fof {
+	fml := make([]Fof, len(p.fml))
+	for i, f := range p.fml {
+		fml[i] = f.nonPrenex()
+	}
+	return newFmlOrs(fml...)
+}
+
+func nonPrenexQ(forex bool, qq []Level, sfml Fof) Fof {
+	var ofmls []Fof
+	switch fml := sfml.(type) {
+	case *FmlAnd:
+		ofmls = fml.fml
+	case *FmlOr:
+		ofmls = fml.fml
+	default:
+		return NewQuantifier(forex, qq, sfml)
+	}
+
+	fmli := make([]Fof, 0, len(ofmls))
+	fmlo := make([]Fof, 0, len(ofmls))
+	for i := range ofmls {
+		f := ofmls[i].nonPrenex()
+		has := false
+		for _, q := range qq {
+			if f.hasFreeVar(q) {
+				has = true
+				break
+			}
+		}
+		if has {
+			fmli = append(fmli, f)
+		} else {
+			fmlo = append(fmlo, f)
+		}
+	}
+
+	var fmliq Fof
+	switch sfml.(type) {
+	case *FmlAnd:
+		fmliq = newFmlAnds(fmli...)
+		fmliq = NewQuantifier(forex, qq, fmliq)
+		return NewFmlAnd(fmliq, newFmlAnds(fmlo...))
+	case *FmlOr:
+		fmliq = newFmlOrs(fmli...)
+		fmliq = NewQuantifier(forex, qq, fmliq)
+		return NewFmlOr(fmliq, newFmlOrs(fmlo...))
+	}
+	panic("?")
+}
+
+func (p *ForAll) nonPrenex() Fof {
+	if fmland, ok := p.fml.(*FmlAnd); ok {
+		fml := make([]Fof, len(fmland.fml))
+		for i, f := range fmland.fml {
+			fml[i] = nonPrenexQ(true, p.q, f)
+		}
+		return newFmlAnds(fml...)
+	} else {
+		return nonPrenexQ(true, p.q, p.fml)
+	}
+}
+
+func (p *Exists) nonPrenex() Fof {
+	if fmlor, ok := p.fml.(*FmlOr); ok {
+		fml := make([]Fof, len(fmlor.fml))
+		for i, f := range fmlor.fml {
+			fml[i] = nonPrenexQ(false, p.q, f)
+		}
+		return newFmlOrs(fml...)
+	} else {
+		return nonPrenexQ(false, p.q, p.fml)
+	}
+}
+
+func (p *AtomT) varShift(lv Level) Fof {
+	return p
+}
+
+func (p *AtomF) varShift(lv Level) Fof {
+	return p
+}
+
+func (p *Poly) varShift(lv Level) *Poly {
+	q := NewPoly(p.lv+lv, len(p.c))
+	for i, cc := range p.c {
+		switch c := cc.(type) {
+		case *Poly:
+			q.c[i] = c.varShift(lv)
+		default:
+			q.c[i] = c
+		}
+	}
+	return q
+}
+
+func (p *Atom) varShift(lv Level) Fof {
+	q := make([]RObj, len(p.p))
+	for i, pp := range p.p {
+		q[i] = pp.varShift(lv)
+	}
+	return NewAtoms(q, p.op)
+}
+
+func (p *FmlAnd) varShift(lv Level) Fof {
+	q := make([]Fof, len(p.fml))
+	for i, f := range p.fml {
+		q[i] = f.varShift(lv)
+	}
+	return newFmlAnds(q...)
+}
+
+func (p *FmlOr) varShift(lv Level) Fof {
+	q := make([]Fof, len(p.fml))
+	for i, f := range p.fml {
+		q[i] = f.varShift(lv)
+	}
+	return newFmlOrs(q...)
+}
+
+func (p *ForAll) varShift(lv Level) Fof {
+	q := make([]Level, len(p.q))
+	for i, qi := range p.q {
+		q[i] = qi + lv
+	}
+	fml := p.fml.varShift(lv)
+	return NewQuantifier(true, q, fml)
+}
+
+func (p *Exists) varShift(lv Level) Fof {
+	q := make([]Level, len(p.q))
+	for i, qi := range p.q {
+		q[i] = qi + lv
+	}
+	fml := p.fml.varShift(lv)
+	fmt.Printf("ex:: fml=%v\n", fml)
+	fmt.Printf("ex::   q=%v\n", q)
+	return NewQuantifier(false, q, fml)
 }

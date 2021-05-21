@@ -573,7 +573,7 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 
 	f0 := cell.defpoly
 	f1 := f
-	for i := len(f.c) * 3; i >= 0; i-- { // 無限ループ対策....
+	for i := len(f.c) * 3; i >= 0; i-- { // 無限ループ対策...... 適当すぎるが @TODO
 		q, r, _ := f0.divmod_poly_mod(f1, cell.parent, p)
 		if q == nil {
 			return nil
@@ -582,8 +582,10 @@ func (f *Poly) inv_mod(cell *Cellmod, p Uint) Moder {
 			// 共通根を持った...
 			// 次数が同じ場合は?
 			if f1.deg() < cell.defpoly.deg() {
+				s1 = s0.sub_mod(s1.mul_mod(q, p), p)
+
 				cell.factor1 = f1
-				cell.factor2 = q.(*Poly)
+				cell.factor2 = s1.(*Poly)
 				return nil
 			} else {
 				return Uint(0)
