@@ -1073,6 +1073,10 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 				copy(qq.c, pp.c[i:])
 				pp = qq
 
+				q := NewPoly(p.lv, len(p.c)-i)
+				copy(q.c, p.c[i:])
+				p = q
+
 				c := NewCell(cad, cell, pf.Index())
 				c.de = cell.de
 				c.multiplicity[pf.Index()] = mult_t(i)
@@ -1084,7 +1088,7 @@ func (cell *Cell) make_cells_i(cad *CAD, pf ProjFactor, porg *Poly) ([]*Cell, si
 		}
 	}
 
-	// 偶関数か.
+	// even polynomial.
 	even := 1
 	for pp.isEven() {
 		even *= 2

@@ -19,6 +19,8 @@ type Fof interface {
 	IsQff() bool
 	IsQuantifier() bool
 	isPrenex() bool
+	isEven(lv Level) int	// is だが bool 復帰ではない
+	redEven(lv Level, v int) Fof
 	Not() Fof
 	hasFreeVar(lv Level) bool
 	hasVar(lv Level) bool
@@ -51,6 +53,10 @@ type FofAO interface {
 	isAnd() bool
 }
 
+type FofTFbase struct {
+	Fof
+}
+
 // AtomT, AtomF, Atom, FmlAnd, FmlOr, ForAll, Exists
 
 type OP uint8
@@ -78,9 +84,11 @@ const (
 ///////////////////////
 
 type AtomT struct {
+	FofTFbase
 }
 
 type AtomF struct {
+	FofTFbase
 }
 
 type Atom struct {

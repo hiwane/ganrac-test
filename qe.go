@@ -11,6 +11,7 @@ import (
 
 type QEopt struct {
 	varn Level
+	g	*Ganrac
 }
 
 type qeCond struct {
@@ -19,8 +20,8 @@ type qeCond struct {
 	depth          int
 }
 
-func (opt *QEopt) num_var(f Fof) int {
-	b := make([]bool, opt.varn)
+func (qeopt *QEopt) num_var(f Fof) int {
+	b := make([]bool, qeopt.varn)
 	f.Indets(b)
 	m := 0
 	for _, b := range b {
@@ -31,13 +32,13 @@ func (opt *QEopt) num_var(f Fof) int {
 	return m
 }
 
-func (opt *QEopt) fmlcmp(f1, f2 Fof) bool {
+func (qeopt *QEopt) fmlcmp(f1, f2 Fof) bool {
 	switch g1 := f1.(type) {
 	case FofQ:
 		switch g2 := f2.(type) {
 		case FofQ:
-			m1 := opt.num_var(g1)
-			m2 := opt.num_var(g2)
+			m1 := qeopt.num_var(g1)
+			m2 := qeopt.num_var(g2)
 			return m1 < m2
 		default:
 			return false
@@ -51,8 +52,8 @@ func (opt *QEopt) fmlcmp(f1, f2 Fof) bool {
 				return false
 			}
 
-			m1 := opt.num_var(g1)
-			m2 := opt.num_var(g2)
+			m1 := qeopt.num_var(g1)
+			m2 := qeopt.num_var(g2)
 			if m1 != m2 {
 				return m1 < m2
 			}
@@ -77,8 +78,8 @@ func (opt *QEopt) fmlcmp(f1, f2 Fof) bool {
 		case FofAO:
 			return true
 		default:
-			m1 := opt.num_var(g1)
-			m2 := opt.num_var(g2)
+			m1 := qeopt.num_var(g1)
+			m2 := qeopt.num_var(g2)
 			if m1 != m2 {
 				return m1 < m2
 			}
@@ -90,45 +91,46 @@ func (opt *QEopt) fmlcmp(f1, f2 Fof) bool {
 	}
 }
 
-func (g *Ganrac) QE(fof Fof, opt QEopt) Fof {
-	opt.varn = fof.maxVar() + 1
+func (g *Ganrac) QE(fof Fof, qeopt QEopt) Fof {
+	qeopt.varn = fof.maxVar() + 1
+	qeopt.g = g
 
 	var cond qeCond
 	cond.neccon = trueObj
 	cond.sufcon = falseObj
 
-	return g.qe(fof, opt, cond)
+	return qeopt.qe(fof, cond)
 }
 
-func (g *Ganrac) qe(fof Fof, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
 	fmt.Printf("qe   [%4d] %v\n", cond.depth, fof)
 	fof = fof.nonPrenex()
 	switch fq := fof.(type) {
 	case FofQ:
 		if fof.isPrenex() {
-			return g.qe_prenex(fq, opt, cond)
+			return qeopt.qe_prenex(fq, cond)
 		}
-		return g.qe_nonpreq(fq, opt, cond)
+		return qeopt.qe_nonpreq(fq, cond)
 	case FofAO:
 		if fof.IsQff() {
-			return g.simplify(fof, opt, cond)
+			return qeopt.simplify(fof, cond)
 		}
-		return g.qe_andor(fq, opt, cond)
+		return qeopt.qe_andor(fq, cond)
 	default:
 		return fof
 	}
 }
 
-func (g *Ganrac) simplify(qff Fof, opt QEopt, cond qeCond) Fof {
-	qff = qff.simplFctr(g)
+func (qeopt QEopt) simplify(qff Fof, cond qeCond) Fof {
+	qff = qff.simplFctr(qeopt.g)
 	qff = qff.simplBasic(cond.neccon, cond.sufcon)
 	fmt.Printf("simpl.b! %v\n", qff)
-	qff, _, _ = qff.simplNum(g, nil, nil)
+	qff, _, _ = qff.simplNum(qeopt.g, nil, nil)
 	fmt.Printf("simpl.n! %v\n", qff)
 	return qff
 }
 
-func (g *Ganrac) qe_prenex(fof FofQ, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
 	fmt.Printf("qepr [%4d] %v\n", cond.depth, fof)
 	// exists-or, forall-and は分解できる.
 	fofq := fof
@@ -157,12 +159,12 @@ func (g *Ganrac) qe_prenex(fof FofQ, opt QEopt, cond qeCond) Fof {
 					}
 
 					ao = ao.gen(ret).(FofAO)
-					fmlq := g.qe_andor(ao, opt, cond2)
+					fmlq := qeopt.qe_andor(ao, cond2)
 					for i := len(fs) - 2; i >= 0; i-- {
 						fmlq = fs[i].gen(fs[i].Qs(), fmlq)
 					}
 
-					return g.qe(fmlq, opt, cond)
+					return qeopt.qe(fmlq, cond)
 				}
 			}
 			break
@@ -170,11 +172,18 @@ func (g *Ganrac) qe_prenex(fof FofQ, opt QEopt, cond qeCond) Fof {
 	}
 
 	// もうがんばるしかない状態.
-	return g.qe_prenex_main(fofq, opt, cond)
+	return qeopt.qe_prenex_main(fofq, cond)
 }
 
-func (g *Ganrac) qe_prenex_main(fof FofQ, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe_prenex_main(fof FofQ, cond qeCond) Fof {
 	fmt.Printf("qepm [%4d] %v\n", cond.depth, fof)
+
+	if ff := qeopt.qe_even(fof, cond); ff != nil {
+		return ff
+	}
+
+
+
 	////////////////////////////////
 	// 複数等式制約の GB による簡単化
 	// @see speeding up CAD by GB.
@@ -207,13 +216,13 @@ func (g *Ganrac) qe_prenex_main(fof FofQ, opt QEopt, cond qeCond) Fof {
 	// CAD
 	// @TODO 前調査で多項式がおおかったら分配する、のも手ではないか.
 	////////////////////////////////
-	return g.qe_cad(fof, opt, cond)
+	return qeopt.qe_cad(fof, cond)
 }
 
-func (g *Ganrac) qe_cad(fof FofQ, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 	fmt.Printf("qecad[%4d] %v\n", cond.depth, fof)
 	// 変数順序を入れ替える. :: 自由変数 -> 束縛変数
-	maxvar := opt.varn
+	maxvar := qeopt.varn
 
 	b := make([]bool, maxvar)
 	fof.Indets(b)
@@ -282,7 +291,7 @@ func (g *Ganrac) qe_cad(fof FofQ, opt QEopt, cond qeCond) Fof {
 	}
 	fof2 = fof2.replaceVar(vas, lvs)
 	fmt.Printf("  cad[%4d] %v\n", cond.depth, fof2)
-	cad, err := NewCAD(fof2, g)
+	cad, err := NewCAD(fof2, qeopt.g)
 	if err != nil {
 		panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof2, err))
 	}
@@ -308,7 +317,7 @@ func (g *Ganrac) qe_cad(fof FofQ, opt QEopt, cond qeCond) Fof {
 	return fof3
 }
 
-func (g *Ganrac) qe_nonpreq(fofq FofQ, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
 	fmt.Printf("qenpr[%4d] %v\n", cond.depth, fofq)
 	fs := make([]FofQ, 1)
 	fs[0] = fofq
@@ -317,25 +326,25 @@ func (g *Ganrac) qe_nonpreq(fofq FofQ, opt QEopt, cond qeCond) Fof {
 		if fml.IsQuantifier() {
 			fs = append(fs, fml.(FofQ))
 		} else if fmlao, ok := fml.(FofAO); ok {
-			fml = g.qe_andor(fmlao, opt, cond)
+			fml = qeopt.qe_andor(fmlao, cond)
 
 			// quantifier の再構築
 			for i := len(fs) - 1; i >= 0; i-- {
 				fml = fs[i].gen(fs[i].Qs(), fml)
 			}
-			return g.qe_prenex(fml.(FofQ), opt, cond)
+			return qeopt.qe_prenex(fml.(FofQ), cond)
 		} else {
 			panic("?")
 		}
 	}
 }
 
-func (g *Ganrac) qe_andor(fof FofAO, opt QEopt, cond qeCond) Fof {
+func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 	// fof: non-prenex-formula
 	fmt.Printf("qeao [%4d] %v\n", cond.depth, fof)
 	fmls := fof.Fmls()
 	sort.Slice(fmls, func(i, j int) bool {
-		return opt.fmlcmp(fmls[i], fmls[j])
+		return qeopt.fmlcmp(fmls[i], fmls[j])
 	})
 
 	for i, f := range fmls {
@@ -362,11 +371,11 @@ func (g *Ganrac) qe_andor(fof FofAO, opt QEopt, cond qeCond) Fof {
 		}
 
 		fmt.Printf("qeao [%4d,%d,1] %v\n", cond.depth, i, f)
-		f = g.simplify(f, opt, cond2)
+		f = qeopt.simplify(f, cond2)
 		fmt.Printf("qeao [%4d,%d,2] %v\n", cond.depth, i, f)
-		f = g.qe(f, opt, cond2)
+		f = qeopt.qe(f, cond2)
 		fmt.Printf("qeao [%4d,%d,3] %v\n", cond.depth, i, f)
-		fmls[i] = g.simplify(f, opt, cond2)
+		fmls[i] = qeopt.simplify(f, cond2)
 		switch fmls[i].(type) {
 		case *AtomT:
 			if !fof.isAnd() {
