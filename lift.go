@@ -332,7 +332,7 @@ func (cell *Cell) lift(cad *CAD) error {
 		if signs[i] == 0 {
 			// vanish!
 			if !pf.vanishChk(cad, cell) {
-				return fmt.Errorf("not well-oriented %v", cell.Index())
+				return CAD_NO_WO
 			}
 		}
 
@@ -674,12 +674,14 @@ func (cad *CAD) cellmerge(ciso [][]*Cell, dup bool) []*Cell {
 	}
 	cs := ciso[0]
 	for i := 1; i < len(ciso); i++ {
+		// cs < ciso[i]: c.index
 		cs = cad.cellmerge2(cs, ciso[i], dup)
 	}
 	return cs
 }
 
 func (cad *CAD) cellmerge2(cis, cjs []*Cell, dup bool) []*Cell {
+	// cis.index < cjs.index
 	cret := make([]*Cell, 0, len(cis)+len(cjs))
 
 	i := 0
@@ -966,6 +968,30 @@ func (cell *Cell) make_cells(cad *CAD, pf ProjFactor) ([]*Cell, sign_t) {
 	return cell.make_cells_i(cad, pf, p)
 }
 
+func (cell *Cell) nintv_divide(prec uint) bool {
+	ret := false
+	for _, point := range []float64{0.5, 0.25, 0.75, 0.125, 0.875} {
+		mid := cell.nintv.mid(point, prec)
+		vv := NewIntervalFloat(mid, prec)
+		pp := cell.defpoly.toIntv(prec).(*Poly)
+		p2 := cell.parent.subst_intv(pp, prec).(*Poly)
+		p3 := p2.subst1(vv, cell.lv).(*Interval)
+		if !p3.ContainsZero() {
+			iv := newInterval(prec)
+			if p3.Sign()*int(cell.sgn_of_left) > 0 {
+				iv.inf.Set(mid)
+				iv.sup.Set(cell.nintv.sup)
+			} else {
+				iv.inf.Set(cell.nintv.inf)
+				iv.sup.Set(mid)
+			}
+			cell.nintv = iv
+			ret = true
+		}
+	}
+	return ret
+}
+
 func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 	// isolating interval を *Interval に変換する
 	if cell.nintv != nil && cell.nintv.Prec() >= prec {
@@ -983,7 +1009,8 @@ func (cell *Cell) getNumIsoIntv(prec uint) *Interval {
 		return z
 	}
 
-	panic("unimplemented")
+	cell.nintv_divide(prec)
+	return cell.nintv
 }
 
 func (cell *Cell) _subst_intv(p *Poly, prec uint) RObj {
@@ -1288,25 +1315,8 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 	fmt.Printf("prec=%v\n", cell.nintv.Prec())
 	var prec uint
 	for prec = cell.nintv.Prec() + 64; prec < 1000; prec += 60 {
-		for _, point := range []float64{0.5, 0.25, 0.75, 0.125, 0.875} {
-			mid := cell.nintv.mid(point, prec)
-			vv := NewIntervalFloat(mid, prec)
-			pp := cell.defpoly.toIntv(prec).(*Poly)
-			p2 := cell.parent.subst_intv(pp, prec).(*Poly)
-			p3 := p2.subst1(vv, cell.lv).(*Interval)
-			fmt.Printf("p[%v,%.3f]=%e: %v\n", prec, point, p3, cell.Precs())
-			if !p3.ContainsZero() {
-				iv := newInterval(prec)
-				if p3.Sign()*int(cell.sgn_of_left) > 0 {
-					iv.inf.Set(mid)
-					iv.sup.Set(cell.nintv.sup)
-				} else {
-					iv.inf.Set(cell.nintv.inf)
-					iv.sup.Set(mid)
-				}
-				cell.nintv = iv
-				return
-			}
+		if cell.nintv_divide(prec) {
+			return
 		}
 		cell.parent.improveIsoIntv(nil, true)
 	}

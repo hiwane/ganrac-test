@@ -1076,7 +1076,7 @@ func (p *Poly) _reduce(q *Poly) RObj {
 	}
 
 	lc := q.c[len(q.c)-1].(NObj)
-	for i := 0; p.lv == q.lv && len(p.c) >= len(q.c); i++ {
+	for j := 0; p.lv == q.lv && len(p.c) >= len(q.c); j++ {
 		cc := p.c[len(p.c)-1].Div(lc)
 		qq := NewPoly(p.lv, len(p.c))
 		df := len(p.c) - len(q.c)
@@ -1091,9 +1091,6 @@ func (p *Poly) _reduce(q *Poly) RObj {
 			p = ppp
 		} else {
 			return pp
-		}
-		if i > 100 {
-			panic("err") // DEBUG
 		}
 	}
 	return p
@@ -1242,6 +1239,26 @@ func (p *Poly) Cmp(q *Poly) int {
 	}
 	if p.deg() != q.deg() {
 		return p.deg() - q.deg()
+	}
+
+	switch pc := p.lc().(type) {
+	case *Int:
+		if qc, ok := q.lc().(*Int); ok {
+			if pc.IsOne() && !qc.IsOne() {
+				return -1
+			} else if !pc.IsOne() && qc.IsOne() {
+				return +1
+			}
+		} else {
+			return -1
+		}
+	case *Poly:
+		switch qc := q.lc().(type) {
+		case *Int:
+			return 1
+		case *Poly:
+			return pc.Cmp(qc)
+		}
 	}
 
 	return 0

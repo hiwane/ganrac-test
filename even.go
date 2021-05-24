@@ -1,5 +1,8 @@
 package ganrac
 
+// ex([x], p(x^2)) <==>
+// ex([x], x >= 0 && p(x))
+
 import (
 	"fmt"
 )
@@ -9,10 +12,11 @@ const (
 	EVEN_NG  = 1
 	EVEN_LIN = 2
 	EVEN_OK  = 4
-	EVEN_OKM  = 8	// 積の計算が必要
+	EVEN_OKM = 8 // 積の計算が必要
 )
+
 // FofAObase FofQbase
-func (qeopt *QEopt) qe_even(prenex_fof Fof, cond qeCond) Fof {
+func (qeopt *QEopt) qe_evenq(prenex_fof Fof, cond qeCond) Fof {
 	fof := prenex_fof
 
 	bs := make([]bool, qeopt.varn)
@@ -24,7 +28,7 @@ func (qeopt *QEopt) qe_even(prenex_fof Fof, cond qeCond) Fof {
 		if fofq, ok := fof.(FofQ); ok {
 			for _, q := range fofq.Qs() {
 				bs[q] = false
-				if v := fofq.isEven(q); v & EVEN_NG == 0 {
+				if v := fofq.isEven(q); v&EVEN_NG == 0 {
 					if v == EVEN_OK {
 						// 単純に次数を下げればいい．
 						f := fofq.Fml()
@@ -61,7 +65,7 @@ func (qeopt *QEopt) qe_even(prenex_fof Fof, cond qeCond) Fof {
 	// free var.  次数も
 	for j, b := range bs {
 		if b {
-			if v := fof.isEven(Level(j)); v & EVEN_NG == 0 {
+			if v := fof.isEven(Level(j)); v&EVEN_NG == 0 {
 			}
 		}
 	}
@@ -218,9 +222,9 @@ func (p *Poly) redEven(lv Level) *Poly {
 		return q
 	}
 
-	q := NewPoly(p.lv, p.deg() / 2 + 1)
+	q := NewPoly(p.lv, p.deg()/2+1)
 	for i := 0; i < len(q.c); i++ {
-		q.c[i] = p.c[2 * i]
+		q.c[i] = p.c[2*i]
 	}
 	if err := q.valid(); err != nil {
 		panic(fmt.Sprintf("err=%v: %v", err, q))

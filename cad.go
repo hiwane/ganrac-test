@@ -4,6 +4,7 @@ package ganrac
 // Quantifier elimination for real closed fields by cylindrical algebraic decomposition
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -14,6 +15,8 @@ type ProjectionAlgo int
 
 type sign_t int8
 type mult_t int8
+
+var CAD_NO_WO = errors.New("NOT well-oriented")
 
 const (
 	t_undef  = -1 // まだ評価していない
@@ -76,6 +79,7 @@ type CADStat struct {
 	sqrt_ok      int
 	discriminant int
 	resultant    int
+	psc          int
 	cell         int
 	true_cell    int
 	false_cell   int
@@ -138,13 +142,14 @@ func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
 	fmt.Fprintf(b, "CA stat....\n")
 	fmt.Fprintf(b, "==========================================\n")
 	if cad.stage >= CAD_STAGE_PROJED {
-		fmt.Fprintf(b, " - discrim on proj      : %8d\n", stat.discriminant)
-		fmt.Fprintf(b, " - resultant on proj    : %8d\n", stat.resultant)
-		fmt.Fprintf(b, " - factorization over Z : %8d\n", stat.fctr)
+		fmt.Fprintf(b, " - proj | discrim              : %8d\n", stat.discriminant)
+		fmt.Fprintf(b, " - proj | resultant            : %8d\n", stat.resultant)
+		fmt.Fprintf(b, " - proj | psc                  : %8d\n", stat.psc)
+		fmt.Fprintf(b, " - proj | factorization over Z : %8d\n", stat.fctr)
 	}
 	if cad.stage >= CAD_STAGE_LIFTED {
-		fmt.Fprintf(b, " - real root in Z[x]    : %8d\n", stat.qrealroot)
-		fmt.Fprintf(b, " - real root in intv[x] : %8d / %d\n", stat.irealroot_ok, stat.irealroot)
+		fmt.Fprintf(b, " - lift | real root in Z[x]    : %8d\n", stat.qrealroot)
+		fmt.Fprintf(b, " - lift | real root in intv[x] : %8d / %d\n", stat.irealroot_ok, stat.irealroot)
 	}
 }
 
@@ -226,8 +231,15 @@ _NEXT:
 func (c *CAD) initProj(algo ProjectionAlgo) {
 	vnum := Level(len(c.q))
 	c.proj = make([]ProjFactors, vnum)
+
 	for i := Level(0); i < vnum; i++ {
-		c.proj[i] = newProjFactorsMC()
+		if algo == PROJ_McCallum {
+			c.proj[i] = newProjFactorsMC()
+		} else if algo == PROJ_HONG {
+			c.proj[i] = newProjFactorsHH()
+		} else {
+			panic(fmt.Sprintf("unknown %v", algo))
+		}
 	}
 
 	c.fml = clone4CAD(c.fml, c)

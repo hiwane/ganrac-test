@@ -230,10 +230,6 @@ func (cad *CAD) symde_zero_chk2(porg *Poly, cell *Cell, pi int) bool {
 	if len(q.c) < len(cell.defpoly.c) {
 		// 定義多項式が分解できた
 		for prec := uint(50); ; prec += uint(50) {
-			fmt.Printf("input p=%v\n", porg)
-			cell.Print()
-			fmt.Printf("s2=%v\n", s2)
-			fmt.Printf("q=%v\n", q)
 			x1 := cell.subst_intv(q, prec).(*Interval)  // GCD
 			x2 := cell.subst_intv(s2, prec).(*Interval) // 外
 
@@ -265,12 +261,6 @@ func (cad *CAD) symde_zero_chk(porg *Poly, cell *Cell) bool {
 	if len(q.c) < len(cell.defpoly.c) {
 		// 定義多項式が分解できた
 		for prec := uint(50); ; prec += uint(50) {
-			fmt.Printf("input p=%v\n", porg)
-			cell.Print()
-			fmt.Printf("   defp=%v\n", cell.parent.defpoly)
-			fmt.Printf("   defp=%v\n", cell.defpoly)
-			fmt.Printf("     s2=%v\n", s2)
-			fmt.Printf("      q=%v\n", q)
 
 			x1 := cell.subst_intv(q, prec).(*Interval)          // GCD
 			x2 := cell.subst_intv(s2.(*Poly), prec).(*Interval) // 外

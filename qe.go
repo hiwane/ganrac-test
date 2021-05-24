@@ -11,7 +11,7 @@ import (
 
 type QEopt struct {
 	varn Level
-	g	*Ganrac
+	g    *Ganrac
 }
 
 type qeCond struct {
@@ -175,14 +175,34 @@ func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
 	return qeopt.qe_prenex_main(fofq, cond)
 }
 
-func (qeopt QEopt) qe_prenex_main(fof FofQ, cond qeCond) Fof {
+func (qeopt QEopt) reconstruct(fqs []FofQ, ff Fof, cond qeCond) Fof {
+	for i := len(fqs) - 1; i >= 0; i-- {
+		ff = fqs[i].gen(fqs[i].Qs(), ff)
+	}
+	return qeopt.qe(ff, cond)
+
+}
+
+func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
+	fof := fofin
 	fmt.Printf("qepm [%4d] %v\n", cond.depth, fof)
 
-	if ff := qeopt.qe_even(fof, cond); ff != nil {
+	if ff := qeopt.qe_evenq(fof, cond); ff != nil {
 		return ff
 	}
 
-
+	// quantifier の一番外側を処理する.
+	fof = fofin
+	fqs := make([]FofQ, 1)
+	fqs[0] = fof
+	for {
+		if fq, ok := fof.Fml().(FofQ); ok {
+			fqs = append(fqs, fq)
+			fof = fq
+		} else {
+			break
+		}
+	}
 
 	////////////////////////////////
 	// 複数等式制約の GB による簡単化
@@ -196,20 +216,23 @@ func (qeopt QEopt) qe_prenex_main(fof FofQ, cond qeCond) Fof {
 	////////////////////////////////
 
 	////////////////////////////////
-	// Hong93 # {{{
+	// Hong93
 	// 線形か2次の等式制約が含まれる場合.
 	////////////////////////////////
 
 	////////////////////////////////
-	// VS を適用できるか. {{{
+	// VS を適用できるか.
+	////////////////////////////////
+	if ff := qeopt.qe_vslin(fof, cond); ff != nil {
+		return qeopt.reconstruct(fqs, ff, cond)
+	}
+
+	////////////////////////////////
+	// 非等式 QE
 	////////////////////////////////
 
 	////////////////////////////////
-	// 非等式 QE {{{
-	////////////////////////////////
-
-	////////////////////////////////
-	// CAD ではどうしようもないが, VS 2 次が使えるかも? # {{{
+	// CAD ではどうしようもないが, VS 2 次が使えるかも?
 	////////////////////////////////
 
 	////////////////////////////////
@@ -295,11 +318,17 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 	if err != nil {
 		panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof2, err))
 	}
-	cad.Projection(0)
+	cad.Projection(PROJ_McCallum)
 	err = cad.Lift()
-	if err != nil {
-		// @TODO well-oriented なら Hong-proj へ
-		panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof, err))
+	for err != nil {
+		if err != CAD_NO_WO {
+			panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof, err))
+		}
+
+		// NOT well-oriented で Hong-proj へ
+		cad, _ = NewCAD(fof2, qeopt.g)
+		cad.Projection(PROJ_HONG)
+		err = cad.Lift()
 	}
 	fof3, err := cad.Sfc()
 	if err != nil {

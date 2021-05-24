@@ -424,6 +424,13 @@ func (pl *ProjLink) evalSign(cell *Cell) OP {
 	for i := 0; i < len(pl.multiplicity); i++ {
 		pf := pl.projs[i]
 		if cell.lv < pf.Lv() {
+			if pf.Sign() > 0 {
+				continue
+			} else if pf.Sign() < 0 {
+				op = op.neg()
+				continue
+			}
+
 			switch pf.evalSign(cell) {
 			case OP_TRUE:
 				return OP_TRUE

@@ -398,6 +398,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 		return fof
 	}
 
+	fmt.Printf("qevs1[%4s] %v\n", varstr(lv), fof)
 	var ret Fof = falseObj
 	elset := get_vs_polys(fof, lv)
 	// fmt.Printf("vsLin=%v\n", fml)
@@ -507,4 +508,14 @@ func vsLinear(fof Fof, lv Level) Fof {
 
 	// fmt.Printf("LinearVS ret=%v\n", ret)
 	return ret
+}
+
+func (qeopt QEopt) qe_vslin(fof FofQ, cond qeCond) Fof {
+	for _, q := range fof.Qs() {
+		ff := vsLinear(fof, q)
+		if ff != fof {
+			return ff
+		}
+	}
+	return nil
 }

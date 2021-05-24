@@ -155,7 +155,7 @@ func (pfs *ProjFactorsMC) hasCommonRoot(cad *CAD, c *Cell, i, j uint) int {
 	n := 0
 	for _, pf := range []ProjFactor{pfs.pf[i], pfs.pf[j]} {
 		// 次数が落ちていると，共通根を持たなくても終結式が 0 になる
-		if (pf.evalCoeff(cad, c, pf.Deg()) & EQ) == 0 {
+		if (pf.evalCoeff(cad, c, pf.Deg()) & EQ) != 0 {
 			n++
 		}
 	}

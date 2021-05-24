@@ -88,7 +88,7 @@ func (sfc *CADSfc) make_pdf() {
 		// rebuild CAD
 		if lv > 0 {
 			for j := proj_num[lv]; j < sfc.cad.proj[lv].Len(); j++ {
-				fmt.Printf("  lv=%d, j=%d/%d/%d\n", lv, j, proj_num[lv], sfc.cad.proj[lv].Len())
+				fmt.Printf("  lv=%d, j=%d/%d/%d: %v\n", lv, j, proj_num[lv], sfc.cad.proj[lv].Len(), sfc.cad.proj[lv].get(uint(j)).P())
 				sfc.cad.proj[lv].doProj(sfc.cad, j)
 			}
 		}

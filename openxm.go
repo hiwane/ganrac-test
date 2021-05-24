@@ -106,11 +106,12 @@ type Flusher interface {
 }
 
 type OpenXM struct {
-	cw, dw Flusher
-	cr, dr io.Reader
-	serial int32
-	border binary.ByteOrder
-	logger *log.Logger
+	cw, dw      Flusher
+	cr, dr      io.Reader
+	serial      int32
+	border      binary.ByteOrder
+	logger      *log.Logger
+	psc_defined bool
 }
 
 func NewOpenXM(controlw, dataw Flusher, controlr, datar io.Reader, logger *log.Logger) *OpenXM {
@@ -368,6 +369,9 @@ func (ox *OpenXM) sendCMOPoly(p *Poly, lvmap map[Level]int32) error {
 		}
 	}
 	ox.logger.Printf(" --> sendCMOPoly() #mono=%d, p.lv=%d -> %d\n", cnt, p.lv, lvmap[p.lv])
+	if err := p.valid(); err != nil {
+		panic(fmt.Sprintf("sendcmo: #mono=%d, p.lv=%d\nerr=%v\np=%v", cnt, p.lv, err, p))
+	}
 	err = ox.dataWrite(&cnt)
 	err = ox.dataWrite(lvmap[p.lv])
 	for i := int32(len(p.c) - 1); cnt > 0; i-- {
@@ -816,6 +820,22 @@ func (ox *OpenXM) PopCMO() (interface{}, error) {
 		return "", err
 	}
 	return v, nil
+}
+
+func (ox *OpenXM) ExecString(val string) error {
+	const fname = "ExecString"
+	err := ox.PushOxCMO(val)
+	if err != nil {
+		ox.logger.Printf("%s() push-fname() failed", fname)
+		return err
+	}
+	err = ox.PushOXCommand(SM_executeStringByLocalParser)
+	if err != nil {
+		ox.logger.Printf("%s(%d) push OxCommand() failed", fname, SM_executeStringByLocalParser)
+		return err
+	}
+	err = ox.dw.Flush()
+	return err
 }
 
 func (ox *OpenXM) ExecFunction(funcname string, argv ...interface{}) error {
