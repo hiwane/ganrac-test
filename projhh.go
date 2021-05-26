@@ -17,8 +17,7 @@ type ProjFactorHH struct {
 type ProjFactorsHH struct {
 	pf []ProjFactor
 
-	// psc[p][q][k][j] = psc_j(red^k(p),q)
-	// p > q
+	// psc[p][q][k][j] = psc_j(red^k(p),q), p > q
 	pscs [][][][]*ProjLink
 }
 

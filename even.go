@@ -39,7 +39,7 @@ func (qeopt *QEopt) qe_evenq(prenex_fof Fof, cond qeCond) Fof {
 							f = NewFmlAnd(f, NewAtom(NewPolyVar(q), GE))
 						}
 						f = fofq.gen(fofq.Qs(), f)
-						fmt.Printf("qeven[%4d,%d,%d] %v\n", cond.depth, q, v, f)
+						fmt.Printf("qeven[%4d,%s,%d] %v\n", cond.depth, varstr(q), v, f)
 						f = qeopt.qe(f, cond)
 
 						// 再構築
@@ -81,8 +81,8 @@ func (p *Atom) isEvenE(lv Level) int {
 		}
 		d := pp.Deg(lv)
 		if d%2 == 0 {
-			for i := 1; i < len(pp.c); i += 2 {
-				if !pp.c[i].IsZero() {
+			for i := 1; i <= d; i += 2 {
+				if !pp.Coef(lv, uint(i)).IsZero() {
 					return EVEN_NG
 				}
 			}
@@ -211,7 +211,7 @@ func (p *Poly) redEven(lv Level) *Poly {
 		return p
 	} else if p.lv > lv {
 		q := NewPoly(p.lv, len(p.c))
-		for i, cc := range q.c {
+		for i, cc := range p.c {
 			switch c := cc.(type) {
 			case *Poly:
 				q.c[i] = c.redEven(lv)

@@ -12,6 +12,7 @@ func (g *Ganrac) setBuiltinFuncTable() {
 		// sorted by name
 		{"all", 2, 2, funcForAll, false, "([x], FOF): universal quantifier.", ""},
 		{"and", 2, 2, funcAnd, false, "(FOF, ...): conjunction (&&)", ""},
+		{"cad", 1, 2, funcCAD, true, "(FOF [, proj])* ", ""},
 		{"cadinit", 1, 1, funcCADinit, true, "(FOF)* ", ""},
 		{"cadlift", 1, 10, funcCADlift, true, "(CAD)* ", ""},
 		{"cadproj", 1, 2, funcCADproj, true, "(CAD)* ", ""},
@@ -77,7 +78,7 @@ Args
 ========
   vars
 
-Examples
+Examples*
 ========
   > init(x,y,z);
   > F = x^2+2;
@@ -168,6 +169,7 @@ Examples
 		// {"sqfr", 1, 1, funcSqfr, false, "(poly)* square-free factorization", ""},
 		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
 		{"time", 1, 1, funcTime, false, "(expr)@ run command and system resource usage", ""},
+		{"vs", 1, 1, funcVS, true, "(FOF)* ", ""},
 	}
 }
 
@@ -241,7 +243,7 @@ func funcImpl(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("%s(2nd-arg): expected a first-order formula", name)
 	}
 
-	return NewFmlOr(f0.Not(), f1), nil
+	return FofImpl(f0, f1), nil
 }
 
 func funcEquiv(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -254,7 +256,7 @@ func funcEquiv(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 		return nil, fmt.Errorf("%s(2nd-arg): expected a first-order formula", name)
 	}
 
-	return NewFmlAnd(NewFmlOr(f0.Not(), f1), NewFmlOr(f0, f1.Not())), nil
+	return FofEquiv(f0, f1), nil
 }
 
 func funcExists(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -426,6 +428,35 @@ func funcSimplify(g *Ganrac, name string, args []interface{}) (interface{}, erro
 	return c, nil
 }
 
+func funcCAD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	fof, ok := args[0].(Fof)
+	if !ok {
+		return nil, fmt.Errorf("%s() expected FOF", name)
+	}
+	var algo ProjectionAlgo = PROJ_McCallum
+	if len(args) > 1 {
+		algoi, ok := args[1].(*Int)
+		if !ok || (!algoi.IsZero() && !algoi.IsOne()) {
+			return nil, fmt.Errorf("%s(2nd-arg) expected proj operator", name)
+		}
+		algo = ProjectionAlgo(algoi.Int64())
+	}
+
+	cad, err := NewCAD(fof, g)
+	if err != nil {
+		return nil, err
+	}
+	_, err = cad.Projection(algo)
+	if err != nil {
+		return nil, err
+	}
+	err = cad.Lift()
+	if err != nil {
+		return nil, err
+	}
+	return cad.Sfc()
+}
+
 func funcCADinit(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	c, ok := args[0].(Fof)
 	if !ok {
@@ -480,6 +511,20 @@ func funcCADsfc(g *Ganrac, name string, args []interface{}) (interface{}, error)
 	}
 
 	return cad.Sfc()
+}
+
+func funcVS(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	fof, ok := args[0].(FofQ)
+	if !ok || !fof.Fml().IsQff() {
+		return nil, fmt.Errorf("%s() expected prenex-FOF", name)
+	}
+
+	var fml Fof
+	fml = fof
+	for _, q := range fof.Qs() {
+		fml = vsLinear(fml, q)
+	}
+	return fml, nil
 }
 
 ////////////////////////////////////////////////////////////

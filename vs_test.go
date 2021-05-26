@@ -117,3 +117,101 @@ func TestVsLin(t *testing.T) {
 		}
 	}
 }
+
+func TestVsLin2(t *testing.T) {
+
+	for ii, ss := range []struct {
+		lv     Level
+		p      Fof
+		expect Fof
+	}{
+		{2, // ex([x], a*x == b && 3*x > 1);
+			NewQuantifier(false, []Level{2}, newFmlAnds(
+				NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, -1), NewPolyCoef(0, 0, 1)), EQ),
+				NewAtom(NewPolyCoef(2, -1, 3), GT))),
+			newFmlOrs( // [ a = 0 /\ 3 b - a = 0 ] \/ [ a > 0 /\ 3 b - a > 0 ] \/ [ a < 0 /\ 3 b - a < 0 ]
+				newFmlAnds(
+					NewAtom(NewPolyCoef(0, 0, 1), EQ),
+					NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), EQ)),
+				newFmlAnds(
+					NewAtom(NewPolyCoef(0, 0, 1), GT),
+					NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), GT)),
+				newFmlAnds(
+					NewAtom(NewPolyCoef(0, 0, 1), LT),
+					NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), LT))),
+		}, {2, // ex([x], a*x < b && 3*x > 1);
+			NewQuantifier(false, []Level{2}, newFmlAnds(
+				NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, -1), NewPolyCoef(0, 0, 1)), LT),
+				NewAtom(NewPolyCoef(2, -1, 3), GT))),
+			newFmlOrs(
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), GT),
+				NewAtom(NewPolyCoef(0, 0, 1), LT)),
+		}, {2, // ex([x], a*x > b && 3*x > 1);
+			NewQuantifier(false, []Level{2}, newFmlAnds(
+				NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, -1), NewPolyCoef(0, 0, 1)), GT),
+				NewAtom(NewPolyCoef(2, -1, 3), GT))),
+			newFmlOrs(
+				NewAtom(NewPolyCoef(0, 0, 1), GT),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), LT)),
+		}, {2,
+			// ex([x], a*x+b >= 0 && 3*x+1 > 0)
+			NewQuantifier(false, []Level{2}, newFmlAnds(
+				NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1)), GE),
+				NewAtom(NewPolyCoef(2, 1, 3), GT))),
+			// b >= 0 \/ a > 0 \/ 3 b - a > 0
+			newFmlOrs(
+				NewAtom(NewPolyCoef(1, 0, 1), GE),
+				NewAtom(NewPolyCoef(0, 0, 1), GT),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 3), GT)),
+		}, {4,
+			// ex([x], a*x+b >= 0 && c*x+d > 0)
+			NewQuantifier(false, []Level{4}, newFmlAnds(
+				NewAtom(NewPolyCoef(4, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1)), GE),
+				NewAtom(NewPolyCoef(4, NewPolyCoef(3, 0, 1), NewPolyCoef(2, 0, 1)), GT))),
+			//  b >= 0 && d > 0  ||  a >= 0 && c > 0 && a*d - b*c <= 0  ||  a <= 0 && c < 0 && a*d - b*c >= 0  ||  a > 0 && a*d - b*c > 0  ||  a < 0 && a*d - b*c < 0
+			newFmlOrs(
+				newFmlAnds(NewAtom(NewPolyCoef(1, 0, 1), GE), NewAtom(NewPolyCoef(3, 0, 1), GT)),
+				newFmlAnds(NewAtom(NewPolyCoef(0, 0, 1), GE), NewAtom(NewPolyCoef(2, 0, 1), GT), NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(1, 0, -1)), NewPolyCoef(0, 0, 1)), LE)),
+				newFmlAnds(NewAtom(NewPolyCoef(0, 0, 1), LE), NewAtom(NewPolyCoef(2, 0, 1), LT), NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(1, 0, -1)), NewPolyCoef(0, 0, 1)), GE)),
+				newFmlAnds(NewAtom(NewPolyCoef(0, 0, 1), GT), NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(1, 0, -1)), NewPolyCoef(0, 0, 1)), GT)),
+				newFmlAnds(NewAtom(NewPolyCoef(0, 0, 1), LT), NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, NewPolyCoef(1, 0, -1)), NewPolyCoef(0, 0, 1)), LT))),
+		},
+	} {
+		for jj, sss := range []struct {
+			p      Fof
+			expect Fof
+		}{
+			{ss.p, ss.expect},
+			{ss.p.Not(), ss.expect.Not()},
+		} {
+			f := vsLinear(sss.p, ss.lv)
+			f = f.simplBasic(trueObj, falseObj)
+
+			q := make([]Level, ss.lv)
+			for i := Level(0); i < ss.lv; i++ {
+				q[i] = i
+			}
+			g := NewQuantifier(true, q, FofEquiv(f, sss.expect))
+			for i := Level(0); i < ss.lv; i++ {
+				g = vsLinear(g, i)
+				switch g.(type) {
+				case *AtomF:
+					t.Errorf("invalid %d, %d, F\n in=%v\nexp=%v\nout=%v", ii, jj, sss.p, sss.expect, f)
+					return
+				case FofQ:
+					continue
+				case *AtomT:
+					break
+				default:
+					t.Errorf("invalid %d, %d, 2, %v\n in=%v\nexp=%v\nout=%v", ii, jj, g, sss.p, sss.expect, f)
+					return
+				}
+				g = g.simplBasic(trueObj, falseObj)
+			}
+			if _, ok := g.(*AtomT); !ok {
+				t.Errorf("invalid %d, %d, 3, %v\n in=%v\nexp=%v\nout=%v", ii, jj, g, sss.p, sss.expect, f)
+				return
+			}
+		}
+	}
+}

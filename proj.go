@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"time"
 )
 
 type ProjFactor interface {
@@ -233,6 +234,7 @@ func (cad *CAD) getU() []*Interval {
 
 func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
+	tm_start := time.Now()
 
 	// projection の準備
 	cad.initProj(algo)
@@ -287,6 +289,7 @@ func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	}
 
 	cad.stage = CAD_STAGE_PROJED
+	cad.stat.tm[0] = time.Since(tm_start)
 	return projs, nil
 }
 

@@ -78,11 +78,9 @@ func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 
 func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 	// t-order partials の GCD を計算して，それが定数かすでに射影因子に含まれているなら ok
-	fmt.Printf("need_delineating_poly()\n")
 	if err := cell.Print("cellp"); err != nil {
 		fmt.Printf("err: %v\n", err)
 	}
-	fmt.Printf("_____________\n")
 	a := []*Poly{pf.P()}
 	for t := Level(0); t <= cell.lv; t++ { // t-order
 		b := make([]*Poly, 0)
@@ -93,7 +91,7 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 					switch qc := cell.reduce(q).(type) {
 					case *Poly:
 						if pf.P().lv != qc.lv {
-							fmt.Printf("[%d,%d/%d] pf=%v, q=%v, qc=%v\n", t, j, pf.P().lv, pf.P(), q, qc)
+							// fmt.Printf("[%d,%d/%d] pf=%v, q=%v, qc=%v\n", t, j, pf.P().lv, pf.P(), q, qc)
 							return true
 						}
 						if !qc.isUnivariate() {
@@ -118,10 +116,10 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 						return true
 					}
 				}
-				fmt.Printf("ndp.p=%v\n", cell.reduce(p.diff(j)))
+				// fmt.Printf("ndp.p=%v\n", cell.reduce(p.diff(j)))
 			}
 		}
-		fmt.Printf("b=%v\n", b)
+		// fmt.Printf("b=%v\n", b)
 		if len(b) == 0 {
 			a = b
 			continue
@@ -139,7 +137,6 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 
 		// g がすでに含まれているか.
 		gx := cad.g.ox.Factor(g)
-		fmt.Printf("gx=%v\n", gx)
 		for k := gx.Len() - 1; k >= 1; k-- {
 			fctr, _ := gx.Geti(k)
 			g = fctr.(*List).getiPoly(0)
@@ -159,7 +156,6 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 		}
 		return true
 	}
-	fmt.Printf("b=%v\n", a)
 
 	return false
 }
@@ -170,10 +166,7 @@ func (pf *ProjFactorMC) vanishChk(cad *CAD, cell *Cell) bool {
 		return true
 	}
 
-	cell.Print("cellp")
-	fmt.Printf("projmc_vanish: dim=%d, p=%v\n", cell.dim(), pf.P())
 	if cell.dim() > 0 {
-		fmt.Printf("constcoord_test()\n")
 		if cad.constcoord_test(cell, pf) {
 		}
 		panic("constcoord_test=true")

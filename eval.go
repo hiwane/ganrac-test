@@ -2,6 +2,8 @@ package ganrac
 
 import (
 	"fmt"
+	"os"
+	"time"
 )
 
 func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
@@ -57,6 +59,11 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return trueObj, nil
 	case f_false:
 		return falseObj, nil
+	case f_time:
+		tm_start := time.Now()
+		o, err := g.evalStack(stack)
+		fmt.Fprintf(os.Stderr, "time: %s\n", time.Since(tm_start))
+		return o, err
 	case eol:
 		return nil, nil
 	}

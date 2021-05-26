@@ -124,9 +124,7 @@ func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
 func (qeopt QEopt) simplify(qff Fof, cond qeCond) Fof {
 	qff = qff.simplFctr(qeopt.g)
 	qff = qff.simplBasic(cond.neccon, cond.sufcon)
-	fmt.Printf("simpl.b! %v\n", qff)
 	qff, _, _ = qff.simplNum(qeopt.g, nil, nil)
-	fmt.Printf("simpl.n! %v\n", qff)
 	return qff
 }
 
@@ -185,7 +183,6 @@ func (qeopt QEopt) reconstruct(fqs []FofQ, ff Fof, cond qeCond) Fof {
 
 func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
 	fof := fofin
-	fmt.Printf("qepm [%4d] %v\n", cond.depth, fof)
 
 	if ff := qeopt.qe_evenq(fof, cond); ff != nil {
 		return ff
@@ -399,12 +396,11 @@ func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 			}
 		}
 
-		fmt.Printf("qeao [%4d,%d,1] %v\n", cond.depth, i, f)
+		fmt.Printf("qeao [%4d,%d,i] %v\n", cond.depth, i, f)
 		f = qeopt.simplify(f, cond2)
-		fmt.Printf("qeao [%4d,%d,2] %v\n", cond.depth, i, f)
 		f = qeopt.qe(f, cond2)
-		fmt.Printf("qeao [%4d,%d,3] %v\n", cond.depth, i, f)
 		fmls[i] = qeopt.simplify(f, cond2)
+		fmt.Printf("qeao [%4d,%d,o] %v\n", cond.depth, i, fmls[i])
 		switch fmls[i].(type) {
 		case *AtomT:
 			if !fof.isAnd() {

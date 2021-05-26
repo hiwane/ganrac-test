@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 )
 
 // solution formula construction for truth invariant CAD's
@@ -457,6 +458,7 @@ func (cad *CAD) Sfc() (Fof, error) {
 	} else if cad.stage != 2 {
 		return nil, fmt.Errorf("invalid stage")
 	}
+	tm_start := time.Now()
 
 	sfc := NewCADSfc(cad)
 	t := sfc.pdq()
@@ -481,5 +483,7 @@ func (cad *CAD) Sfc() (Fof, error) {
 
 	cad.FprintProj(os.Stdout)
 	la := sfc.gen_atoms()
-	return sfc.simplesf(la), nil
+	fof := sfc.simplesf(la)
+	cad.stat.tm[2] = time.Since(tm_start)
+	return fof, nil
 }

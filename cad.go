@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"time"
 )
 
 type ProjectionAlgo int
@@ -80,12 +81,13 @@ type CADStat struct {
 	discriminant int
 	resultant    int
 	psc          int
-	cell         int
-	true_cell    int
-	false_cell   int
+	cell         []int
+	true_cell    []int
+	false_cell   []int
 	precision    int
-	lift         int
-	rlift        int
+	lift         []int
+	rlift        []int
+	tm           []time.Duration
 }
 
 type CAD struct {
@@ -110,6 +112,11 @@ func qeCAD(fml Fof) Fof {
 }
 
 func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
+	fmt.Fprintf(b, "time: proj: %v\n", stat.tm[0])
+	fmt.Fprintf(b, "time: lift: %v\n", stat.tm[1])
+	fmt.Fprintf(b, "time: sfc : %v\n", stat.tm[2])
+	fmt.Fprintf(b, "\n")
+
 	if cad.stage >= CAD_STAGE_PROJED {
 		fmt.Fprintf(b, "CAD proj. stat....\n")
 		fmt.Fprintf(b, "=========================\n")
@@ -135,8 +142,19 @@ func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
 	if cad.stage >= CAD_STAGE_LIFTED {
 		fmt.Fprintf(b, "CAD cell stat....\n")
 		fmt.Fprintf(b, "========================================\n")
-		fmt.Fprintf(b, " - # of cells/true/false: %d / %d / %d\n", stat.cell, stat.true_cell, stat.false_cell)
-		fmt.Fprintf(b, " - # of lifting         : %d\n", stat.lift)
+		fmt.Fprintf(b, "LV |    cell |    true |   false |    lift |   rlift\n")
+		fmt.Fprintf(b, "---+---------+---------+---------+---------+---------\n")
+		sn := make([]int, 5)
+		for i := 0; i < len(cad.q); i++ {
+			fmt.Fprintf(b, "%2d |%8d |%8d |%8d |%8d |%8d\n", i, stat.cell[i], stat.true_cell[i], stat.false_cell[i], stat.lift[i], stat.rlift[i])
+			sn[0] += stat.cell[i]
+			sn[1] += stat.true_cell[i]
+			sn[2] += stat.false_cell[i]
+			sn[3] += stat.lift[i]
+			sn[4] += stat.rlift[i]
+		}
+		fmt.Fprintf(b, "---+---------+---------+---------+---------+---------\n")
+		fmt.Fprintf(b, "%2d |%8d |%8d |%8d |%8d |%8d\n", -1, sn[0], sn[1], sn[2], sn[3], sn[4])
 		fmt.Fprintf(b, "\n")
 	}
 	fmt.Fprintf(b, "CA stat....\n")
@@ -224,6 +242,12 @@ _NEXT:
 	c.rootp = NewCellmod(c.root)
 	c.stack = newCellStack()
 	c.stack.push(c.root)
+	c.stat.cell = make([]int, len(c.q))
+	c.stat.true_cell = make([]int, len(c.q))
+	c.stat.false_cell = make([]int, len(c.q))
+	c.stat.lift = make([]int, len(c.q))
+	c.stat.rlift = make([]int, len(c.q))
+	c.stat.tm = make([]time.Duration, 3)
 
 	return c, nil
 }

@@ -412,11 +412,6 @@ func (cad *CAD) symde_gcd_mod(forg, gorg *Poly, cell *Cellmod, p Uint, need_t bo
 				f, g = g, r
 				continue
 			} else {
-				fmt.Printf("f.%d=%v\n", forg.lv, forg)
-				fmt.Printf("g.%d=%v\n", gorg.lv, gorg)
-				fmt.Printf("g.%d=%v\n", g.lv, g)
-				fmt.Printf("cell.%d=%v\n", cell.lv, cell)
-				fmt.Printf("r.%d=%v\n", r.lv, r)
 				c := cell
 				for r.lv != c.lv {
 					c = c.parent

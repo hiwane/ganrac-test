@@ -22,6 +22,7 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"adam2-2", exAdam2_2},
 	{"adam3", exAdam3},
 	{"candj", exCandJ},
+	{"constcd", exConstCoord},
 	{"cycle3", exCyclic3},
 	{"easy7", exEasy7},
 	{"makepdf", exMakePdf},
@@ -164,6 +165,27 @@ func exCandJ() *QeExample {
 
 	q.Output = q.Input
 
+	return q
+}
+
+func exConstCoord() *QeExample {
+	q := new(QeExample)
+	q.Input = NewQuantifier(true, []Level{3, 4}, newFmlOrs(
+		NewAtom(NewPolyCoef(4, NewPolyCoef(3, -1, 1), 1), LE),
+		NewAtom(NewPolyCoef(4, NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, -1)), 0, NewPolyCoef(1, 0, 0, 1)), NewPolyCoef(1, 0, 0, 1)), NewPolyCoef(0, 0, 0, 1)), NE),
+		NewAtom(NewPolyCoef(3, 0, 1), LT),
+		NewAtom(NewPolyCoef(4, 0, 1), LT)))
+	// (A w)(A a) [ a+w <= 1 \/ x^2 a + y^2 w + y^2 z^2 - x^2 y^2 /= 0 \/ w < 0 \/ a < 0].
+	// y /= 0 /\ y^2 z^2 - x^2 y^2 + x^2 >= 0 /\ z^2 - x^2 + 1 >= 0 /\ [ x /= 0 \/ y^2 z^2 - x^2 y^2 + x^2 > 0 ]
+	// y != 0 && y^2*z^2 - x^2*y^2 + x^2 >= 0 && z^2 - x^2 + 1 >= 0 && ( x != 0 || y^2*z^2 - x^2*y^2 + x^2 > 0 )
+	q.Output = newFmlAnds(
+		NewAtom(NewPolyCoef(1, 0, 1), NE),
+		NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 1), 0, NewPolyCoef(0, 0, 0, -1)), 0, NewPolyCoef(1, 0, 0, 1)), GE),
+		NewAtom(NewPolyCoef(2, NewPolyCoef(0, 1, 0, -1), 0, 1), GE),
+		newFmlOrs(
+			NewAtom(NewPolyCoef(0, 0, 1), NE),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 1), 0, NewPolyCoef(0, 0, 0, -1)), 0, NewPolyCoef(1, 0, 0, 1)), GT)))
+	q.Ref = "original."
 	return q
 }
 

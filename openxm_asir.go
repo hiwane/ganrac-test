@@ -69,9 +69,8 @@ func (ox *OpenXM) Psc(p *Poly, q *Poly, lv Level, j int32) RObj {
 			S[I][M-D+I] = AI;
 		}
 	}
-	S[N-J-1][L-1] = F;
-	for (I = N-J-2; I >= 0; I--) {
-		S[I][L-1] = X * S[I+1][L-1];
+	for (I = N-J-1; I >= 0 && I-(N-J-1)+J >= 0; I--) {
+		S[I][L-1] = coef(F, I-(N-J-1)+J, X);
 	}
 
 	for (D = N; D >= 0; D--) {
@@ -80,12 +79,10 @@ func (ox *OpenXM) Psc(p *Poly, q *Poly, lv Level, j int32) RObj {
 			S[I+N-J][N-D+I] = BI;
 		}
 	}
-
-	S[L-1][L-1] = G;
-	for (I= M-J-2; I >= 0; I--) {
-		S[I+N-J][L-1] = X * S[I+1+N-J][L-1];
+	for (I= M-J-1; I >= 0; I--) {
+		S[I+N-J][L-1] = coef(G, I-(M-J-1)+J, X);
 	}
-	return coef(det(S), J, X);
+	return det(S);
 }`
 		ox.ExecString(str)
 		ox.psc_defined = true

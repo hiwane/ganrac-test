@@ -64,6 +64,7 @@ func NewGANRAC() *Ganrac {
 		// {"all", all},
 		// {"ex", ex},
 		{"init", initvar},
+		{"time", f_time},
 		{"true", f_true},
 		{"false", f_false},
 	}

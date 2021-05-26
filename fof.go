@@ -1963,3 +1963,11 @@ func (p *Exists) varShift(lv Level) Fof {
 	fmt.Printf("ex::   q=%v\n", q)
 	return NewQuantifier(false, q, fml)
 }
+
+func FofImpl(f1, f2 Fof) Fof {
+	return NewFmlOr(f1.Not(), f2)
+}
+
+func FofEquiv(f1, f2 Fof) Fof {
+	return NewFmlAnd(FofImpl(f1, f2), FofImpl(f2, f1))
+}

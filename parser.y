@@ -7,7 +7,7 @@ package ganrac
 	num int
 }
 
-%token call list initvar
+%token call list initvar f_time
 %token name ident number f_true f_false t_str
 %token all ex and or not abs
 %token plus minus comma mult div pow
@@ -16,7 +16,7 @@ package ganrac
 
 %type <num> seq_mobj list_mobj seq_ident
 %type <node> f_true f_false eol
-%type <node> mobj lb initvar
+%type <node> mobj lb initvar f_time
 %type <node> number name ident t_str
 %type <node> plus minus mult div pow and or
 %type <node> ltop gtop leop geop neop eqop assign lb lp
@@ -36,6 +36,7 @@ expr
 	| mobj eol { yylex.(*pLexer).trace("gege") }
 	| name assign mobj eol  { yylex.(*pLexer).trace("assign"); yylex.(*pLexer).push(newPNode($1.str, assign, 0, $1.pos)) }
 	| initvar lp seq_ident rp eol { yylex.(*pLexer).trace("init"); yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)) }
+	| f_time lp mobj rp eol { yylex.(*pLexer).trace("time"); yylex.(*pLexer).push(newPNode($1.str, f_time, f_time, $1.pos)) }
 	;
 
 mobj

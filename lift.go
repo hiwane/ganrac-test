@@ -7,6 +7,7 @@ package ganrac
 import (
 	"fmt"
 	"math/big"
+	"time"
 )
 
 func (cell *Cell) Precs() []uint {
@@ -114,6 +115,7 @@ func (cad *CAD) Lift(index ...int) error {
 	}
 	fmt.Printf("cad.Lift %v\n", index)
 	if len(index) == 0 { // 指定なしなので，最後までやる.
+		tm_start := time.Now()
 		for !cad.stack.empty() {
 			cell := cad.stack.pop()
 			if cell.truth >= 0 {
@@ -130,6 +132,7 @@ func (cad *CAD) Lift(index ...int) error {
 		}
 		err := cad.root.valid(cad)
 		cad.stage = CAD_STAGE_LIFTED
+		cad.stat.tm[1] = time.Since(tm_start)
 		return err
 	}
 	c := cad.root
@@ -222,7 +225,7 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 		return nil
 	}
 	fmt.Printf("rlift(%v, #child=%d) ... #proj=%d/%d/%d\n", cell.Index(), len(cell.children), proj_num[lv], num, len(cell.children[0].signature))
-	cad.stat.rlift++
+	cad.stat.rlift[cell.lv+1]++
 
 	oldcs := cell.children
 	ciso := make([][]*Cell, 0, num-proj_num[lv]+1)
@@ -310,7 +313,6 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 	}
 
 	cell.lift_term(cad, undefined)
-	cad.root.Print("signatures")
 
 	if err := cell.valid(cad); err != nil {
 		cell.Print("signatures")
@@ -323,7 +325,7 @@ func (cell *Cell) lift(cad *CAD) error {
 	if cad.VerboseLevel >= 1 {
 		fmt.Printf("lift (%v)\n", cell.Index())
 	}
-	cad.stat.lift++
+	cad.stat.lift[cell.lv+1]++
 	ciso := make([][]*Cell, cad.proj[cell.lv+1].Len())
 	signs := make([]sign_t, len(ciso))
 	for i, pf := range cad.proj[cell.lv+1].gets() {
@@ -386,15 +388,15 @@ func (cell *Cell) lift(cad *CAD) error {
 	for _, c := range cs {
 		switch c.evalTruth(cad.fml, cad).(type) {
 		case *AtomT:
-			cad.stat.true_cell++
+			cad.stat.true_cell[c.lv]++
 			c.truth = t_true
 		case *AtomF:
-			cad.stat.false_cell++
+			cad.stat.false_cell[c.lv]++
 			c.truth = t_false
 		default:
 			undefined = true
 		}
-		cad.stat.cell++
+		cad.stat.cell[c.lv]++
 	}
 
 	// 真偽値確認して
@@ -1056,11 +1058,9 @@ func (cell *Cell) subst_intv_nozero(cad *CAD, p *Poly) *Poly {
 				p.c[i] = zero
 			} else {
 				// 精度をあげる
-				fmt.Printf("coef[%d] contains zero: %v -> %v\n", i, p.c[i], c)
 				for prec = uint(53 * 2); prec < 1000; prec += 53 {
 					cell.improveIsoIntv(p, true)
 					pp.c[i] = cell.subst_intv(p.c[i].(*Poly), prec)
-					fmt.Printf("pp[%d]=%v\n", i, pp.c[i])
 					if !pp.c[i].(*Interval).ContainsZero() {
 						break
 					}
@@ -1312,7 +1312,6 @@ func (cell *Cell) improveIsoIntv(p *Poly, parent bool) {
 		return
 	}
 
-	fmt.Printf("prec=%v\n", cell.nintv.Prec())
 	var prec uint
 	for prec = cell.nintv.Prec() + 64; prec < 1000; prec += 60 {
 		if cell.nintv_divide(prec) {
