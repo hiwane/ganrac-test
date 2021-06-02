@@ -68,6 +68,9 @@ func (sfc *CADSfc) make_pdf() {
 	}
 
 	for lv := Level(sfc.freen - 1); lv >= 0; lv-- {
+		fmt.Printf("==================================================\n")
+		fmt.Printf("== makepdf lv=%d <%v>\n", lv, proj_num)
+		fmt.Printf("==================================================\n")
 		// construct a hitting set
 		//    for {l(a,b) | (a,b) in the set of all lv-level conflicting pairs}
 		lab := sfc.construct_lab(lv)

@@ -118,6 +118,8 @@ func (pf *ProjFactorMC) proj_discrim(cad *CAD) {
 }
 
 func (pf *ProjFactorMC) evalCoeff(cad *CAD, cell *Cell, deg int) OP {
+	// fmt.Printf("deg=%d, coef.len=%d, %d\n", deg, len(pf.coeff), pf.Sign())
+	// pf.FprintProjFactor(os.Stdout, cad)
 	if pf.coeff[deg] == nil {
 		return OP_TRUE
 	}
@@ -155,6 +157,10 @@ func (pfs *ProjFactorsMC) hasCommonRoot(cad *CAD, c *Cell, i, j uint) int {
 	n := 0
 	for _, pf := range []ProjFactor{pfs.pf[i], pfs.pf[j]} {
 		// 次数が落ちていると，共通根を持たなくても終結式が 0 になる
+		if pf.(*ProjFactorMC).coeff == nil {
+			// rlift 時には proj が構成されていない場合がある
+			return PF_EVAL_UNKNOWN
+		}
 		if (pf.evalCoeff(cad, c, pf.Deg()) & EQ) != 0 {
 			n++
 		}
