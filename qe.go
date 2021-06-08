@@ -9,8 +9,17 @@ import (
 	"sort"
 )
 
+const (
+	QEALGO_VSLIN  = 0x0001
+	QEALGO_VSQUAD = 0x0002
+
+	QEALGO_EQLIN  = 0x0010
+	QEALGO_EQQUAD = 0x0020
+)
+
 type QEopt struct {
 	varn Level
+	Algo int64
 	g    *Ganrac
 }
 
@@ -94,6 +103,9 @@ func (qeopt *QEopt) fmlcmp(f1, f2 Fof) bool {
 func (g *Ganrac) QE(fof Fof, qeopt QEopt) Fof {
 	qeopt.varn = fof.maxVar() + 1
 	qeopt.g = g
+	if qeopt.Algo == 0 {
+		qeopt.Algo = -1
+	}
 
 	var cond qeCond
 	cond.neccon = trueObj
@@ -221,7 +233,10 @@ func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
 	// VS を適用できるか.
 	////////////////////////////////
 	if ff := qeopt.qe_vslin(fof, cond); ff != nil {
-		return qeopt.reconstruct(fqs, ff, cond)
+		ff = qeopt.reconstruct(fqs, ff, cond)
+		ff = qeopt.simplify(ff, cond)
+		fmt.Printf("vsret[%4d] %v\n", cond.depth, ff)
+		return ff
 	}
 
 	////////////////////////////////

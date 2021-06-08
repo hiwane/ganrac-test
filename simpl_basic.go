@@ -1,7 +1,7 @@
 package ganrac
 
 import (
-	// "fmt"
+	//	"fmt"
 	"sort"
 )
 
@@ -51,10 +51,11 @@ func simplAtomAnd(p *Atom, neccon *Atom) Fof {
 				flags[i] = true
 			}
 		} else if len(p.p) == 1 {
+
 			if (p.op & neccon.op) == 0 {
 				return falseObj
 			}
-			if (p.op & neccon.op) == p.op {
+			if (p.op | neccon.op) == p.op {
 				return trueObj
 			}
 			if neccon.op == (p.op | EQ) {
@@ -166,9 +167,11 @@ func (p *Atom) simplBasic(neccon, sufcon Fof) Fof {
 		for _, f := range nn.fml {
 			ff, ok := f.(*Atom)
 			if ok {
-				p := simplAtomOr(p, ff)
-				if _, ok := p.(*Atom); !ok {
-					return p
+				switch q := simplAtomOr(p, ff).(type) {
+				case *Atom:
+					p = q
+				default:
+					return q
 				}
 			}
 		}
@@ -186,14 +189,20 @@ func (p *FmlAnd) simplBasic(neccon, sufcon Fof) Fof {
 	copy(fmls, p.fml)
 	fmls[len(fmls)-1] = neccon
 	ret := make([]Fof, len(p.fml))
+	update := false
 	for i := len(fmls) - 1; i >= 0; i-- {
 		nc := newFmlAnds(fmls...)
 		ret[i] = p.fml[i].simplBasic(nc, sufcon)
+		if ret[i] != p.fml[i] {
+			update = true
+		}
 		if i > 0 {
 			fmls[i-1] = ret[i]
 		}
 	}
-
+	if !update {
+		return p
+	}
 	return newFmlAnds(ret...)
 }
 
@@ -206,14 +215,21 @@ func (p *FmlOr) simplBasic(neccon, sufcon Fof) Fof {
 	copy(fmls, p.fml)
 	fmls[len(fmls)-1] = sufcon
 	ret := make([]Fof, len(p.fml))
+	update := false
 	for i := len(fmls) - 1; i >= 0; i-- {
 		sf := newFmlOrs(fmls...)
 		ret[i] = p.fml[i].simplBasic(neccon, sf)
+		if ret[i] != p.fml[i] {
+			update = true
+		} else if p.fml[i].fofTag() == FTAG_AND {
+		}
 		if i > 0 {
 			fmls[i-1] = ret[i]
 		}
 	}
-
+	if !update {
+		return p
+	}
 	return newFmlOrs(ret...)
 }
 

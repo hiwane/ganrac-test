@@ -645,3 +645,24 @@ func TestPP(t *testing.T) {
 		}
 	}
 }
+
+func TestDiffConst(t *testing.T) {
+	for ii, s := range []struct {
+		f *Poly
+		g *Poly
+		c int
+		b bool
+	}{
+		{
+			NewPolyCoef(1, NewPolyCoef(0, 0, -10), 3),
+			NewPolyCoef(1, NewPolyCoef(0, 0, -5), 3),
+			0,
+			false,
+		},
+	} {
+		c, b := s.f.diffConst(s.g)
+		if b != s.b || c*s.c < 0 {
+			t.Errorf("%d\nf=%v\ng=%v\nc=%d ==> %d\nb=%v ==> %v\n", ii, s.f, s.g, s.c, c, s.b, b)
+		}
+	}
+}

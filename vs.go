@@ -10,6 +10,10 @@ import (
 	"fmt"
 )
 
+type fof_vser interface {
+	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
+}
+
 type vslin_sample_point struct {
 	num    RObj
 	den    []RObj // [den^0, den, den^2, den^3, ...]

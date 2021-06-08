@@ -1048,7 +1048,11 @@ func (f *Poly) diffConst(g *Poly) (int, bool) {
 	a := f.LeadinfCoef().Abs()
 	b := g.LeadinfCoef().Abs()
 
-	return f.Mul(b).Sub(g.Mul(a)).Sign(), true
+	u := f.Mul(b).Sub(g.Mul(a))
+	if _, ok := u.(*Poly); ok {
+		return 0, false
+	}
+	return u.Sign(), true
 }
 
 func (f *Poly) toIntv(prec uint) RObj {

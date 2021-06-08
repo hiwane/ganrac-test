@@ -24,7 +24,7 @@ func (ox *OpenXM) Discrim(p *Poly, lv Level) RObj {
 	ox.ExecFunction("res", NewPolyVar(lv), p, dp)
 	qq, _ := ox.PopCMO()
 	q := ox.toGObj(qq).(RObj)
-	n := len(p.c) - 1 // deg(p)
+	n := p.deg()
 	if (n & 0x2) != 0 {
 		q = q.Neg()
 	}
@@ -95,6 +95,60 @@ func (ox *OpenXM) Psc(p *Poly, q *Poly, lv Level, j int32) RObj {
 	qq, err := ox.PopCMO()
 	if err != nil {
 		fmt.Printf("err: psc2 %s\n", err.Error())
+		return nil
+	} else if qq == nil {
+		return zero
+	}
+	return ox.toGObj(qq).(RObj)
+}
+
+func (ox *OpenXM) Sres(p *Poly, q *Poly, lv Level, k int32) RObj {
+	if !ox.sres_defined {
+		str := `def comb(A,B) {
+	for (I=1, C=1; I<=B; I++) {
+		C *= (A-I+1)/I;
+	}
+	return C;
+}`
+		ox.ExecString(str)
+
+		str = `def sres(F, G, X, K) {
+    M = deg(F, X);
+    N = deg(G, X);
+
+	if (type(K) == 10) {
+		K = int32ton(K);
+	}
+	L = N - K;
+	S = newmat(L+1, L+1);
+	CMK = comb(M, K+1);
+
+	for (J = 0; J < L; J++) {
+		S[0][J] = coef(F, M-J, X);
+		for (I = 1; J+I < L; I++) {
+			S[I][I+J] = S[0][J];
+		}
+		if (0 <= L-J && L-J <= L) {
+			S[L-J][L] = (CMK - comb(M-J, K+1)) * S[0][J];
+		}
+		S[L][J] = coef(G, N-J, X);
+	}
+	J = L;
+	S[0][L] = (CMK - comb(M-J, K+1)) * coef(F, M-J, X);
+	S[L][L] = CMK * coef(G, K, X);
+	return det(S);
+}`
+		ox.ExecString(str)
+		ox.sres_defined = true
+	}
+
+	err := ox.ExecFunction("sres", p, q, NewPolyVar(lv), k)
+	if err != nil {
+		fmt.Printf("err: sres1 %s\n", err.Error())
+	}
+	qq, err := ox.PopCMO()
+	if err != nil {
+		fmt.Printf("err: sres2 %s\n", err.Error())
 		return nil
 	} else if qq == nil {
 		return zero

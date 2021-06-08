@@ -7,3 +7,10 @@ type simpler interface {
 	// symbolic-numeric simplification
 	simplNum(g *Ganrac, true_region, false_region *NumRegion) (Fof, *NumRegion, *NumRegion)
 }
+
+func (g *Ganrac) simplFof(c Fof) Fof {
+	c = c.simplFctr(g)
+	c = c.simplBasic(trueObj, falseObj)
+	c, _, _ = c.simplNum(g, nil, nil)
+	return c
+}

@@ -48,7 +48,7 @@ func testSameFormAndOr(output, expect Fof) bool {
 	return true
 }
 
-func testsimplBasicAndOr2(t *testing.T) {
+func TestSimplBasicAndOr2(t *testing.T) {
 	c := int64(0)
 	d := int64(1)
 
@@ -236,7 +236,7 @@ func testsimplBasicAndOr2(t *testing.T) {
 		},
 	} {
 
-		for _, input := range []Fof{
+		for ii, input := range []Fof{
 			NewFmlAnd(s.a, s.b),
 			NewFmlAnd(s.b, s.a),
 			newFmlAnds(s.b, s.a, s.b),
@@ -253,7 +253,7 @@ func testsimplBasicAndOr2(t *testing.T) {
 			output = input.simplBasic(trueObj, falseObj)
 			// 項の数が一致する.
 			if !testSameFormAndOr(output, expect) {
-				t.Errorf("%d: not same form:\ninput =`%v`\noutput=`%v`\nexpect=`%v`", i, input, output, expect)
+				t.Errorf("%d:%d: not same form:\ninput =`%v`\noutput=`%v`\nexpect=`%v`", i, ii, input, output, expect)
 				return
 			}
 
@@ -295,6 +295,55 @@ func testsimplBasicAndOr2(t *testing.T) {
 			if _, ok := q.(*AtomT); !ok {
 				fmt.Printf("q=%v\n", q)
 				t.Errorf("%d: qe failed input=%v: expect=%v, actual=%v", i, input, expect, output)
+				return
+			}
+		}
+	}
+}
+
+func TestSimplBasicAndOr3(t *testing.T) {
+	x := NewPolyCoef(0, 1, 2)
+	y := NewPolyCoef(1, 2, 3)
+	z := NewPolyCoef(2, 4, -3)
+	X := NewAtom(x, LT)
+	Y := NewAtom(y, LE)
+	Z := NewAtom(z, EQ)
+
+	for ii, ss := range []struct {
+		input  Fof
+		expect Fof // simplified input
+	}{
+		{
+			NewFmlAnd(X, NewFmlOr(X, Y)),
+			X,
+		}, {
+			NewFmlAnd(X, newFmlOrs(X, Y, Z)),
+			X,
+		}, {
+			NewFmlAnd(X, newFmlOrs(Z, NewFmlAnd(X, Y))),
+			NewFmlAnd(X, newFmlOrs(Z, Y)),
+		}, {
+			NewFmlAnd(NewFmlOr(X, Y), NewFmlOr(X, Y)),
+			NewFmlOr(X, Y),
+		}, {
+			NewFmlAnd(NewFmlOr(X, Y), newFmlOrs(X, Y, Z)),
+			newFmlOrs(X, Y, Z),
+		},
+	} {
+		if ss.expect == nil {
+			ss.expect = ss.input
+		}
+		for i, s := range []struct {
+			input  Fof
+			expect Fof // simplified input
+		}{
+			{ss.input, ss.expect},
+			{ss.input.Not(), ss.expect.Not()},
+		} {
+
+			output := s.input.simplBasic(trueObj, falseObj)
+			if !testSameFormAndOr(output, s.expect) {
+				t.Errorf("%d/%d: not same form:\ninput =`%v`\noutput=`%v`\nexpect=`%v`", ii, i, s.input, output, s.expect)
 				return
 			}
 		}

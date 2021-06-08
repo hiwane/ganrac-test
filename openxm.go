@@ -106,12 +106,13 @@ type Flusher interface {
 }
 
 type OpenXM struct {
-	cw, dw      Flusher
-	cr, dr      io.Reader
-	serial      int32
-	border      binary.ByteOrder
-	logger      *log.Logger
-	psc_defined bool
+	cw, dw       Flusher
+	cr, dr       io.Reader
+	serial       int32
+	border       binary.ByteOrder
+	logger       *log.Logger
+	psc_defined  bool
+	sres_defined bool
 }
 
 func NewOpenXM(controlw, dataw Flusher, controlr, datar io.Reader, logger *log.Logger) *OpenXM {

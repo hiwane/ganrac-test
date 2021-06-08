@@ -33,12 +33,16 @@ type Fof interface {
 	valid() error                          // for DEBUG. 実装として適切な形式になっているか
 	Deg(lv Level) int
 	FmlLess(a Fof) bool
-	apply_vs(fm func(atom *Atom, p interface{}) Fof, p interface{}) Fof
 	nonPrenex() Fof
 	varShift(lv Level) Fof
+
+	// QE..
+	fof_vser      // Virtual Substitution
+	fof_quad_eqer // Quadratic Equation
 }
 
 type FofQ interface {
+	// quantifier
 	Fof
 	gen(lvv []Level, fml Fof) Fof
 	Qs() []Level
@@ -47,6 +51,7 @@ type FofQ interface {
 }
 
 type FofAO interface {
+	// and/or
 	Fof
 	gen(fml []Fof) Fof
 	Fmls() []Fof
@@ -749,7 +754,7 @@ func (p *AtomT) Format(s fmt.State, format rune) {
 	case FORMAT_TEX:
 		fmt.Fprintf(s, "\\ltrue")
 	case FORMAT_DUMP, 'v', 's':
-		fmt.Fprintf(s, "true")
+		fmt.Fprintf(s, "\x1b[34mtrue\x1b[0m")
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "trueObj")
 	default:
@@ -766,7 +771,7 @@ func (p *AtomF) Format(s fmt.State, format rune) {
 	case FORMAT_TEX:
 		fmt.Fprintf(s, "\\lfalse")
 	case FORMAT_DUMP, 'v', 's':
-		fmt.Fprintf(s, "false")
+		fmt.Fprintf(s, "\x1b[34mfalse\x1b[0m")
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "falseObj")
 	default:
@@ -856,9 +861,9 @@ func (p *FmlAnd) Format(b fmt.State, format rune) {
 			}
 
 			if _, ok := f.(*FmlOr); ok {
-				fmt.Fprintf(b, "(")
+				fmt.Fprintf(b, "\x1b[33m(\x1b[0m")
 				f.Format(b, format)
-				fmt.Fprintf(b, ")")
+				fmt.Fprintf(b, "\x1b[33m)\x1b[0m")
 			} else {
 				f.Format(b, format)
 			}
@@ -906,8 +911,14 @@ func (p *FmlOr) Format(b fmt.State, format rune) {
 			if i != 0 {
 				fmt.Fprintf(b, " || ")
 			}
-
-			f.Format(b, format)
+			// @TODO () は不要だが，明確化のため
+			if _, ok := f.(*FmlAnd); ok {
+				fmt.Fprintf(b, "\x1b[35m(\x1b[0m")
+				f.Format(b, format)
+				fmt.Fprintf(b, "\x1b[35m)\x1b[0m")
+			} else {
+				f.Format(b, format)
+			}
 		}
 	case FORMAT_TEX: // Tex
 		for i, f := range p.fml {
@@ -950,7 +961,7 @@ func (p *FmlOr) String() string {
 func (p *ForAll) Format(b fmt.State, format rune) {
 	switch format {
 	case 's', 'v': //
-		fmt.Fprintf(b, "all(")
+		fmt.Fprintf(b, "\x1b[31mall(\x1b[0m")
 		for i, lv := range p.q {
 			if i == 0 {
 				fmt.Fprintf(b, "[")
@@ -961,7 +972,7 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
-		fmt.Fprintf(b, ")")
+		fmt.Fprintf(b, "\x1b[31m)\x1b[0m")
 	case 'P': // Tex
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\forall %s ", varstr(lv))
@@ -999,7 +1010,7 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 func (p *Exists) Format(b fmt.State, format rune) {
 	switch format {
 	case 's', 'v': //
-		fmt.Fprintf(b, "ex(")
+		fmt.Fprintf(b, "\x1b[32mex(\x1b[0m")
 		for i, lv := range p.q {
 			if i == 0 {
 				fmt.Fprintf(b, "[")
@@ -1010,7 +1021,7 @@ func (p *Exists) Format(b fmt.State, format rune) {
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
-		fmt.Fprintf(b, ")")
+		fmt.Fprintf(b, "\x1b[32m)\x1b[0m")
 	case FORMAT_TEX: // Tex
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\exists %s ", varstr(lv))
@@ -1261,7 +1272,6 @@ func (p *Exists) replaceVar(xs []RObj, lvs []Level) Fof {
 			}
 		}
 	}
-	fmt.Printf("qq=%v\n", qq)
 	return NewQuantifier(false, qq, fml)
 }
 
@@ -1959,8 +1969,6 @@ func (p *Exists) varShift(lv Level) Fof {
 		q[i] = qi + lv
 	}
 	fml := p.fml.varShift(lv)
-	fmt.Printf("ex:: fml=%v\n", fml)
-	fmt.Printf("ex::   q=%v\n", q)
 	return NewQuantifier(false, q, fml)
 }
 
@@ -1970,4 +1978,16 @@ func FofImpl(f1, f2 Fof) Fof {
 
 func FofEquiv(f1, f2 Fof) Fof {
 	return NewFmlAnd(FofImpl(f1, f2), FofImpl(f2, f1))
+}
+
+func (a *Atom) getPoly() *Poly {
+	var f RObj
+	for i, p := range a.p {
+		if i == 0 {
+			f = p
+		} else {
+			f = f.Mul(p)
+		}
+	}
+	return f.(*Poly)
 }

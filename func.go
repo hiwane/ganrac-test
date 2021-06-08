@@ -167,6 +167,7 @@ Examples
 		{"simpl", 1, 2, funcSimplify, true, "(Fof):\t\t\tsimplify formula FoF", ""},
 		{"sleep", 1, 1, funcSleep, false, "(milisecond):\t\tzzz", ""},
 		// {"sqfr", 1, 1, funcSqfr, false, "(poly)* square-free factorization", ""},
+		{"sres", 4, 4, funcOXSres, true, "(poly, poly, var, int)*\tslope resultant.", ""},
 		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
 		{"time", 1, 1, funcTime, false, "(expr):\t\t\trun command and system resource usage", ""},
 		{"vs", 1, 1, funcVS, true, "(FOF)* ", ""},
@@ -384,6 +385,29 @@ func funcOXPsc(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 	return g.ox.Psc(f, h, x.lv, int32(j.Int64())), nil
 }
 
+func funcOXSres(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	f, ok := args[0].(*Poly)
+	if !ok {
+		return nil, fmt.Errorf("%s(1st arg): expected poly: %d:%v", name, args[0].(GObj).Tag(), args[0])
+	}
+	h, ok := args[1].(*Poly)
+	if !ok {
+		return nil, fmt.Errorf("%s(2nd arg): expected poly: %d:%v", name, args[1].(GObj).Tag(), args[1])
+	}
+
+	x, ok := args[2].(*Poly)
+	if !ok || !x.isVar() {
+		return nil, fmt.Errorf("%s(3rd arg): expected var: %d:%v", name, args[2].(GObj).Tag(), args[2])
+	}
+
+	j, ok := args[3].(*Int)
+	if !ok || !j.IsInt64() || j.Sign() < 0 {
+		return nil, fmt.Errorf("%s(4th arg): expected nonnegint: %v", name, args[3])
+	}
+
+	return g.ox.Sres(f, h, x.lv, int32(j.Int64())), nil
+}
+
 ////////////////////////////////////////////////////////////
 // CAD
 ////////////////////////////////////////////////////////////
@@ -420,12 +444,7 @@ func funcSimplify(g *Ganrac, name string, args []interface{}) (interface{}, erro
 		return nil, fmt.Errorf("%s() expected FOF", name)
 	}
 
-	c = c.simplFctr(g)
-	c = c.simplBasic(trueObj, falseObj)
-	c, t, f := c.simplNum(g, nil, nil)
-	fmt.Printf("true =%v\n", t)
-	fmt.Printf("false=%v\n", f)
-	return c, nil
+	return g.simplFof(c), nil
 }
 
 func funcCAD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
