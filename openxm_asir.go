@@ -46,7 +46,7 @@ func (ox *OpenXM) Resultant(p *Poly, q *Poly, lv Level) RObj {
 	if err != nil {
 		fmt.Printf("resultant %s\n", err.Error())
 	} else if qq == nil {
-		fmt.Printf("resultant(%d)\np=%v\nq=%v\n", lv, p, q)
+		return zero
 	}
 	return ox.toGObj(qq).(RObj)
 }
@@ -156,20 +156,20 @@ func (ox *OpenXM) Sres(p *Poly, q *Poly, lv Level, k int32) RObj {
 	return ox.toGObj(qq).(RObj)
 }
 
-func (ox *OpenXM) GB(p *List, v uint) *List {
+func (ox *OpenXM) GB(p *List, vars *List, n int) *List {
 	// グレブナー基底
 	var err error
 
-	b := make([]bool, v)
-	p.Indets(b)
-	vars := NewList()
-	for i := uint(0); i < v; i++ {
-		if b[i] {
-			vars.Append(NewPolyVar(Level(i)))
-		}
-	}
+	if n == 0 {
+		err = ox.ExecFunction("nd_gr", p, vars, zero, zero)
+	} else {
+		// block order
+		vn := NewList(
+			NewList(zero, NewInt(int64(vars.Len()-n))),
+			NewList(zero, NewInt(int64(n))))
 
-	err = ox.ExecFunction("gr", p, vars, one)
+		err = ox.ExecFunction("nd_gr", p, vars, zero, vn)
+	}
 	if err != nil {
 		panic(fmt.Sprintf("gr failed: %v", err.Error()))
 	}
@@ -181,4 +181,42 @@ func (ox *OpenXM) GB(p *List, v uint) *List {
 
 	gob := ox.toGObj(s)
 	return gob.(*List)
+}
+
+func (ox *OpenXM) Reduce(p *Poly, gb *List, vars *List, n int) RObj {
+
+	var err error
+
+	if n == 0 {
+		err = ox.ExecFunction("p_true_nf", p, gb, vars, zero)
+	} else {
+		// block order
+		vn := NewList(
+			NewList(zero, NewInt(int64(vars.Len()-n))),
+			NewList(zero, NewInt(int64(n))))
+
+		err = ox.ExecFunction("p_true_nf", p, gb, vars, vn)
+	}
+	if err != nil {
+		panic(fmt.Sprintf("p_nf failed: %v", err.Error()))
+	}
+	s, err := ox.PopCMO()
+	if err != nil {
+		fmt.Sprintf("p_nf failed: %v", err.Error())
+		return nil
+	}
+
+	if s == nil {
+		return zero
+	}
+	gob := ox.toGObj(s).(*List)
+
+	m, _ := gob.Geti(1)
+	if mm, ok := m.(NObj); !ok || mm.Sign() <= 0 {
+		panic(fmt.Sprintf("p_nf failed: den=%v", m))
+	}
+
+	m, _ = gob.Geti(0)
+
+	return m.(RObj)
 }

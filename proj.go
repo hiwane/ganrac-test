@@ -233,7 +233,7 @@ func (cad *CAD) getU() []*Interval {
 }
 
 func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
-	fmt.Printf("go proj algo=%d, lv=%d\n", algo, len(cad.proj))
+	cad.log(1, "go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 	tm_start := time.Now()
 
 	// projection の準備
@@ -277,8 +277,10 @@ func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	// for _, pf := range cad.proj[0].gets() {
 	// 	pf.coeff = coef
 	// }
+	if 2 <= cad.g.verbose_cad {
+		cad.PrintProj()
+	}
 
-	cad.PrintProj()
 	projs := NewList()
 	for lv := 0; lv < len(cad.proj); lv++ {
 		pp := NewList()

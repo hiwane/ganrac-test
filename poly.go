@@ -1361,3 +1361,30 @@ func (p *Poly) isEven() bool {
 	}
 	return true
 }
+
+func (p *Poly) Less(q *Poly) bool {
+	if p.lv != q.lv {
+		return p.lv < q.lv
+	}
+	if len(p.c) != len(q.c) {
+		return len(p.c) < len(q.c)
+	}
+	for i := p.lv - 1; i >= 0; i-- {
+		if p.hasVar(i) {
+			if !q.hasVar(i) {
+				return false
+			}
+		} else if q.hasVar(i) {
+			return true
+		}
+	}
+	for i := p.lv - 1; i >= 0; i-- {
+		pd := p.Deg(i)
+		qd := q.Deg(i)
+		if pd != qd {
+			return pd < qd
+		}
+	}
+
+	return true
+}

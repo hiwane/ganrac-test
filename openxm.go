@@ -749,7 +749,7 @@ func (ox *OpenXM) recvCMO(ringdef *List) (interface{}, error) {
 	case CMO_ZERO:
 		return int32(0), nil
 	case CMO_NULL:
-		return nil, nil
+		return int32(0), nil
 	case CMO_INT32:
 		return ox.recvCMOInt32()
 	case CMO_STRING:

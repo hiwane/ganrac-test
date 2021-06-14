@@ -21,6 +21,32 @@ type fof_quad_eq struct {
 }
 
 /////////////////////////////////////////////////
+//
+/////////////////////////////////////////////////
+func quadeq_isEven(f Fof, lv Level) bool {
+	stack := make([]Fof, 1)
+	stack[0] = f
+	for len(stack) > 0 {
+		f = stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch ff := f.(type) {
+		case *Atom:
+			if ff.op == EQ || ff.op == NE {
+				continue
+			}
+			if ff.Deg(lv)%2 != 0 {
+				return false
+			}
+		case FofAO:
+			stack = append(stack, ff.Fmls()...)
+		case FofQ:
+			stack = append(stack, ff.Fml())
+		}
+	}
+	return true
+}
+
+/////////////////////////////////////////////////
 // 核
 /////////////////////////////////////////////////
 func qe_lineq(a *Atom, param interface{}) Fof {
@@ -36,7 +62,7 @@ func qe_lineq(a *Atom, param interface{}) Fof {
 	if t.sgn_lcp < 0 && a.Deg(t.lv)%2 != 0 {
 		op = op.neg()
 	}
-	return NewAtoms(res, a.op)
+	return NewAtoms(res, op)
 }
 
 func qe_quadeq(a *Atom, param interface{}) Fof {
@@ -139,4 +165,145 @@ func (fof *ForAll) qe_quadeq(fm func(a *Atom, p interface{}) Fof, p interface{})
 func (fof *Exists) qe_quadeq(fm func(a *Atom, p interface{}) Fof, p interface{}) Fof {
 	fmt.Printf("exists %v\n", fof)
 	panic("invalid......... qe_quadeq(exists)")
+}
+
+func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
+	var op OP
+	if _, ok := fof.(*Exists); ok {
+		op = EQ
+	} else {
+		op = NE
+	}
+
+	dmin := 1
+	dmax := 2
+	if qeopt.Algo&QEALGO_EQLIN == 0 {
+		dmin = 2
+	}
+	if qeopt.Algo&QEALGO_EQQUAD == 0 {
+		dmax = 1
+	}
+
+	fff, ok := fof.Fml().(FofAO)
+	if !ok {
+		return nil
+	}
+	var minatom struct {
+		lv  Level
+		a   *Atom
+		p   *Poly
+		z   RObj
+		idx int
+		deg int
+		lc  bool // lc(a.p) is constant?
+		uni bool // p is univariate
+	}
+
+	for ii, fffi := range fff.Fmls() {
+		if atom, ok := fffi.(*Atom); ok && atom.op == op {
+			poly := atom.getPoly()
+			for _, q := range fof.Qs() {
+				d := poly.Deg(q)
+				if d < dmin || d > dmax {
+					continue
+				}
+				z := poly.Coef(q, uint(d))
+				_, lc := z.(NObj)
+				univ := poly.isUnivariate()
+
+				// 次数が低いか，主係数が定数なものを選択する
+				if minatom.a == nil || minatom.deg > d ||
+					(minatom.deg == d && univ) ||
+					(minatom.deg == d && !minatom.uni && lc) ||
+					(minatom.deg == d && !minatom.lc) {
+					minatom.lv = q
+					minatom.a = atom
+					minatom.p = poly
+					minatom.z = z
+					minatom.idx = ii
+					minatom.deg = d
+					minatom.lc = lc
+					minatom.uni = univ
+				}
+			}
+		}
+	}
+
+	if minatom.a == nil {
+		return nil
+	}
+
+	if op == NE {
+		fff = fff.Not().(FofAO)
+	}
+
+	tbl := new(fof_quad_eq)
+	tbl.g = qeopt.g
+	tbl.p = minatom.p
+	tbl.lv = minatom.lv
+
+	if minatom.deg == 2 {
+		// minatom.deg == 2
+		even := quadeq_isEven(fff, minatom.lv)
+		discrim := NewAtom(qeopt.g.ox.Discrim(minatom.p, minatom.lv), GE)
+		var o Fof = falseObj
+		for _, sgns := range []struct {
+			sgn_s int
+			op    OP
+			skip  bool
+		}{
+			{+1, GT, false},
+			{+1, LT, false},
+			{-1, GT, even},
+			{-1, LT, even},
+		} {
+			if sgns.skip {
+				continue
+			}
+			tbl.sgn_s = sgns.sgn_s
+			if sgns.op == GT {
+				tbl.sgn_lcp = 1
+			} else {
+				tbl.sgn_lcp = -1
+			}
+			opp := newFmlAnds(fff.qe_quadeq(qe_quadeq, tbl), NewAtom(minatom.z, sgns.op), discrim)
+			o = NewFmlOr(o, opp)
+		}
+
+		if _, ok := minatom.z.(NObj); ok {
+			return o
+		}
+
+		eq := NewAtom(minatom.z, EQ)
+		fml := qeopt.g.simplFof(fff, eq, falseObj)
+		fml = NewFmlAnd(fml, eq)
+		o = NewFmlOr(o, fml)
+		if op == NE {
+			o = o.Not()
+		}
+		return o
+
+	}
+
+	tbl.sgn_lcp = 1
+	opos := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, GT))
+
+	if quadeq_isEven(fff, minatom.lv) {
+		return opos
+	}
+
+	tbl.sgn_lcp = -1
+	oneg := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, LT))
+
+	fs := make([]Fof, len(fff.Fmls()))
+	copy(fs, fff.Fmls())
+	c := minatom.p.Coef(tbl.lv, 0)
+	fs[minatom.idx] = NewAtom(c, EQ)
+	fs[len(fs)-1] = NewFmlAnd(fs[minatom.idx], NewAtom(minatom.z, EQ))
+
+	ret := newFmlOrs(opos, oneg, fff.gen(fs))
+	if op == NE {
+		ret = ret.Not()
+	}
+	return ret
 }

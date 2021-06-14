@@ -68,7 +68,7 @@ Examples
 `},
 		{"example", 0, 1, funcExample, false, "([name]):\t\texample.", ""},
 		{"fctr", 1, 1, funcOXFctr, true, "(poly)*\t\t\tfactorize polynomial over the rationals.", ""},
-		{"gb", 1, 1, funcOXGB, true, "(poly-list)*\t\tGroebner basis", ""},
+		{"gb", 2, 3, funcOXGB, true, "(poly-list)*\t\tGroebner basis", ""},
 		{"help", 0, 1, nil, false, "():\t\t\tshow help", ""},
 		{"igcd", 2, 2, funcIGCD, false, "(int1, int2):\t\tThe integer greatest common divisor", ""},
 		{"impl", 2, 2, funcImpl, false, "(fof1, fof2):\t\tfof1 impies fof2", ""},
@@ -170,6 +170,7 @@ Examples
 		{"sres", 4, 4, funcOXSres, true, "(poly, poly, var, int)*\tslope resultant.", ""},
 		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
 		{"time", 1, 1, funcTime, false, "(expr):\t\t\trun command and system resource usage", ""},
+		{"verbose", 1, 2, funcVerbose, true, "(int [, int]):\t\t\tset verbose level", ""},
 		{"vs", 1, 1, funcVS, true, "(FOF)* ", ""},
 	}
 }
@@ -359,7 +360,21 @@ func funcOXGB(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("%s(1st arg): expected poly-list: %d:%v", name, args[0].(GObj).Tag(), args[0])
 	}
 
-	return g.ox.GB(f0, uint(len(varlist))), nil
+	f1, ok := args[1].(*List)
+	if !ok {
+		return nil, fmt.Errorf("%s(2nd arg): expected var-list: %d:%v", name, args[1].(GObj).Tag(), args[1])
+	}
+
+	n := 0
+	if len(args) == 3 {
+		f2, ok := args[2].(*Int)
+		if !ok || f2.Sign() < 0 || !f2.IsInt64() {
+			return nil, fmt.Errorf("%s(3rd arg): expected nonnegint: %d:%v", name, args[2].(GObj).Tag(), args[2])
+		}
+		n = int(f2.Int64())
+	}
+
+	return g.ox.GB(f0, f1, n), nil
 }
 
 func funcOXPsc(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -444,7 +459,7 @@ func funcSimplify(g *Ganrac, name string, args []interface{}) (interface{}, erro
 		return nil, fmt.Errorf("%s() expected FOF", name)
 	}
 
-	return g.simplFof(c), nil
+	return g.simplFof(c, trueObj, falseObj), nil
 }
 
 func funcCAD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
@@ -459,6 +474,10 @@ func funcCAD(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("%s(2nd-arg) expected proj operator", name)
 		}
 		algo = ProjectionAlgo(algoi.Int64())
+	}
+	switch fof.(type) {
+	case *AtomT, *AtomF:
+		return fof, nil
 	}
 
 	cad, err := NewCAD(fof, g)
@@ -594,6 +613,32 @@ func funcSleep(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 
 	v := c.Int64()
 	time.Sleep(time.Millisecond * time.Duration(v))
+	return nil, nil
+}
+
+func funcVerbose(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	c, ok := args[0].(*Int)
+	if !ok || !c.IsInt64() {
+		return nil, fmt.Errorf("%s(1st arg) expected int", name)
+	}
+
+	if len(args) > 1 {
+		d, ok := args[1].(*Int)
+		if !ok || !c.IsInt64() {
+			return nil, fmt.Errorf("%s(2nd arg) expected int", name)
+		}
+		if d.Sign() <= 0 {
+			g.verbose_cad = 0
+		} else {
+			g.verbose_cad = int(d.Int64())
+		}
+	}
+
+	if c.Sign() <= 0 {
+		g.verbose = 0
+	} else {
+		g.verbose = int(c.Int64())
+	}
 	return nil, nil
 }
 

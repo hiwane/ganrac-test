@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,6 +22,8 @@ type Ganrac struct {
 	builtin_func_table []func_table
 	ox                 *OpenXM
 	logger             *log.Logger
+	verbose            int
+	verbose_cad        int
 }
 
 func NewGANRAC() *Ganrac {
@@ -126,4 +129,10 @@ func (g *Ganrac) SetLogger(logger *log.Logger) {
 func (g *Ganrac) ConnectOX(cw, dw Flusher, cr, dr io.Reader) error {
 	g.ox = NewOpenXM(cw, dw, cr, dr, g.logger)
 	return g.ox.Init()
+}
+
+func (g *Ganrac) log(lv int, format string, a ...interface{}) {
+	if lv <= g.verbose {
+		fmt.Printf(format, a...)
+	}
 }

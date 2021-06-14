@@ -113,7 +113,7 @@ func (cad *CAD) Lift(index ...int) error {
 	if cad.stage != 1 {
 		return fmt.Errorf("invalid stage")
 	}
-	fmt.Printf("cad.Lift %v\n", index)
+	cad.log(2, "cad.Lift %v\n", index)
 	if len(index) == 0 { // 指定なしなので，最後までやる.
 		tm_start := time.Now()
 		for !cad.stack.empty() {
@@ -189,9 +189,6 @@ func (cell *Cell) same_sig(old *Cell, num int) bool {
 	if cell == old {
 		return true
 	}
-	if old.parent.index == 6 {
-		fmt.Printf(" @ <%d> %v %v %v\n", num, cell.Index(), cell.signature, old.signature)
-	}
 	for i := 0; i < num; i++ {
 		if cell.signature[i] != old.signature[i] {
 			return false
@@ -224,7 +221,7 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 		}
 		return nil
 	}
-	fmt.Printf("rlift(%v, #child=%d) ... #proj=%d/%d/%d\n", cell.Index(), len(cell.children), proj_num[lv], num, len(cell.children[0].signature))
+	cad.log(3, "rlift(%v, #child=%d) ... #proj=%d/%d/%d\n", cell.Index(), len(cell.children), proj_num[lv], num, len(cell.children[0].signature))
 	cad.stat.rlift[cell.lv+1]++
 
 	oldcs := cell.children
@@ -290,14 +287,11 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 				cs[i+mm].setParentChildren()
 			}
 			m += 2
-			fmt.Printf("caseA: i=%d, m=%d %v\n", i, m, cs[i].Index())
 		} else {
 			for mm := 0; mm < 2; mm++ {
 				cs[i+mm].truth = oldcs[m-1].truth
 				cs[i+mm].children = oldcs[m-1].cloneSetParentChildren(cs[i+mm])
 			}
-			fmt.Printf("caseB: i=%d, m=%d %v [%d,%d,%d]\n", i, m, cs[i].Index(),
-				cs[i].truth, cs[i+1].truth, oldcs[m-1].truth)
 		}
 		for mm := 0; mm < 2; mm++ {
 			cs[i+mm].rlift(cad, lv+1, proj_num)
@@ -322,9 +316,7 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 }
 
 func (cell *Cell) lift(cad *CAD) error {
-	if cad.VerboseLevel >= 1 {
-		fmt.Printf("lift (%v)\n", cell.Index())
-	}
+	cad.log(2, "lift (%v)\n", cell.Index())
 	cad.stat.lift[cell.lv+1]++
 	ciso := make([][]*Cell, cad.proj[cell.lv+1].Len())
 	signs := make([]sign_t, len(ciso))
@@ -1251,7 +1243,7 @@ func (cell *Cell) root_iso_i(cad *CAD, pf ProjFactor, porg, pp *Poly, prec uint,
 	ans, err := pp.iRealRoot(prec, 1000)
 	cad.stat.irealroot++
 	if err != nil {
-		fmt.Printf("irealroot failed: %s\n", err.Error())
+		cad.log(3, "irealroot failed: %s\n", err.Error())
 		return nil, err
 	}
 	cad.stat.irealroot_ok++

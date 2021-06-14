@@ -153,8 +153,8 @@ func virtual_subst_lin(atom *Atom, ptt interface{}) Fof {
 	pp := make([]RObj, len(atom.p))
 
 	op := atom.op
-	if atom.op != EQ && atom.op != NE && pt.densgn < 0 && atom.Deg(pt.lv)%2 != 0 {
-		op = op ^ (LT | GT)
+	if pt.densgn < 0 && atom.Deg(pt.lv)%2 != 0 {
+		op = op.neg()
 	}
 	for i, p := range atom.p {
 		d := p.Deg(pt.lv)
@@ -178,7 +178,7 @@ func vs_nu(polys []*Poly, op OP, pt *vslin_sample_point) Fof {
 	}
 
 	var f1 Fof
-	if d%2 == 0 {
+	if d%2 == 0 || true {
 		// 偶数次数か，分母の符号が正ならそのまま.
 		f1 = virtual_subst_lin(newAtoms(polys, op), pt)
 	} else {
@@ -420,7 +420,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 	}
 	if len(elset.ine) > 0 {
 		var pt *vslin_sample_point
-		required_minf := false
+		required_minf := true
 		for _, pp := range elset.ine {
 			pt = gen_sample_vslin(pp, lv, fml)
 			sgn := pt.densgn
@@ -433,6 +433,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 
 			if sgn >= 0 {
 				pt.densgn = 1
+				// fmt.Printf("add5:+e[%v]/[%v]: >>>>\n", pt.num, pt.den[1])
 				sfml := fml.apply_vs(virtual_subst_lin_e, pt)
 				// fmt.Printf("add5:+e[%v]/[%v]: %v\n", pt.num, pt.den[1], sfml)
 				if err := sfml.valid(); err != nil {
@@ -445,6 +446,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 			}
 			if sgn <= 0 {
 				pt.densgn = -1
+				// fmt.Printf("add6:-e[%v]/[%v]: >>>>\n", pt.num, pt.den[1])
 				sfml := fml.apply_vs(virtual_subst_lin_e, pt)
 				// fmt.Printf("add6:-e[%v]/[%v]: %v\n", pt.num, pt.den[1], sfml)
 				if err := sfml.valid(); err != nil {
@@ -498,7 +500,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 
 func (qeopt QEopt) qe_vslin(fof FofQ, cond qeCond) Fof {
 	for _, q := range fof.Qs() {
-		fmt.Printf("qevs1[%4s] %v\n", varstr(q), fof)
+		qeopt.g.log(2, "qevs1[%4s] %v\n", varstr(q), fof)
 		ff := vsLinear(fof, q)
 		if ff != fof {
 			return ff

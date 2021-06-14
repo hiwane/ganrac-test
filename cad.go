@@ -91,20 +91,19 @@ type CADStat struct {
 }
 
 type CAD struct {
-	fml          Fof           // qff
-	output       Fof           // qff
-	q            []int8        // quantifier
-	proj         []ProjFactors // [level]
-	u            []*Interval   // [level]
-	pl4const     []*ProjLink   // 定数用 0, +, -
-	stack        *cellStack
-	root         *Cell
-	rootp        *Cellmod
-	g            *Ganrac
-	stat         CADStat
-	nwo          bool // well-oriented
-	stage        int8
-	VerboseLevel int
+	fml      Fof           // qff
+	output   Fof           // qff
+	q        []int8        // quantifier
+	proj     []ProjFactors // [level]
+	u        []*Interval   // [level]
+	pl4const []*ProjLink   // 定数用 0, +, -
+	stack    *cellStack
+	root     *Cell
+	rootp    *Cellmod
+	g        *Ganrac
+	stat     CADStat
+	nwo      bool // well-oriented
+	stage    int8
 }
 
 func qeCAD(fml Fof) Fof {
@@ -179,12 +178,22 @@ func (c *CAD) String() string {
 	return fmt.Sprintf("CAD[%v]", c.fml)
 }
 
+func (c *CAD) log(lv int, format string, a ...interface{}) {
+	if lv <= c.g.verbose_cad {
+		fmt.Printf(format, a...)
+	}
+}
+
 func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 	if err := prenex_formula.valid(); err != nil {
 		return nil, err
 	}
 	if g.ox == nil {
 		return nil, fmt.Errorf("ox is required")
+	}
+	switch prenex_formula.(type) {
+	case *AtomT, *AtomF:
+		return nil, fmt.Errorf("prenex formula is expected")
 	}
 
 	// @TODO 変数順序の変換....
@@ -302,6 +311,8 @@ func clone4CAD(formula Fof, c *CAD) Fof {
 			t.p[i] = poly
 		}
 		return t
+	case *AtomT, *AtomF:
+		return fml
 	}
 	panic("stop")
 }

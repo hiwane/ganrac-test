@@ -1,7 +1,6 @@
 package ganrac
 
 import (
-	//	"fmt"
 	"sort"
 )
 
@@ -21,13 +20,44 @@ func (p *AtomF) simplBasic(neccon, sufcon Fof) Fof {
 }
 
 func simplAtomAnd(p *Atom, neccon *Atom) Fof {
-	if len(neccon.p) > 1 { // @TODO
+	// fctr されているはず
+	if len(neccon.p) > len(p.p) {
 		return p
 	}
+	if len(neccon.p) > 1 {
+
+		found := false
+		for i := 0; i < len(neccon.p); i++ {
+			found := false
+			for j := 0; j < len(p.p); j++ {
+				if p.p[j].Equals(neccon.p[i]) {
+					found = true
+				}
+			}
+			if !found {
+				break
+			}
+		}
+		if found {
+			if len(p.p) == len(neccon.p) {
+				if (p.op & neccon.op) == 0 {
+					return falseObj
+				}
+				if (p.op | neccon.op) == p.op {
+					return trueObj
+				}
+				return newAtoms(p.p, p.op&neccon.op)
+			} else if neccon.op == GT {
+				// かぶるやつは不要です...
+			}
+		}
+	}
+
 	flags := make([]bool, len(p.p)) // 更新されたか
 	s := 1
+	nec := neccon.getPoly()
 	for i, pp := range p.p {
-		c, b := pp.diffConst(neccon.p[0])
+		c, b := pp.diffConst(nec)
 		// fmt.Printf("c=%d[%1v] nec=%v, target=%v\n", c, b, neccon, pp)
 		if !b {
 			continue
@@ -51,17 +81,12 @@ func simplAtomAnd(p *Atom, neccon *Atom) Fof {
 				flags[i] = true
 			}
 		} else if len(p.p) == 1 {
-
 			if (p.op & neccon.op) == 0 {
 				return falseObj
 			}
 			if (p.op | neccon.op) == p.op {
 				return trueObj
 			}
-			if neccon.op == (p.op | EQ) {
-				return newAtoms(p.p, NE)
-			}
-
 			return NewAtom(p.p[0], p.op&neccon.op)
 		} else {
 			switch neccon.op {

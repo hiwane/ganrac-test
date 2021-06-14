@@ -67,9 +67,9 @@ func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 		}
 
 		// step 2:
-		gb := cad.g.ox.GB(ps, uint(i+1))
-		fmt.Printf(" L=%v\n", pfL)
-		fmt.Printf("gb=%v\n", gb)
+		// //		gb := cad.g.ox.GB(ps, uint(i+1))
+		// 		fmt.Printf(" L=%v\n", pfL)
+		// 		fmt.Printf("gb=%v\n", gb)
 		panic("stop")
 	}
 

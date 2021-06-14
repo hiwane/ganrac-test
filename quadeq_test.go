@@ -60,11 +60,21 @@ func TestLinEq(t *testing.T) {
 		o := NewFmlOr(opos, oneg)
 
 		fof := NewQuantifier(true, []Level{0, 1, 2}, newFmlEquiv(o, ss.expect))
+		cad, _ := funcCAD(tbl.g, "cad", []interface{}{fof})
+		switch cmp := cad.(type) {
+		case *AtomT:
+			break
+		default:
+			t.Errorf("ii=%d, op=%d\nexpect= %v.\nactual= %v OR %v.\ncmp=%v", ii, ss.op, ss.expect, opos, oneg, cmp)
+			return
+		}
+
 		switch cmp := tbl.g.QE(fof, opt).(type) {
 		case *AtomT:
 			continue
 		default:
 			t.Errorf("ii=%d, op=%d\nexpect= %v.\nactual= %v OR %v.\ncmp=%v", ii, ss.op, ss.expect, opos, oneg, cmp)
+			return
 		}
 	}
 }

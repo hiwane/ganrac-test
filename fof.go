@@ -2,6 +2,7 @@ package ganrac
 
 import (
 	"fmt"
+	"sort"
 )
 
 var op2str = []string{"@false@", "<", "==", "<=", ">", "!=", ">=", "@true@"}
@@ -26,6 +27,7 @@ type Fof interface {
 	hasVar(lv Level) bool
 	maxVar() Level
 	numAtom() int
+	normalize() Fof
 	sotd() int
 	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
 	Subst(xs []RObj, lvs []Level) Fof
@@ -99,6 +101,7 @@ type AtomF struct {
 type Atom struct {
 	// p1*p2*...*pn op 0
 	p         []*Poly
+	pmul      *Poly
 	op        OP
 	factorizd bool
 }
@@ -1777,11 +1780,34 @@ func (p *Exists) vsDeg(lv Level) int {
 	return p.fml.vsDeg(lv)
 }
 
-func (p *Atom) FmlLess(q Fof) bool {
-	if p.fofTag() != q.fofTag() {
-		return p.fofTag() < q.fofTag()
+func (p *Atom) FmlLess(qq Fof) bool {
+	if pt, qt := p.fofTag(), qq.fofTag(); pt != qt {
+		return pt < qt
 	}
-	return true // TODO
+	q := qq.(*Atom)
+	if p.op != q.op {
+		return p.op < q.op
+	}
+	if len(p.p) != len(q.p) {
+		return len(p.p) < len(q.p)
+	}
+	for i := 0; i < len(p.p); i++ {
+		if p.p[i].lv != q.p[i].lv {
+			return p.p[i].lv < q.p[i].lv
+		}
+	}
+	for i := 0; i < len(p.p); i++ {
+		if len(p.p[i].c) != len(q.p[i].c) {
+			return len(p.p[i].c) < len(q.p[i].c)
+		}
+	}
+	for i := 0; i < len(p.p); i++ {
+		if !p.p[i].Equals(q.p[i]) {
+			return p.p[i].Less(q.p[i])
+		}
+	}
+
+	return false
 }
 
 func (p *AtomT) FmlLess(q Fof) bool {
@@ -1972,6 +1998,48 @@ func (p *Exists) varShift(lv Level) Fof {
 	return NewQuantifier(false, q, fml)
 }
 
+func (p *Atom) normalize() Fof {
+	sort.Slice(p.p, func(i, j int) bool {
+		return p.p[i].Less(p.p[j])
+	})
+
+	return p
+}
+
+func (p *AtomT) normalize() Fof {
+	return p
+}
+
+func (p *AtomF) normalize() Fof {
+	return p
+}
+
+func (p *FmlAnd) normalize() Fof {
+	f := p.fml
+	sort.Slice(f, func(i, j int) bool {
+		return f[i].FmlLess(f[j])
+	})
+	return p
+}
+
+func (p *FmlOr) normalize() Fof {
+	f := p.fml
+	sort.Slice(f, func(i, j int) bool {
+		return f[i].FmlLess(f[j])
+	})
+	return p
+}
+
+func (p *ForAll) normalize() Fof {
+	p.fml = p.fml.normalize()
+	return p
+}
+
+func (p *Exists) normalize() Fof {
+	p.fml = p.fml.normalize()
+	return p
+}
+
 func FofImpl(f1, f2 Fof) Fof {
 	return NewFmlOr(f1.Not(), f2)
 }
@@ -1981,13 +2049,16 @@ func FofEquiv(f1, f2 Fof) Fof {
 }
 
 func (a *Atom) getPoly() *Poly {
-	var f RObj
-	for i, p := range a.p {
-		if i == 0 {
-			f = p
-		} else {
-			f = f.Mul(p)
+	if a.pmul == nil {
+		var f RObj
+		for i, p := range a.p {
+			if i == 0 {
+				f = p
+			} else {
+				f = f.Mul(p)
+			}
 		}
+		a.pmul = f.(*Poly)
 	}
-	return f.(*Poly)
+	return a.pmul
 }

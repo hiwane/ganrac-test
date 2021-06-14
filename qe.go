@@ -115,7 +115,7 @@ func (g *Ganrac) QE(fof Fof, qeopt QEopt) Fof {
 }
 
 func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
-	fmt.Printf("qe   [%4d] %v\n", cond.depth, fof)
+	qeopt.g.log(2, "qe   [%4d] %v\n", cond.depth, fof)
 	fof = fof.nonPrenex()
 	switch fq := fof.(type) {
 	case FofQ:
@@ -134,14 +134,11 @@ func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) simplify(qff Fof, cond qeCond) Fof {
-	qff = qff.simplFctr(qeopt.g)
-	qff = qff.simplBasic(cond.neccon, cond.sufcon)
-	qff, _, _ = qff.simplNum(qeopt.g, nil, nil)
-	return qff
+	return qeopt.g.simplFof(qff, cond.neccon, cond.sufcon)
 }
 
 func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
-	fmt.Printf("qepr [%4d] %v\n", cond.depth, fof)
+	qeopt.g.log(2, "qepr [%4d] %v\n", cond.depth, fof)
 	// exists-or, forall-and は分解できる.
 	fofq := fof
 	if err := fofq.valid(); err != nil || !fofq.isPrenex() {
@@ -193,15 +190,16 @@ func (qeopt QEopt) reconstruct(fqs []FofQ, ff Fof, cond qeCond) Fof {
 
 }
 
-func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
-	fof := fofin
+func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
+	fof := prenex_formula
 
+	// 偶論理式
 	if ff := qeopt.qe_evenq(fof, cond); ff != nil {
 		return ff
 	}
 
 	// quantifier の一番外側を処理する.
-	fof = fofin
+	fof = prenex_formula
 	fqs := make([]FofQ, 1)
 	fqs[0] = fof
 	for {
@@ -228,6 +226,14 @@ func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
 	// Hong93
 	// 線形か2次の等式制約が含まれる場合.
 	////////////////////////////////
+	if qeopt.Algo&(QEALGO_EQLIN|QEALGO_EQQUAD) != 0 {
+		if ff := qeopt.qe_quadeq(fof, cond); ff != nil {
+			ff = qeopt.reconstruct(fqs, ff, cond)
+			ff = qeopt.simplify(ff, cond)
+			qeopt.g.log(2, "eqcon[%4d] %v\n", cond.depth, ff)
+			return ff
+		}
+	}
 
 	////////////////////////////////
 	// VS を適用できるか.
@@ -235,7 +241,7 @@ func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
 	if ff := qeopt.qe_vslin(fof, cond); ff != nil {
 		ff = qeopt.reconstruct(fqs, ff, cond)
 		ff = qeopt.simplify(ff, cond)
-		fmt.Printf("vsret[%4d] %v\n", cond.depth, ff)
+		qeopt.g.log(2, "vsret[%4d] %v\n", cond.depth, ff)
 		return ff
 	}
 
@@ -255,7 +261,7 @@ func (qeopt QEopt) qe_prenex_main(fofin FofQ, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
-	fmt.Printf("qecad[%4d] %v\n", cond.depth, fof)
+	qeopt.g.log(2, "qecad[%4d] %v\n", cond.depth, fof)
 	// 変数順序を入れ替える. :: 自由変数 -> 束縛変数
 	maxvar := qeopt.varn
 
@@ -325,7 +331,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 		}
 	}
 	fof2 = fof2.replaceVar(vas, lvs)
-	fmt.Printf("  cad[%4d] %v\n", cond.depth, fof2)
+	qeopt.g.log(2, "  cad[%4d] %v\n", cond.depth, fof2)
 	cad, err := NewCAD(fof2, qeopt.g)
 	if err != nil {
 		panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof2, err))
@@ -359,7 +365,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
-	fmt.Printf("qenpr[%4d] %v\n", cond.depth, fofq)
+	qeopt.g.log(2, "qenpr[%4d] %v\n", cond.depth, fofq)
 	fs := make([]FofQ, 1)
 	fs[0] = fofq
 	for {
@@ -382,7 +388,7 @@ func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
 
 func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 	// fof: non-prenex-formula
-	fmt.Printf("qeao [%4d] %v\n", cond.depth, fof)
+	qeopt.g.log(2, "qeao [%4d] %v\n", cond.depth, fof)
 	fmls := fof.Fmls()
 	sort.Slice(fmls, func(i, j int) bool {
 		return qeopt.fmlcmp(fmls[i], fmls[j])
@@ -411,11 +417,11 @@ func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 			}
 		}
 
-		fmt.Printf("qeao [%4d,%d,i] %v\n", cond.depth, i, f)
+		qeopt.g.log(2, "qeao [%4d,%d,i] %v\n", cond.depth, i, f)
 		f = qeopt.simplify(f, cond2)
 		f = qeopt.qe(f, cond2)
 		fmls[i] = qeopt.simplify(f, cond2)
-		fmt.Printf("qeao [%4d,%d,o] %v\n", cond.depth, i, fmls[i])
+		qeopt.g.log(2, "qeao [%4d,%d,o] %v\n", cond.depth, i, fmls[i])
 		switch fmls[i].(type) {
 		case *AtomT:
 			if !fof.isAnd() {

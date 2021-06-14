@@ -9,6 +9,10 @@ type List struct {
 	v []GObj
 }
 
+func (z *List) Iter() []GObj {
+	return z.v
+}
+
 func (z *List) Tag() uint {
 	return TAG_LIST
 }

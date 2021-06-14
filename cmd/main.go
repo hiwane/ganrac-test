@@ -36,10 +36,12 @@ func get_line(in *bufio.Reader) (string, error) {
 
 func main() {
 	var (
-		cport   = flag.String("control", "localhost:1234", "ox-asir, control port")
-		dport   = flag.String("data", "localhost:4321", "ox-asir, data port")
-		ox      = flag.Bool("ox", false, "use ox-asir")
-		verbose = flag.Bool("verbose", false, "verbose")
+		cport       = flag.String("control", "localhost:1234", "ox-asir, control port")
+		dport       = flag.String("data", "localhost:4321", "ox-asir, data port")
+		ox          = flag.Bool("ox", false, "use ox-asir")
+		verbose     = flag.Int("verbose", 0, "verbose")
+		cad_verbose = flag.Int("cad_verbose", 0, "cad_verbose")
+		ox_verbose  = flag.Bool("ox_verbose", false, "ox_verbose")
 	)
 
 	flag.Usage = func() {
@@ -53,7 +55,7 @@ func main() {
 	fmt.Printf("GANRAC version %s. see help();\n", gitCommit)
 	g := ganrac.NewGANRAC()
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	if *verbose {
+	if *ox_verbose {
 		g.SetLogger(logger)
 	}
 	if *ox {
@@ -87,6 +89,7 @@ func main() {
 	}
 
 	logger.Printf("START!!!!")
+	g.Eval(strings.NewReader(fmt.Sprintf("verbose(%d,%d);", *verbose, *cad_verbose)))
 	for {
 		if _, err := os.Stdout.WriteString("> "); err != nil {
 			fmt.Fprintf(os.Stderr, "WriteString: %s", err)
