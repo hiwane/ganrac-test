@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -8,6 +9,7 @@ func TestCADeasy(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestCADeasy... (no ox)\n")
 		return
 	}
 	defer connc.Close()

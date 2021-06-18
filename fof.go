@@ -5,8 +5,6 @@ import (
 	"sort"
 )
 
-var op2str = []string{"@false@", "<", "==", "<=", ">", "!=", ">=", "@true@"}
-
 var trueObj = new(AtomT)
 var falseObj = new(AtomF)
 
@@ -136,6 +134,10 @@ func (op OP) neg() OP {
 func (op OP) not() OP {
 	// 否定
 	return 7 - op
+}
+
+func (op OP) String() string {
+	return []string{"@false@", "<", "==", "<=", ">", "!=", ">=", "@true@"}[op]
 }
 
 ///////////////////////
@@ -757,7 +759,7 @@ func (p *AtomT) Format(s fmt.State, format rune) {
 	case FORMAT_TEX:
 		fmt.Fprintf(s, "\\ltrue")
 	case FORMAT_DUMP, 'v', 's':
-		fmt.Fprintf(s, "\x1b[34mtrue\x1b[0m")
+		fmt.Fprintf(s, "%strue%s", esc_sgr(34), esc_sgr(0))
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "trueObj")
 	default:
@@ -774,7 +776,7 @@ func (p *AtomF) Format(s fmt.State, format rune) {
 	case FORMAT_TEX:
 		fmt.Fprintf(s, "\\lfalse")
 	case FORMAT_DUMP, 'v', 's':
-		fmt.Fprintf(s, "\x1b[34mfalse\x1b[0m")
+		fmt.Fprintf(s, "%sfalse%s", esc_sgr(34), esc_sgr(0))
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "falseObj")
 	default:
@@ -791,7 +793,7 @@ func (p *Atom) Format(b fmt.State, format rune) {
 	case 'v', 's': // 通常コース
 		if len(p.p) == 1 {
 			p.p[0].Format(b, format)
-			fmt.Fprintf(b, "%s0", op2str[p.op])
+			fmt.Fprintf(b, "%s0", p.op)
 		} else {
 			for i, pp := range p.p {
 				if i != 0 {
@@ -799,7 +801,7 @@ func (p *Atom) Format(b fmt.State, format rune) {
 				}
 				fmt.Fprintf(b, "(%v)", pp)
 			}
-			fmt.Fprintf(b, "%s0", op2str[p.op])
+			fmt.Fprintf(b, "%s0", p.op)
 		}
 	case FORMAT_TEX: // tex
 		if len(p.p) == 1 {
@@ -864,9 +866,9 @@ func (p *FmlAnd) Format(b fmt.State, format rune) {
 			}
 
 			if _, ok := f.(*FmlOr); ok {
-				fmt.Fprintf(b, "\x1b[33m(\x1b[0m")
+				fmt.Fprintf(b, "%s(%s", esc_sgr(33), esc_sgr(0))
 				f.Format(b, format)
-				fmt.Fprintf(b, "\x1b[33m)\x1b[0m")
+				fmt.Fprintf(b, "%s)%s", esc_sgr(33), esc_sgr(0))
 			} else {
 				f.Format(b, format)
 			}
@@ -916,9 +918,13 @@ func (p *FmlOr) Format(b fmt.State, format rune) {
 			}
 			// @TODO () は不要だが，明確化のため
 			if _, ok := f.(*FmlAnd); ok {
-				fmt.Fprintf(b, "\x1b[35m(\x1b[0m")
-				f.Format(b, format)
-				fmt.Fprintf(b, "\x1b[35m)\x1b[0m")
+				if coloredFml {
+					fmt.Fprintf(b, "%s(%s", esc_sgr(35), esc_sgr(0))
+					f.Format(b, format)
+					fmt.Fprintf(b, "%s)%s", esc_sgr(35), esc_sgr(0))
+				} else {
+					f.Format(b, format)
+				}
 			} else {
 				f.Format(b, format)
 			}
@@ -964,7 +970,7 @@ func (p *FmlOr) String() string {
 func (p *ForAll) Format(b fmt.State, format rune) {
 	switch format {
 	case 's', 'v': //
-		fmt.Fprintf(b, "\x1b[31mall(\x1b[0m")
+		fmt.Fprintf(b, "%sall(%s", esc_sgr(31), esc_sgr(0))
 		for i, lv := range p.q {
 			if i == 0 {
 				fmt.Fprintf(b, "[")
@@ -975,7 +981,7 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
-		fmt.Fprintf(b, "\x1b[31m)\x1b[0m")
+		fmt.Fprintf(b, "%s)%s", esc_sgr(31), esc_sgr(0))
 	case 'P': // Tex
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\forall %s ", varstr(lv))
@@ -1013,7 +1019,7 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 func (p *Exists) Format(b fmt.State, format rune) {
 	switch format {
 	case 's', 'v': //
-		fmt.Fprintf(b, "\x1b[32mex(\x1b[0m")
+		fmt.Fprintf(b, "%sex(%s", esc_sgr(32), esc_sgr(0))
 		for i, lv := range p.q {
 			if i == 0 {
 				fmt.Fprintf(b, "[")
@@ -1024,7 +1030,7 @@ func (p *Exists) Format(b fmt.State, format rune) {
 		}
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
-		fmt.Fprintf(b, "\x1b[32m)\x1b[0m")
+		fmt.Fprintf(b, "%s)%s", esc_sgr(32), esc_sgr(0))
 	case FORMAT_TEX: // Tex
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\exists %s ", varstr(lv))
@@ -2061,4 +2067,18 @@ func (a *Atom) getPoly() *Poly {
 		a.pmul = f.(*Poly)
 	}
 	return a.pmul
+}
+
+func (a *Atom) isUnivariate() bool {
+	lv := Level(-1)
+	for _, p := range a.p {
+		if !p.isUnivariate() {
+			return false
+		} else if lv < 0 {
+			lv = p.lv
+		} else if lv != p.lv {
+			return false
+		}
+	}
+	return true
 }

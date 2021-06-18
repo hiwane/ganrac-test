@@ -183,7 +183,7 @@ func (ox *OpenXM) GB(p *List, vars *List, n int) *List {
 	return gob.(*List)
 }
 
-func (ox *OpenXM) Reduce(p *Poly, gb *List, vars *List, n int) RObj {
+func (ox *OpenXM) Reduce(p *Poly, gb *List, vars *List, n int) (RObj, bool) {
 
 	var err error
 
@@ -203,20 +203,19 @@ func (ox *OpenXM) Reduce(p *Poly, gb *List, vars *List, n int) RObj {
 	s, err := ox.PopCMO()
 	if err != nil {
 		fmt.Sprintf("p_nf failed: %v", err.Error())
-		return nil
+		return nil, false
 	}
 
-	if s == nil {
-		return zero
-	}
 	gob := ox.toGObj(s).(*List)
 
 	m, _ := gob.Geti(1)
-	if mm, ok := m.(NObj); !ok || mm.Sign() <= 0 {
-		panic(fmt.Sprintf("p_nf failed: den=%v", m))
+	mm, ok := m.(NObj)
+	if !ok {
+		panic(fmt.Sprintf("p_nf failed:\np=%v\ngb=%v\nret=%v\nden=%v", p, gb, gob, m))
 	}
+	sgn := mm.Sign() < 0
 
 	m, _ = gob.Geti(0)
 
-	return m.(RObj)
+	return m.(RObj), sgn
 }

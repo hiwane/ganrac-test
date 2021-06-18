@@ -36,7 +36,6 @@ expr
 	| mobj eol { yylex.(*pLexer).trace("gege") }
 	| name assign mobj eol  { yylex.(*pLexer).trace("assign"); yylex.(*pLexer).push(newPNode($1.str, assign, 0, $1.pos)) }
 	| initvar lp seq_ident rp eol { yylex.(*pLexer).trace("init"); yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)) }
-	| f_time lp mobj rp eol { yylex.(*pLexer).trace("time"); yylex.(*pLexer).push(newPNode($1.str, f_time, f_time, $1.pos)) }
 	;
 
 mobj
@@ -50,6 +49,7 @@ mobj
 	| mobj or mobj  { yylex.(*pLexer).trace("or");  yylex.(*pLexer).push($2)}
 	| lp mobj rp { $$ = $2 }
 	| ident lp seq_mobj rp { yylex.(*pLexer).trace("call"); yylex.(*pLexer).push(newPNode($1.str, call, $3, $1.pos)) }
+	| f_time lp mobj rp { yylex.(*pLexer).trace("time"); yylex.(*pLexer).push(newPNode($1.str, f_time, f_time, $1.pos)) }
 	| ident lp rp { yylex.(*pLexer).trace("call"); yylex.(*pLexer).push(newPNode($1.str, call, 0, $1.pos)) }
 	| mobj plus mobj	{ yylex.(*pLexer).trace("+"); yylex.(*pLexer).push($2)}
 	| mobj minus mobj	{ yylex.(*pLexer).trace("-"); yylex.(*pLexer).push($2)}

@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -9,6 +10,7 @@ func TestSimplReduce(t *testing.T) {
 	g.verbose = 0
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestSimplReduce... (no ox)\n")
 		return
 	}
 	defer connc.Close()

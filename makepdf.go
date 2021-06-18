@@ -11,7 +11,7 @@ func (sfc *CADSfc) add_ds_proj(lv Level, pf ProjFactor) {
 
 	for p.deg() > 1 {
 		p = p.diff(lv).(*Poly)
-		fmt.Printf("    add_ds_proj: %v\n", p)
+		sfc.cad.log(3, "    add_ds_proj: %v\n", p)
 		sfc.cad.addPoly(p, false)
 	}
 }
@@ -27,7 +27,7 @@ func (sfc *CADSfc) construct_lab(lv Level) []int {
 	s := make([][]int, 0, len(sfc.cpair[lv]))
 	for _, cs := range sfc.cpair[lv] {
 		if cs[0].parent != cs[1].parent || cs[0].lv != lv || cs[2].truth != t_true || cs[3].truth != t_false {
-			fmt.Printf("    construct_lab() %v %d/%d, %d %d\n", cs[0].parent == cs[1].parent, lv, cs[0].lv, cs[2].truth, cs[3].truth)
+			sfc.cad.log(0, "    construct_lab() %v %d/%d, %d %d\n", cs[0].parent == cs[1].parent, lv, cs[0].lv, cs[2].truth, cs[3].truth)
 			panic("@1")
 		}
 
@@ -61,30 +61,29 @@ func (sfc *CADSfc) construct_lab(lv Level) []int {
 func (sfc *CADSfc) make_pdf() {
 	// S4.4.2 Removing all conflicting pairs
 
-	sfc.cad.root.Print("signatures")
 	proj_num := make([]int, sfc.freen)
 	for i := Level(sfc.freen - 1); i >= 0; i-- {
 		proj_num[i] = sfc.cad.proj[i].Len()
 	}
 
 	for lv := Level(sfc.freen - 1); lv >= 0; lv-- {
-		fmt.Printf("==================================================\n")
-		fmt.Printf("== makepdf lv=%d <%v>\n", lv, proj_num)
-		fmt.Printf("==================================================\n")
+		sfc.cad.log(2, "==================================================\n")
+		sfc.cad.log(2, "== makepdf lv=%d <%v>\n", lv, proj_num)
+		sfc.cad.log(2, "==================================================\n")
 		// construct a hitting set
 		//    for {l(a,b) | (a,b) in the set of all lv-level conflicting pairs}
 		lab := sfc.construct_lab(lv)
 		if len(lab) == 0 {
 			goto _SET_PROJ
 		}
-		fmt.Printf("    lab[%d]=%v\n", lv, lab)
+		sfc.cad.log(3, "    lab[%d]=%v\n", lv, lab)
 
 		// new projection
 		// set \bar{P} to the closure under the projection operator of
 		// \bar{P} \cup DS(S)
 		for _, j := range lab {
 			pf := sfc.cad.proj[lv].get(uint(j))
-			fmt.Printf("  pf[%d,%d]=%v\n", lv, j, pf.P())
+			sfc.cad.log(3, "  pf[%d,%d]=%v\n", lv, j, pf.P())
 			sfc.add_ds_proj(lv, pf)
 		}
 
@@ -97,7 +96,7 @@ func (sfc *CADSfc) make_pdf() {
 		}
 
 	_SET_PROJ:
-		fmt.Printf("  @@ LV=%d: %d => %d\n", lv, proj_num[lv], sfc.cad.proj[lv].Len())
+		sfc.cad.log(3, "  @@ LV=%d: %d => %d\n", lv, proj_num[lv], sfc.cad.proj[lv].Len())
 		for i, pf := range sfc.cad.proj[lv].gets() {
 			pf.SetIndex(uint(i))
 		}

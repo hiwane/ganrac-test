@@ -29,6 +29,12 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"makepd2", exMakePdf2},
 	{"pl01", exPL01},
 	{"quad", exQuad},
+	{"sdc2", exSDC2},
+	{"sdc3", exSDC3},
+	{"sdc4", exSDC4},
+	{"root2", exRoot2},
+	{"root3", exRoot3},
+	{"root4", exRoot4},
 	{"wo1", exWO1},
 	{"wo2", exWO2},
 	{"wo3", exWO3},
@@ -276,6 +282,84 @@ func exQuad() *QeExample {
 		NewAtom(NewPolyCoef(1, 0, 1), NE)),
 		NewAtom(NewPolyCoef(2, 0, 1), EQ))
 
+	return q
+}
+
+func exSDC2() *QeExample {
+	// ex([x], x>=0 && x^2+b*x+c <= 0)
+	// <==>
+	// all([x], x >= 0 => x^2+b*x+c > 0)
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{2}, newFmlAnds(NewAtom(NewPolyCoef(2, 0, 1), GE), NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 1), LE)))
+	// 4*c-b^2<=0 && (b<0 || c<=0)
+	q.Output = newFmlAnds(NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, -1), 4), LE), newFmlOrs(NewAtom(NewPolyCoef(0, 0, 1), LT), NewAtom(NewPolyCoef(1, 0, 1), LE)))
+	q.Ref = "An Effective Implementation of a Special Quantifier Elimination for a Sign Definite Condition by Logical Formula Simplification"
+	q.DOI = "https://doi.org/10.1007/978-3-319-02297-0_17"
+	return q
+}
+
+func exRoot2() *QeExample {
+	// ex([x], x^2+b*x+c <= 0)
+	// <==>
+	// all([x], x^2+b*x+c > 0)
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{2}, NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 1), LE))
+	// 4*c-b^2<=0 && (b<0 || c<=0)
+	q.Output = NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, -1), 4), LE)
+	q.Ref = "Gonzalez-Vega, Laureano.  A combinatorial algorithm solving some quantifier elimination problems.  1998"
+	return q
+}
+
+func exSDC3() *QeExample {
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(NewAtom(NewPolyCoef(3, 0, 1), GE), NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 1), LE)))
+
+	d := NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, 1), -4), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -4), NewPolyCoef(0, 0, 18)), -27)
+
+	q.Output = newFmlOrs(
+		NewAtom(NewPolyCoef(2, 0, 1), LE),
+		newFmlAnds(NewAtom(NewPolyCoef(0, 0, 1), LT), NewAtom(d, GE)),
+		newFmlAnds(NewAtom(NewPolyCoef(1, 0, 1), LT), NewAtom(d, GE)))
+	q.Ref = "An Effective Implementation of a Special Quantifier Elimination for a Sign Definite Condition by Logical Formula Simplification"
+	q.DOI = "https://doi.org/10.1007/978-3-319-02297-0_17"
+
+	return q
+}
+
+func exRoot3() *QeExample {
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{3}, NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 1), LE))
+	q.Output = trueObj
+	q.Ref = "Gonzalez-Vega, Laureano.  A combinatorial algorithm solving some quantifier elimination problems.  1998"
+	return q
+}
+
+func exSDC4() *QeExample {
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{4}, newFmlAnds(NewAtom(NewPolyCoef(4, NewPolyCoef(0, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(2, 0, 1), NewPolyCoef(3, 0, 1), 1), LE), NewAtom(NewPolyCoef(4, 0, 1), GE)))
+	q.Output = nil
+	q.Ref = "An Effective Implementation of a Special Quantifier Elimination for a Sign Definite Condition by Logical Formula Simplification"
+	q.DOI = "https://doi.org/10.1007/978-3-319-02297-0_17"
+	return q
+}
+
+func exRoot4() *QeExample {
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{4}, NewAtom(NewPolyCoef(4, NewPolyCoef(3, 0, 1), NewPolyCoef(2, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 1), LE))
+
+	q.Output = newFmlOrs(
+		NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 0, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, 1), -4), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -4), NewPolyCoef(0, 0, 18)), -27), NewPolyCoef(2, NewPolyCoef(1, 0, 0, 0, NewPolyCoef(0, 0, 0, -4), 16), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 18), NewPolyCoef(0, 0, -80)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -6), 144)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, -27), NewPolyCoef(0, 0, 0, 144), -128), NewPolyCoef(0, 0, -192)), 256), LT),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 0, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, 1), -4), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -4), NewPolyCoef(0, 0, 18)), -27), NewPolyCoef(2, NewPolyCoef(1, 0, 0, 0, NewPolyCoef(0, 0, 0, -4), 16), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 18), NewPolyCoef(0, 0, -80)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -6), 144)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, -27), NewPolyCoef(0, 0, 0, 144), -128), NewPolyCoef(0, 0, -192)), 256), EQ),
+			NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, 0, 0, NewPolyCoef(0, 0, 0, -2), 8), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 9), NewPolyCoef(0, 0, -40)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -3), 72)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, -27), NewPolyCoef(0, 0, 0, 144), -128), NewPolyCoef(0, 0, -192)), 384), GT)),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, -9), 32), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 27), NewPolyCoef(0, 0, -108)), 108), LE),
+			NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, 0, 0, NewPolyCoef(0, 0, 0, -2), 8), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 9), NewPolyCoef(0, 0, -40)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -3), 72)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, -27), NewPolyCoef(0, 0, 0, 144), -128), NewPolyCoef(0, 0, -192)), 384), LE)),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, -9), 32), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 27), NewPolyCoef(0, 0, -108)), 108), LE),
+			NewAtom(NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, -27), NewPolyCoef(0, 0, 0, 144), -128), NewPolyCoef(0, 0, -192)), 768), LT)))
+
+	q.Ref = "Gonzalez-Vega, Laureano.  A combinatorial algorithm solving some quantifier elimination problems.  1998"
 	return q
 }
 

@@ -150,7 +150,7 @@ func (cad *CAD) symsex_zero_chk(p *Poly, cell *Cell) bool {
 }
 
 func (cad *CAD) sym_equal(ci, cj *Cell) bool {
-	fmt.Printf("    sym_equal(%v,%v) deg=(%d,%d)\n", ci.Index(), cj.Index(), ci.defpoly.deg(), cj.defpoly.deg())
+	cad.log(5, "    sym_equal(%v,%v) deg=(%d,%d)\n", ci.Index(), cj.Index(), ci.defpoly.deg(), cj.defpoly.deg())
 
 	if len(ci.defpoly.c) > len(cj.defpoly.c) {
 		return cad.sym_zero_chk(ci.defpoly, cj)

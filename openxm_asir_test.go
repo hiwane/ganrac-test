@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -9,6 +10,7 @@ func TestAsirDiscrim(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestAsirDiscrim... (no ox)\n")
 		return
 	}
 	defer connc.Close()
@@ -38,6 +40,7 @@ func TestAsirSres(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestAsirSres... (no ox)\n")
 		return
 	}
 	defer connc.Close()

@@ -8,28 +8,58 @@ import (
 func TestSimplNum(t *testing.T) {
 
 	g := NewGANRAC()
+	SetColordFml(true)
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestSimplNum... (no ox)\n")
 		return
 	}
 	defer connc.Close()
 	defer connd.Close()
 
-	for _, s := range []struct {
+	for ii, ss := range []struct {
 		a      Fof
 		expect Fof
 	}{
 		{
-			NewAtom(NewPolyCoef(0, 1, 0, 1), GT),
-			trueObj,
+			// adam2-1 && projection
+			// 4*y^2+4*x^2-1<=0 && y^2-y+x^2-x==2
+			newFmlAnds(
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 100), 0, 100), LE),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, -2, -1, 1), -1, 1), EQ)),
+			falseObj,
 		}, {
-			NewAtom(NewPolyCoef(0, 1, 0, 1), LE),
+			// adam2-1 && projection
+			// x>0 && y>0 && 4*y^2+4*x^2-1<=0 && y^2-y+x^2-x==2
+			newFmlAnds(
+				NewAtom(NewPolyCoef(0, 0, 1), GT),
+				NewAtom(NewPolyCoef(1, 0, 1), GT),
+				NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 4), 0, 4), LE), NewAtom(NewPolyCoef(1, NewPolyCoef(0, -2, -1, 1), -1, 1), EQ)),
 			falseObj,
 		}, {
 			// (x-1)*(x-3)>=0 && x*(x-4) >= 0
 			newFmlAnds(NewAtom(NewPolyCoef(0, 3, -4, 1), GE), NewAtom(NewPolyCoef(0, 0, -4, 1), GE)),
 			// x*(x-4) >= 0
 			NewAtom(NewPolyCoef(0, 0, -4, 1), GE),
+		}, {
+			// all([x], (2*x^2-1>=0 && (x>0 || x+1<0)) || (x^2-1<=0 && (x<0 || 2*x^2-1<0)))
+			newFmlOrs(
+				newFmlAnds(
+					NewAtom(NewPolyCoef(0, -1, 0, 2), GE),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(0, 0, 1), GT),
+						NewAtom(NewPolyCoef(0, 1, 1), LT)))),
+			nil,
+		}, {
+			// all([x], (2*x^2-1>=0 && (x>0 || x+1<0)) || (x^2-1<=0 && (x<0 || 2*x^2-1<0)))
+			NewQuantifier(true, []Level{0}, newFmlOrs(newFmlAnds(NewAtom(NewPolyCoef(0, -1, 0, 2), GE), newFmlOrs(NewAtom(NewPolyCoef(0, 0, 1), GT), NewAtom(NewPolyCoef(0, 1, 1), LT))), newFmlAnds(NewAtom(NewPolyCoef(0, -1, 0, 1), LE), newFmlOrs(NewAtom(NewPolyCoef(0, 0, 1), LT), NewAtom(NewPolyCoef(0, -1, 0, 2), LT))))),
+			nil,
+		}, {
+			NewAtom(NewPolyCoef(0, 1, 0, 1), GT),
+			trueObj,
+		}, {
+			NewAtom(NewPolyCoef(0, 1, 0, 1), LE),
+			falseObj,
 		}, {
 			// (x-2)^2 >= 10 && (x-1)^2 >= 2
 			newFmlAnds(NewAtom(NewPolyCoef(0, -6, -4, 1), GE), NewAtom(NewPolyCoef(0, -1, -2, 1), GE)),
@@ -40,23 +70,29 @@ func TestSimplNum(t *testing.T) {
 			newFmlAnds(NewAtom(NewPolyCoef(0, -2, 1), GT), NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), GT)),
 			NewAtom(NewPolyCoef(0, -2, 1), GT), // x>2
 		}, {
-			// adam2-1 && projection
-			// x>0 && y>0 && 4*y^2+4*x^2-1<=0 && y^2-y+x^2-x==2
-			newFmlAnds(
-				NewAtom(NewPolyCoef(0, 0, 1), GT),
-				NewAtom(NewPolyCoef(1, 0, 1), GT),
-				NewAtom(NewPolyCoef(1, NewPolyCoef(0, -1, 0, 4), 0, 4), LE), NewAtom(NewPolyCoef(1, NewPolyCoef(0, -2, -1, 1), -1, 1), EQ)),
-			falseObj,
-		}, {
 			newFmlAnds(NewAtom(NewPolyCoef(1, -1, 1), GT), NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1), LT)),
 			newFmlAnds(NewAtom(NewPolyCoef(1, -1, 1), GT), NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -1), 0, 1), LT)),
 		},
 	} {
-		fmt.Printf("===== in=%v\n", s.a)
-		o, tf, ff := s.a.simplNum(g, nil, nil)
-		if !o.Equals(s.expect) {
-			t.Errorf("\ninput =%v\nexpect=%v\noutput=%v\nt=%v\nf=%v\n", s.a, s.expect, o, tf, ff)
-			continue
+		if ss.expect == nil {
+			ss.expect = ss.a
+		}
+
+		for jj, s := range []struct {
+			a      Fof
+			expect Fof
+		}{
+			{ss.a, ss.expect},
+			{ss.a.Not(), ss.expect.Not()},
+		} {
+			// fmt.Printf("===== in=%v\n", s.a)
+			o, tf, ff := s.a.simplNum(g, nil, nil)
+			// fmt.Printf("i=%v\n", s.a)
+			// fmt.Printf("o=%v\n", o)
+			if !o.Equals(s.expect) {
+				t.Errorf("<%d,%d>\ninput =%v\nexpect=%v\noutput=%v\nt=%v\nf=%v\n", ii, jj, s.a, s.expect, o, tf, ff)
+				return
+			}
 		}
 	}
 }

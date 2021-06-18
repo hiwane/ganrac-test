@@ -200,7 +200,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 
 	// quantifier の一番外側を処理する.
 	fof = prenex_formula
-	fqs := make([]FofQ, 1)
+	fqs := make([]FofQ, 1, 10)
 	fqs[0] = fof
 	for {
 		if fq, ok := fof.Fml().(FofQ); ok {
@@ -260,8 +260,59 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	return qeopt.qe_cad(fof, cond)
 }
 
+func (qeopt QEopt) is_easy_cond(fof Fof, cond Fof) bool {
+	switch c := cond.(type) {
+	case *AtomT, *AtomF:
+		return false // 追加する必要がないということ
+	case *Atom:
+		if !c.isUnivariate() {
+			return false
+		}
+		return fof.hasVar(c.p[0].lv)
+	case FofAO:
+		for _, f := range c.Fmls() {
+			if !qeopt.is_easy_cond(fof, f) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (qeopt QEopt) appendNecSuf(qff Fof, cond qeCond) Fof {
+	switch nec := cond.neccon.(type) {
+	case *FmlAnd:
+		for _, f := range nec.Fmls() {
+			if qeopt.is_easy_cond(qff, f) {
+				qff = NewFmlAnd(qff, f)
+			}
+		}
+	default:
+		if qeopt.is_easy_cond(nec, qff) {
+			qff = NewFmlAnd(qff, nec)
+		}
+	}
+
+	switch suf := cond.sufcon.(type) {
+	case *FmlOr:
+		for _, f := range suf.Fmls() {
+			if qeopt.is_easy_cond(qff, f) {
+				qff = NewFmlOr(qff, f)
+			}
+		}
+	default:
+		if qeopt.is_easy_cond(suf, qff) {
+			qff = NewFmlAnd(qff, suf)
+		}
+	}
+
+	return qff
+}
+
 func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 	qeopt.g.log(2, "qecad[%4d] %v\n", cond.depth, fof)
+	qeopt.g.log(1, "qecad[%4d] nec=%v\n", cond.depth, cond.neccon)
+	qeopt.g.log(1, "qecad[%4d] suf=%v\n", cond.depth, cond.sufcon)
 	// 変数順序を入れ替える. :: 自由変数 -> 束縛変数
 	maxvar := qeopt.varn
 
@@ -276,6 +327,9 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 
 	// 自由変数を探す
 	fq := fof
+	fqs := make([]FofQ, 1, maxvar)
+	fqs[0] = fof
+	var qff Fof
 	for {
 		qs := fq.Qs()
 		for _, q := range qs {
@@ -283,7 +337,9 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 		}
 		if ff, ok := fq.Fml().(FofQ); ok {
 			fq = ff
+			fqs = append(fqs, fq)
 		} else {
+			qff = fq.Fml()
 			break
 		}
 	}
@@ -303,6 +359,16 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 			m++
 		}
 	}
+
+	if m > 1 {
+		qff = qeopt.appendNecSuf(qff, cond)
+		// 必要条件と十分条件をつけた論理式を再構築
+		for i := len(fqs) - 1; i >= 0; i-- {
+			qff = fqs[i].gen(fqs[i].Qs(), qff)
+		}
+		fof = qff.(FofQ)
+	}
+	qff = nil
 
 	// 外側の限量子から追加
 	fq = fof

@@ -10,6 +10,8 @@ var varlist []varInfo
 
 var varstr2lv map[string]Level
 
+var coloredFml bool
+
 type varInfo struct {
 	v string
 	p *Poly
@@ -30,6 +32,22 @@ func var2lv(v string) (Level, error) {
 		}
 	}
 	return 0, fmt.Errorf("undefined variable `%s`.", v)
+}
+
+func SetColordFml(b bool) {
+	coloredFml = b
+}
+
+func GetColordFml() bool {
+	return coloredFml
+}
+
+func esc_sgr(m int) string {
+	if coloredFml {
+		return fmt.Sprintf("\x1b[%dm", m)
+	} else {
+		return ""
+	}
 }
 
 func init() {

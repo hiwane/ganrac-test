@@ -9,6 +9,7 @@ func TestLinEq(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestLinEq... (no ox)\n")
 		return
 	}
 	defer connc.Close()
@@ -44,10 +45,10 @@ func TestLinEq(t *testing.T) {
 			newFmlAnds(NewAtom(NewPolyCoef(2, 0, 1), NE), NewAtom(NewPolyCoef(2, NewPolyCoef(0, 0, 3), NewPolyCoef(1, 0, 1)), NE)),
 		}, {
 			LT,
-			NewAtom(NewPolyCoef(2, 0, NewPolyCoef(0, 0, 3), NewPolyCoef(1, 0, 1)), GT),
+			NewAtom(NewPolyCoef(2, 0, NewPolyCoef(0, 0, 3), NewPolyCoef(1, 0, 1)), LT),
 		}, {
 			GT,
-			NewAtom(NewPolyCoef(2, 0, NewPolyCoef(0, 0, 3), NewPolyCoef(1, 0, 1)), LT),
+			NewAtom(NewPolyCoef(2, 0, NewPolyCoef(0, 0, 3), NewPolyCoef(1, 0, 1)), GT),
 		},
 	} {
 		a := NewAtom(p2, ss.op)
@@ -65,7 +66,7 @@ func TestLinEq(t *testing.T) {
 		case *AtomT:
 			break
 		default:
-			t.Errorf("ii=%d, op=%d\nexpect= %v.\nactual= %v OR %v.\ncmp=%v", ii, ss.op, ss.expect, opos, oneg, cmp)
+			t.Errorf("ii=%d, op=%d:`%s`\nexpect= %v.\nactual= %v OR %v.\ncmp=%v", ii, ss.op, ss.op, ss.expect, opos, oneg, cmp)
 			return
 		}
 
@@ -83,6 +84,7 @@ func TestQuadEq1(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestQuadEq1... (no ox)\n")
 		return
 	}
 	defer connc.Close()
@@ -174,7 +176,7 @@ func TestQuadEq1(t *testing.T) {
 			continue
 		default:
 			t.Errorf("ii=%d, op=%d\ninput= (%v != 0) AND %v = 0 AND %v %s 0.\nexpect= %v.\nactual= (%v)\n   AND  (%v).\ncmp=%v", ii, ss.op,
-				z, p1, p2, op2str[ss.op], ss.expect, o, dge, cmp)
+				z, p1, p2, ss.op, ss.expect, o, dge, cmp)
 			return
 		}
 	}
@@ -184,6 +186,7 @@ func TestQuadEq2(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestQuadEq2... (no ox)\n")
 		return
 	}
 	defer connc.Close()

@@ -111,14 +111,16 @@ func qeCAD(fml Fof) Fof {
 }
 
 func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
-	fmt.Fprintf(b, "time: proj: %v\n", stat.tm[0])
-	fmt.Fprintf(b, "time: lift: %v\n", stat.tm[1])
-	fmt.Fprintf(b, "time: sfc : %v\n", stat.tm[2])
+	fmt.Fprintf(b, "time....\n")
+	fmt.Fprintf(b, "=========================\n")
+	fmt.Fprintf(b, "proj: %9.3f sec\n", stat.tm[0].Seconds())
+	fmt.Fprintf(b, "lift: %9.3f sec\n", stat.tm[1].Seconds())
+	fmt.Fprintf(b, "sfc : %9.3f sec\n", stat.tm[2].Seconds())
 	fmt.Fprintf(b, "\n")
 
 	if cad.stage >= CAD_STAGE_PROJED {
 		fmt.Fprintf(b, "CAD proj. stat....\n")
-		fmt.Fprintf(b, "=========================\n")
+		fmt.Fprintf(b, "===============================\n")
 		fmt.Fprintf(b, "LV | # proj | deg | tdeg | npr\n")
 		for lv := len(cad.q) - 1; lv >= 0; lv-- {
 			deg := 0
@@ -140,7 +142,7 @@ func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
 	}
 	if cad.stage >= CAD_STAGE_LIFTED {
 		fmt.Fprintf(b, "CAD cell stat....\n")
-		fmt.Fprintf(b, "========================================\n")
+		fmt.Fprintf(b, "=====================================================\n")
 		fmt.Fprintf(b, "LV |    cell |    true |   false |    lift |   rlift\n")
 		fmt.Fprintf(b, "---+---------+---------+---------+---------+---------\n")
 		sn := make([]int, 5)
@@ -157,7 +159,7 @@ func (stat CADStat) Fprint(b io.Writer, cad *CAD) {
 		fmt.Fprintf(b, "\n")
 	}
 	fmt.Fprintf(b, "CA stat....\n")
-	fmt.Fprintf(b, "==========================================\n")
+	fmt.Fprintf(b, "==================================================\n")
 	if cad.stage >= CAD_STAGE_PROJED {
 		fmt.Fprintf(b, " - proj | discrim              : %8d\n", stat.discriminant)
 		fmt.Fprintf(b, " - proj | resultant            : %8d\n", stat.resultant)

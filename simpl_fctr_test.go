@@ -70,6 +70,7 @@ func TestSimplFctr(t *testing.T) {
 	g := NewGANRAC()
 	connc, connd := testConnectOx(g)
 	if g.ox == nil {
+		fmt.Printf("skip TestSimplFctr... (no ox)\n")
 		return
 	}
 	defer connc.Close()

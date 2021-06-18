@@ -62,7 +62,7 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 	case f_time:
 		tm_start := time.Now()
 		o, err := g.evalStack(stack)
-		fmt.Fprintf(os.Stderr, "time: %s\n", time.Since(tm_start))
+		fmt.Fprintf(os.Stderr, "time: %.3f sec\n", time.Since(tm_start).Seconds())
 		return o, err
 	case eol:
 		return nil, nil

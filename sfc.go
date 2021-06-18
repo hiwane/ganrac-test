@@ -2,7 +2,6 @@ package ganrac
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"time"
 )
@@ -202,9 +201,9 @@ func (sfc *CADSfc) pdq() int {
 
 	cells := []*Cell{sfc.cad.root}
 
-	fmt.Printf("pdq() start!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+	sfc.cad.log(2, "pdq() start!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
 	t := sfc.pdqv22(0, cells, 0, 1)
-	fmt.Printf("  pdq() t=%#x, [%#x %#x] [t=%d,f=%d]\n", t, t&0xc, t&0x8,
+	sfc.cad.log(2, "  pdq() t=%#x, [%#x %#x] [t=%d,f=%d]\n", t, t&0xc, t&0x8,
 		len(sfc.lt), len(sfc.lf))
 	if (t & (0x4 | 0x8)) == 0 {
 		return SFC_PROJ_DEFINABLE
@@ -230,18 +229,17 @@ func (sfc *CADSfc) gen_atoms() []*sfcAtom {
 			}
 		}
 	}
-	fmt.Printf("  genatoms=%d\n", len(a))
+	sfc.cad.log(2, "  genatoms=%d\n", len(a))
 	return a
 }
 
 func (sfc *CADSfc) eval(ctable []*Cell, ta *sfcAtom) bool {
 	if len(ctable[ta.lv].signature) <= int(ta.index) {
-		fmt.Printf("sfc.eval() %v: %d\n", ta, len(ctable[ta.lv].signature))
-		fmt.Printf("root=%p:%p, %p:%p\n",
+		sfc.cad.log(2, "sfc.eval() %v: %d\n", ta, len(ctable[ta.lv].signature))
+		sfc.cad.log(2, "root=%p:%p, %p:%p\n",
 			sfc.cad.root, sfc.cad.root.children[2],
 			ctable[ta.lv].parent, ctable[ta.lv])
 		ctable[ta.lv].Print()
-		sfc.cad.root.Print("signatures")
 	}
 	return sfc.evaltbl[ctable[ta.lv].signature[ta.index]+1][ta.op]
 }
@@ -481,7 +479,6 @@ func (cad *CAD) Sfc() (Fof, error) {
 		}
 	}
 
-	cad.FprintProj(os.Stdout)
 	la := sfc.gen_atoms()
 	fof := sfc.simplesf(la)
 	cad.stat.tm[2] = time.Since(tm_start)

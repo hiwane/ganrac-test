@@ -56,7 +56,7 @@ func qe_lineq(a *Atom, param interface{}) Fof {
 	}
 	res := make([]RObj, len(a.p))
 	for i, p := range a.p {
-		res[i] = t.g.ox.Resultant(p, t.p, t.lv)
+		res[i] = t.g.ox.Resultant(t.p, p, t.lv)
 	}
 	op := a.op
 	if t.sgn_lcp < 0 && a.Deg(t.lv)%2 != 0 {
@@ -73,7 +73,7 @@ func qe_quadeq(a *Atom, param interface{}) Fof {
 	f := u.p
 	r := make([]RObj, len(a.p))
 	for i, p := range a.p {
-		r[i] = u.g.ox.Resultant(p, f, u.lv)
+		r[i] = u.g.ox.Resultant(f, p, u.lv)
 	}
 	g := a.getPoly()
 	aop := a.op
@@ -271,6 +271,9 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 		}
 
 		if _, ok := minatom.z.(NObj); ok {
+			if op == NE {
+				o = o.Not()
+			}
 			return o
 		}
 
@@ -282,15 +285,10 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 			o = o.Not()
 		}
 		return o
-
 	}
 
 	tbl.sgn_lcp = 1
 	opos := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, GT))
-
-	if quadeq_isEven(fff, minatom.lv) {
-		return opos
-	}
 
 	tbl.sgn_lcp = -1
 	oneg := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, LT))

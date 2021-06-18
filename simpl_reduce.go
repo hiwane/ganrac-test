@@ -40,7 +40,7 @@ func (inf *reduce_info) isQ(lv Level) bool {
 	return false
 }
 
-func (inf *reduce_info) Reduce(g *Ganrac, p *Poly) RObj {
+func (inf *reduce_info) Reduce(g *Ganrac, p *Poly) (RObj, bool) {
 	n := 0 // 一時的に変数リストを増やす
 	if int(p.lv) >= len(inf.varb) {
 		b := make([]bool, p.lv+1)
@@ -55,11 +55,10 @@ func (inf *reduce_info) Reduce(g *Ganrac, p *Poly) RObj {
 		}
 	}
 
-	r := g.ox.Reduce(p, inf.eqns, inf.vars, inf.qn+n)
-	g.log(5, "Reduce %v => %v\n", p, r)
+	r, neg := g.ox.Reduce(p, inf.eqns, inf.vars, inf.qn+n)
 	inf.vars.v = inf.vars.v[:inf.vars.Len()-n] // 元に戻す
 
-	return r
+	return r, neg
 }
 
 func (inf *reduce_info) GB(g *Ganrac, lvmax Level) *List {
@@ -111,10 +110,16 @@ func (p *Atom) simplReduce(g *Ganrac, inf *reduce_info) Fof {
 		return p
 	}
 	q := p.getPoly()
-	r := inf.Reduce(g, q)
+	r, neg := inf.Reduce(g, q)
 	if !q.Equals(r) {
-		g.log(3, "Atom update %v => %v\n", q, r) // fctr???
-		return NewAtom(r, p.op)
+		g.log(3, "simplReduce(Atom) %v => %v\n", q, r)
+		var a Fof
+		if neg {
+			a = NewAtom(r, p.op.neg())
+		} else {
+			a = NewAtom(r, p.op)
+		}
+		return a.simplFctr(g)
 	}
 	return p
 }
@@ -191,7 +196,6 @@ func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
 			if fmls[i] != fml {
 				update = true
 			}
-			g.log(1, "%v => %v [%v]\n", fml, fmls[i], update)
 		}
 	}
 	if update {

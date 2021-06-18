@@ -39,7 +39,7 @@ func (qeopt *QEopt) qe_evenq(prenex_fof Fof, cond qeCond) Fof {
 							f = NewFmlAnd(f, NewAtom(NewPolyVar(q), GE))
 						}
 						f = fofq.gen(fofq.Qs(), f)
-						fmt.Printf("qeven[%4d,%s,%d] %v\n", cond.depth, varstr(q), v, f)
+						qeopt.g.log(1, "qeven[%4d,%s,%d] %v\n", cond.depth, varstr(q), v, f)
 						f = qeopt.qe(f, cond)
 
 						// 再構築

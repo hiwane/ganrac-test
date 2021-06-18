@@ -432,6 +432,18 @@ func (poly *Poly) simplNumUniPoly(t, f *NumRegion) (OP, *NumRegion, *NumRegion) 
 		}
 	}
 
+	// gray region を代入
+	x := xs[0]
+	x.sup = xs[len(xs)-1].sup
+
+	p := poly.toIntv(prec).(*Poly)
+	pp := p.SubstIntv(x, p.lv, prec).(*Interval)
+	if ss := pp.Sign(); ss > 0 {
+		return GT, newNumRegion(), nil
+	} else if ss < 0 {
+		return LT, nil, newNumRegion()
+	}
+
 	nr := []*NumRegion{newNumRegion(), newNumRegion()}
 
 	var inf NObj
@@ -516,9 +528,9 @@ func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 	pret := newNumRegion()
 	nret := newNumRegion()
 	op_ret := OP_TRUE
-	for v := poly.lv; v >= 0; v-- {
+	for v := poly.lv + 1; v >= 0; v-- {
 		deg := poly.Deg(v)
-		if deg == 0 {
+		if deg == 0 && v < poly.lv {
 			continue
 		}
 		s, pos, neg := poly.simplNumNvar(g, t, f, v)
@@ -578,10 +590,10 @@ func (poly *Poly) simplNumPoly(g *Ganrac, t, f *NumRegion, dv Level) (OP, *NumRe
 			atom = atom.simplFctr(g)
 
 			fml, neg2, _ = atom.simplNum(g, t, f)
-			// fmt.Printf("discrim[%d]=%v: %v: neg=%v\n", dv, d, atom, neg2)
+			// fmt.Printf("simnum: discrim[%d]=%v: %v: neg=%v: %v\n", dv, d, atom, neg2, fml)
 		}
 		switch fml.(type) {
-		case *AtomT:
+		case *AtomT: // 符号一定が確定
 			if s == GT {
 				return s, newNumRegion(), nil
 			} else if s == LT {
@@ -620,7 +632,7 @@ func (atom *Atom) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumReg
 	// simplFctr 通過済みと仮定したいところだが.
 	if atom.op == NE || atom.op == GE || atom.op == GT {
 		p := atom.Not()
-		p, f, t = p.simplNum(g, t, f)
+		p, f, t = p.simplNum(g, f, t)
 		return p.Not(), t, f
 	}
 
@@ -674,15 +686,18 @@ func (atom *Atom) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumReg
 			}
 		}
 	}
-	s, pp, nn := atom.p[0].simplNumPoly(g, t, f, atom.p[0].lv) // @TODO
-	// fmt.Printf("   atm.simplNum(): s=%v, pos=%f, neg=%f\n", s, pp, nn)
+	pol := atom.getPoly()
+	s, pp, nn := pol.simplNumPoly(g, t, f, pol.lv+1)
+	// fmt.Printf("   atm.simplNum(): s=%v|%v, atom=%v, pos=%f, neg=%f\n", s, atom.op, pol, pp, nn)
 
 	// op は　LT or LE
 	if s == OP_TRUE {
+		// 簡単化できず
 		return atom, nn, pp
 	} else if s&atom.op == 0 {
 		return falseObj, nil, newNumRegion()
-	} else if s&atom.op.not() == 0 {
+	} else if s|atom.op == atom.op {
+		fmt.Printf("true!\n")
 		return trueObj, newNumRegion(), nil
 	} else {
 		return atom, nn, pp
@@ -719,14 +734,15 @@ func (p *FmlAnd) simplNum(g *Ganrac, t, f *NumRegion) (Fof, *NumRegion, *NumRegi
 	fret := f
 	for i, fml := range fmls {
 		ff := f
-		tt := t
+		var tt *NumRegion
 		for j := 0; j < len(fmls); j++ {
 			if j != i {
 				ff = ff.union(fs[j])
-				tt = tt.intersect(ts[j])
+				//		tt = tt.intersect(ts[j])
 			}
 		}
-		fmls[i], tt, ff = fml.simplNum(g, tt, ff)
+
+		fmls[i], tt, ff = fml.simplNum(g, t, ff)
 		if _, ok := fmls[i].(*AtomF); ok {
 			return falseObj, nil, newNumRegion()
 		}

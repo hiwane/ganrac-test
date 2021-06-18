@@ -42,6 +42,7 @@ func main() {
 		verbose     = flag.Int("verbose", 0, "verbose")
 		cad_verbose = flag.Int("cad_verbose", 0, "cad_verbose")
 		ox_verbose  = flag.Bool("ox_verbose", false, "ox_verbose")
+		color       = flag.Bool("color", false, "colored")
 	)
 
 	flag.Usage = func() {
@@ -57,6 +58,9 @@ func main() {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	if *ox_verbose {
 		g.SetLogger(logger)
+	}
+	if *color {
+		ganrac.SetColordFml(true)
 	}
 	if *ox {
 		logger.Printf("connect OX!!!!")
