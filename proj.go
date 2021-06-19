@@ -234,6 +234,9 @@ func (cad *CAD) getU() []*Interval {
 }
 
 func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
+	if cad.stage >= CAD_STAGE_PROJED {
+		return nil, fmt.Errorf("already projected")
+	}
 	cad.log(1, "go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 	tm_start := time.Now()
 

@@ -397,23 +397,18 @@ func exWO3() *QeExample {
 	// x=y=0
 	// P_3,1  = fac(J_3,1) = fac(dis(A_4,1))
 	//        = 4 c^3 - b^2 c^2 - 18 b d c + 27 d^2 + 4 b^3 d
+	// x <= 0 \/ [ 4 x z^3 - y^2 z^2 - 18 x y z + 4 y^3 + 27 x^2 <= 0 /\ 6 x z^2 - y^2 z - 9 x y > 0 /\ 12 x z - y^2 < 0 ] \/ [ y^3 - 27 x^2 < 0 /\ 4 x z^3 - y^2 z^2 - 18 x y z + 4 y^3 + 27 x^2 <= 0 ]
 	q := new(QeExample)
-	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(
-		NewAtom(NewPolyCoef(3, 0, 1), GE),
-		NewAtom(NewPolyCoef(3, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), NewPolyCoef(2, 0, 1), 1), LT)))
+	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(NewAtom(NewPolyCoef(3, 0, 1), GE), NewAtom(NewPolyCoef(3, NewPolyCoef(0, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(2, 0, 1), 1), LT)))
 	q.Output = newFmlOrs(
-		NewAtom(NewPolyCoef(1, 0, 1), LT),
+		NewAtom(NewPolyCoef(0, 0, 1), LE),
 		newFmlAnds(
-			NewAtom(NewPolyCoef(2, 0, 1), LT),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(0, 0, -4), 0, 1), GT),
-			NewAtom(NewPolyCoef(1, 0, 1), EQ)),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LE),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -9)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 6)), GT),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 12)), LT)),
 		newFmlAnds(
-			NewAtom(NewPolyCoef(2, 0, 1), LT),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 4), 0, 27), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(0, 0, 0, -1), NewPolyCoef(1, 0, 4)), LT)),
-		newFmlAnds(
-			NewAtom(NewPolyCoef(0, 0, 1), LT),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 4), 0, 27), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(0, 0, -1), NewPolyCoef(1, 0, 4)), LT)),
-	)
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, -27), 0, 0, 1), LT),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LE)))
 	q.Ref = "original(SDC): NOT well-oriented"
 
 	return q

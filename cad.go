@@ -316,6 +316,7 @@ func clone4CAD(formula Fof, c *CAD) Fof {
 	case *AtomT, *AtomF:
 		return fml
 	}
+	fmt.Printf("fml=%v\n", formula)
 	panic("stop")
 }
 

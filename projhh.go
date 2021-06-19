@@ -203,7 +203,6 @@ func (pfs *ProjFactorsHH) hasCommonRoot(cad *CAD, c *Cell, i, j uint) int {
 		i, j = j, i
 	}
 
-	c.Print()
 	pi := pfs.pf[i]
 	if (pi.evalCoeff(cad, c, pi.Deg()) & EQ) != 0 {
 		return PF_EVAL_UNKNOWN

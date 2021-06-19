@@ -78,8 +78,9 @@ func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 
 func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 	// t-order partials の GCD を計算して，それが定数かすでに射影因子に含まれているなら ok
-	if err := cell.Print("cellp"); err != nil {
+	if err := cell.valid(cad); err != nil {
 		fmt.Printf("err: %v\n", err)
+		panic("stop")
 	}
 	a := []*Poly{pf.P()}
 	for t := Level(0); t <= cell.lv; t++ { // t-order

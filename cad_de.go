@@ -734,13 +734,13 @@ func (cad *CAD) symde_gcd(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, ROb
 
 	// deg(f) >= deg(g)
 	for {
-		fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d>\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+		cad.log(5, "gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d>\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
 		a, b, rr := f.pquorem(g)
 		s1, s2 = s2, Sub(Mul(s1, a), Mul(s2, b))
-		fmt.Printf("gcd : s1=[%d,%3d], s2=[%d,%3d]\n", lv(s1), deg(s1), lv(s2), deg(s2))
+		cad.log(5, "gcd : s1=[%d,%3d], s2=[%d,%3d]\n", lv(s1), deg(s1), lv(s2), deg(s2))
 		if need_t {
 			t1, t2 = t2, Sub(Mul(t1, a), Mul(t2, b))
-			fmt.Printf("gcd : t1=[%d,%3d], t2=[%d,%3d]\n", lv(t1), deg(t1), lv(t2), deg(t2))
+			cad.log(5, "gcd : t1=[%d,%3d], t2=[%d,%3d]\n", lv(t1), deg(t1), lv(t2), deg(t2))
 		}
 
 		if r, ok := rr.(*Poly); ok && (r.lv != g.lv || len(r.c) < len(g.c)) {
@@ -759,18 +759,18 @@ func (cad *CAD) symde_gcd(forg, gorg *Poly, cell *Cell, need_t bool) (*Poly, ROb
 				}
 				ret := cad.symde_zero_chk(r, c) //?
 				if ret {
-					fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END1\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+					cad.log(5, "gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END1\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
 					return g, s2, t2
 				}
-				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END2\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				cad.log(5, "gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END2\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
 				return nil, forg, gorg
 			}
 		case NObj:
 			if r.IsZero() {
-				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END3\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				cad.log(5, "gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END3\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
 				return g, s2, t2
 			} else {
-				fmt.Printf("gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END4\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
+				cad.log(5, "gcd : f =[%d,%3d], g =[%d,%3d] <%3d,%3d> END4\n", f.lv, f.deg(), g.lv, g.deg(), forg.deg(), gorg.deg())
 				return nil, forg, gorg
 			}
 		default:
@@ -822,7 +822,7 @@ func (cad *CAD) sym_sqfr2(porg *Poly, cell *Cell) []*cadSqfr {
 }
 
 func (cad *CAD) sym_sqfr(porg *Poly, cell *Cell) []*cadSqfr {
-	fmt.Printf("    sym_sqfr(%v) %v\n", cell.Index(), porg)
+	cad.log(5, "    sym_sqfr(%v) %v\n", cell.Index(), porg)
 	p := porg
 	if !p.isIntPoly() {
 		panic("unexpected")
@@ -854,7 +854,7 @@ func (cad *CAD) sym_sqfr(porg *Poly, cell *Cell) []*cadSqfr {
 
 		ti, si, fi := cad.symde_gcd(s0, tt, cell, true)
 		if ti == nil {
-			fmt.Printf("found [%d,%d^%d]\n", tt.lv, len(tt.c)-1, i)
+			cad.log(5, "found [%d,%d^%d]\n", tt.lv, len(tt.c)-1, i)
 			ret = append(ret, newCadSqfr(cell, tt, i))
 			break
 		} else {
