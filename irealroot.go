@@ -97,18 +97,11 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 	b.inf.Sub(b.inf, x.inf)
 	b.sup.Sub(b.sup, x.inf)
 
-	fmt.Printf("has_only_one_root() x=%v  (a,b)=(%v,%v)\n", x, a.inf, b.inf)
-	fmt.Printf("  p[%d]=%v\n", len(p.c)-1, p)
-
 	cc := newInterval(prec)
 	cc.inf.SetInt64(1)
 	cc.sup.SetInt64(1)
 
-	qq := p.subst1(NewPolyCoef(p.lv, a, cc), p.lv).(*Poly)
-	fmt.Printf("  q0[%d]=%v\n", len(qq.c), qq)
-
 	q := p.subst1(NewPolyCoef(p.lv, a, b), p.lv).(*Poly)
-	fmt.Printf("  q1[%d]=%v\n", len(q.c), q)
 	if len(q.c) != len(p.c) {
 		return false
 	}
@@ -119,13 +112,11 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 		q.c[i] = q.c[len(p.c)-i-1]
 		q.c[len(p.c)-i-1] = c
 	}
-	fmt.Printf("  q2[%d]=%v\n", len(q.c), q)
 
 	a = newInterval(prec)
 	a.sup.SetInt64(1)
 	a.inf.SetInt64(1)
 	q = q.subst1(NewPolyCoef(p.lv, a, a), p.lv).(*Poly)
-	fmt.Printf("  q3[%d]=%v\n", len(q.c), q)
 	if len(q.c) != len(p.c) {
 		return false
 	}
@@ -133,7 +124,6 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 	// 符号変化の数を数える.
 	c := q.c[0]
 	s := c.Sign()
-	fmt.Printf("  sign(q[0])=%d\n", s)
 	if s == 0 {
 		// 定数項が 0 を保持.
 		return false
@@ -141,10 +131,8 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 
 	n := 0
 	undetermined := false
-	fmt.Printf("  descates x=%v\n", x)
 	for i := 1; i < len(q.c); i++ {
 		sn := q.c[i].Sign()
-		fmt.Printf("    i=%d, sn=%d->%d, n=%d, m=%v\n", i, s, sn, n, undetermined)
 		if sn == 0 { // 符号不明
 			if undetermined {
 				return false
@@ -163,7 +151,6 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 		}
 	}
 
-	fmt.Printf("    n=%d, %v q=%v\n", n, undetermined, q)
 	return n == 1 && !undetermined
 }
 

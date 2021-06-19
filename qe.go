@@ -311,8 +311,8 @@ func (qeopt QEopt) appendNecSuf(qff Fof, cond qeCond) Fof {
 
 func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 	qeopt.g.log(2, "qecad[%4d] %v\n", cond.depth, fof)
-	qeopt.g.log(1, "qecad[%4d] nec=%v\n", cond.depth, cond.neccon)
-	qeopt.g.log(1, "qecad[%4d] suf=%v\n", cond.depth, cond.sufcon)
+	qeopt.g.log(3, "qecad[%4d] nec=%v\n", cond.depth, cond.neccon)
+	qeopt.g.log(3, "qecad[%4d] suf=%v\n", cond.depth, cond.sufcon)
 	// 変数順序を入れ替える. :: 自由変数 -> 束縛変数
 	maxvar := qeopt.varn
 
@@ -408,6 +408,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 		if err != CAD_NO_WO {
 			panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof, err))
 		}
+		qeopt.g.log(1, "  cad[%4d] not well-oriented %v\n", cond.depth, fof2)
 
 		// NOT well-oriented で Hong-proj へ
 		cad, _ = NewCAD(fof2, qeopt.g)

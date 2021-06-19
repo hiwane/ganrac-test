@@ -103,6 +103,10 @@ func (pf *ProjFactorHH) evalSign(cell *Cell) OP {
 
 func (pf *ProjFactorHH) proj_coeff(cad *CAD) {
 	pf.coeff = make([]*ProjLink, len(pf.p.c))
+	gb := NewList()
+	vars := NewList()
+	bl := make([]bool, pf.p.lv)
+
 	for i := len(pf.p.c) - 1; i >= 0; i-- {
 		c := pf.p.c[i]
 		if c.IsNumeric() {
@@ -111,7 +115,35 @@ func (pf *ProjFactorHH) proj_coeff(cad *CAD) {
 				return
 			}
 		} else {
+			if gb.Len() > 0 {
+				for lv, b := range bl {
+					if !b && c.(*Poly).hasVar(Level(lv)) {
+						bl[lv] = true
+						vars.Append(NewPolyVar(Level(lv)))
+					}
+				}
+				r, neg := cad.g.ox.Reduce(c.(*Poly), gb, vars, 0)
+				if neg {
+					c = r.Neg()
+				} else {
+					c = r
+				}
+				if c.IsNumeric() {
+					if !c.IsZero() {
+						return
+					}
+					continue
+				}
+			}
 			pf.coeff[i] = cad.addProjRObj(c)
+			for lv, b := range bl {
+				if !b && c.(*Poly).hasVar(Level(lv)) {
+					bl[lv] = true
+					vars.Append(NewPolyVar(Level(lv)))
+				}
+			}
+			gb.Append(c)
+			gb = cad.g.ox.GB(gb, vars, 0)
 		}
 	}
 }
@@ -166,7 +198,7 @@ func (pf *ProjFactorHH) proj_psc(cad *CAD) {
 }
 
 func (pf *ProjFactorHH) evalCoeff(cad *CAD, cell *Cell, deg int) OP {
-	if pf.coeff[deg] == nil {
+	if pf.coeff == nil || pf.coeff[deg] == nil {
 		return OP_TRUE
 	}
 	return pf.coeff[deg].evalSign(cell)

@@ -401,16 +401,17 @@ func exWO3() *QeExample {
 	q := new(QeExample)
 	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(NewAtom(NewPolyCoef(3, 0, 1), GE), NewAtom(NewPolyCoef(3, NewPolyCoef(0, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(2, 0, 1), 1), LT)))
 	q.Output = newFmlOrs(
-		NewAtom(NewPolyCoef(0, 0, 1), LE),
+		NewAtom(NewPolyCoef(0, 0, 1), LT),
 		newFmlAnds(
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LE),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -9)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 6)), GT),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 12)), LT)),
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, 216), 0, 0, 1), EQ),
+			NewAtom(NewPolyCoef(2, 0, 1), LT)),
 		newFmlAnds(
 			NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, -27), 0, 0, 1), LT),
-			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LE)))
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LT)),
+		newFmlAnds(
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 27), 0, 0, 4), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -18)), NewPolyCoef(1, 0, 0, -1), NewPolyCoef(0, 0, 4)), LT),
+			NewAtom(NewPolyCoef(2, 0, 1), LT)))
 	q.Ref = "original(SDC): NOT well-oriented"
-
 	return q
 }
 
