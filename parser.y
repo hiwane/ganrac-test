@@ -21,6 +21,7 @@ package ganrac
 %type <node> plus minus mult div pow and or
 %type <node> ltop gtop leop geop neop eqop assign lb lp
 
+%right assign
 %left or
 %left and
 %left ltop gtop leop geop neop eqop
@@ -35,14 +36,8 @@ package ganrac
 expr
 	: eol                          { yylex.(*pLexer).push(newPNode("", eolq, 0, $1.pos))}
 	| eolq                         { yylex.(*pLexer).push(newPNode("", eolq, 0, $1.pos))}
-	| mobj eol                     { }
-	| name assign mobj eol         { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
-	| initvar lp seq_ident rp eol  { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos))}
-	| initvar lp rp eol            { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos))}
-	| mobj eolq                    {                                                              yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
-	| name assign mobj eolq        { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
-	| initvar lp seq_ident rp eolq { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
-	| initvar lp rp eolq           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| mobj eol                     { yylex.(*pLexer).push(newPNode("", eol, 0, $2.pos)) }
+	| mobj eolq                    { yylex.(*pLexer).push(newPNode("", eolq, 1, $2.pos)) }
 	;
 
 mobj
@@ -74,6 +69,9 @@ mobj
 	| mobj neop mobj { yylex.(*pLexer).trace("!="); yylex.(*pLexer).push($2)}
 	| list_mobj {}
 	| mobj lb mobj rb { yylex.(*pLexer).trace("="); yylex.(*pLexer).push(newPNode("[]", lb, 0, $1.pos)) }
+	| name assign mobj { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
+	| initvar lp seq_ident rp { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| initvar lp rp           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
 	;
 
 list_mobj

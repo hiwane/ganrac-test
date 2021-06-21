@@ -289,7 +289,7 @@ func (sfc *CADSfc) _hitting_set(s [][]int, h []int, idx, maxn int) []int {
 			break
 		}
 	}
-	// init(a,b,c,x);F=ex([x],a*x^2+b*x+c==0); C=cadinit(F); cadproj(C); cadlift(C); print(C, "signatures"); cadsfc(C);
+	// vars(a,b,c,x);F=ex([x],a*x^2+b*x+c==0); C=cadinit(F); cadproj(C); cadlift(C); print(C, "signatures"); cadsfc(C);
 	if idx == len(s) {
 		return h
 	} else if len(h)+1 >= maxn {

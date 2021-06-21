@@ -46,7 +46,7 @@ func TestAsirSres(t *testing.T) {
 	defer connc.Close()
 	defer connd.Close()
 
-	// > init(x,u,v,w);
+	// > vars(x,u,v,w);
 	// > A = u*x^2+v*x+1;
 	// > B = v*x^3+w*x+u;
 	// > C = w*x^2+v*x+u;

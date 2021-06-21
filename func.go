@@ -73,22 +73,6 @@ Examples
 		{"igcd", 2, 2, funcIGCD, false, "(int1, int2):\t\tThe integer greatest common divisor", ""},
 		{"impl", 2, 2, funcImpl, false, "(fof1, fof2):\t\tfof1 impies fof2", ""},
 		{"indets", 1, 1, funcIndets, false, "(mobj):\t\t\tfind indeterminates of an expression", ""},
-		{"init", 0, 0, nil, false, "(vars, ...):\t\tinit variable order", `
-Args
-========
-  vars
-
-Examples*
-========
-  > init(x,y,z);
-  > F = x^2+2;
-  > F;
-  > init(a,b,c);
-  > F;
-  a^2+2
-  > x;
-  error: undefined variable ` + "`x`\n"},
-
 		{"intv", 1, 3, funcIntv, false, "(lb, ub [, prec]):\tmake an interval", ""},
 		{"len", 1, 1, funcLen, false, "(mobj):\t\t\tlength of an object", ""},
 		{"load", 2, 2, funcLoad, false, "(fname)@\t\t\tload file", ""},
@@ -139,7 +123,7 @@ Examples*
   > print(ex([x], x^2>1 && y +x == 0), "tex");
   \exists x x^2-1 > 0 \land y+x = 0
 
-  > init(a,b,c,x);
+  > ` + init_var_funcname + `(a,b,c,x);
   > C = cadinit(ex([x], a*x^2+b*x+c==0));
   > cadproj(C);
   > print(C, "proj");
@@ -170,6 +154,21 @@ Examples
 		{"sres", 4, 4, funcOXSres, true, "(poly, poly, var, int)*\tslope resultant.", ""},
 		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
 		{"time", 1, 1, funcTime, false, "(expr):\t\t\trun command and system resource usage", ""},
+		{init_var_funcname, 0, 0, nil, false, "(var, ...):\t\tinit variable order", `
+Args
+========
+  var
+
+Examples*
+========
+  > ` + init_var_funcname + `(x,y,z);
+  > F = x^2+2;
+  > F;
+  > ` + init_var_funcname + `(a,b,c);
+  > F;
+  a^2+2
+  > x;
+  error: undefined variable ` + "`x`\n"},
 		{"verbose", 1, 2, funcVerbose, true, "(int [, int]):\t\t\tset verbose level", ""},
 		{"vs", 1, 1, funcVS, true, "(FOF)* ", ""},
 	}
@@ -932,7 +931,7 @@ func funcHelps(builtin_func_table []func_table, name string) (interface{}, error
 		fmt.Printf("\n")
 		fmt.Printf("\n")
 		fmt.Printf("EXAMPLES:\n")
-		fmt.Printf("  > init(x, y, z);  # init variable order.\n")
+		fmt.Printf("  > %s(x, y, z);  # init variable order.\n", init_var_funcname)
 		fmt.Printf("  > F = x^2 + 2;\n")
 		fmt.Printf("  > deg(F, x);\n")
 		fmt.Printf("  2\n")

@@ -59,7 +59,7 @@ func init() {
 
 func (g *Ganrac) InitVarList(vlist []string) error {
 	for i, v := range vlist {
-		if v == "init" {
+		if v == init_var_funcname {
 			return fmt.Errorf("%s is reserved", v)
 		}
 		for _, bft := range g.builtin_func_table {

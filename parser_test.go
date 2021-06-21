@@ -36,7 +36,7 @@ func TestParseValid(t *testing.T) {
 		{"1+2*3;", []int{plus, mult, number, number, number}},
 		{"(1+2)*3;", []int{mult, number, plus, number, number}},
 		{"1 > 2;", []int{gtop, number, number}},
-		{"init(x,t,z);", []int{initvar, ident, ident, ident}},
+		{init_var_funcname + "(x,t,z);", []int{initvar, ident, ident, ident}},
 		{"A;", []int{name}},
 		{"a;", []int{ident}},
 		{"-x+y*3 > 0;", []int{gtop, number, plus, mult, number, ident, unaryminus, ident}},

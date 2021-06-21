@@ -47,7 +47,7 @@ func TestVsLin(t *testing.T) {
 			}
 			fof, ok := _fof.(Fof)
 			if !ok {
-				t.Errorf("%d: eval failed input=%s: eval=%v, err:%s", i, s.qff, fof, err)
+				t.Errorf("%d: eval failed\ninput=%s\neval=%v\nerr:%s", i, s.qff, fof, err)
 				return
 			}
 

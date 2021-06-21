@@ -7,6 +7,8 @@ import (
 	"log"
 )
 
+var init_var_funcname string = "vars"
+
 type func_table struct {
 	name     string
 	min, max int
@@ -67,7 +69,7 @@ func NewGANRAC() *Ganrac {
 		// {"not", not},
 		// {"all", all},
 		// {"ex", ex},
-		{"init", initvar},
+		{init_var_funcname, initvar},
 		{"time", f_time},
 		{"true", f_true},
 		{"false", f_false},

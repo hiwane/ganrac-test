@@ -76,7 +76,7 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		}
 		return nil, nil
 	case eol:
-		return nil, nil
+		return g.evalStack(stack)
 	}
 	return nil, fmt.Errorf("unsupported [str=%s, cmd=%d]", s.str, s.cmd)
 }
@@ -124,7 +124,7 @@ func (g *Ganrac) evalInitVar(stack *pStack, num int) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return zero, nil
 }
 
 func (g *Ganrac) evalStackFof2(stack *pStack, node pNode) (interface{}, error) {
