@@ -198,11 +198,13 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 		return nil, fmt.Errorf("prenex formula is expected")
 	}
 
-	// @TODO 変数順序の変換....
-
 	c := new(CAD)
 	c.g = g
 	c.stage = CAD_STAGE_INITED
+
+	///////////////////////////////////
+	// 変数順序の妥当性チェック
+	///////////////////////////////////
 	v := prenex_formula.maxVar()
 	c.q = make([]int8, v)
 	for i := 0; i < len(c.q); i++ {
@@ -247,6 +249,21 @@ _NEXT:
 
 	if !c.fml.IsQff() {
 		return nil, fmt.Errorf("prenex formula is expected")
+	}
+	// 隙間があると面倒なのでエラーにする
+	for i := Level(0); int(i) < len(c.q); i++ {
+		if !c.fml.hasVar(i) {
+			return nil, fmt.Errorf("CAD: invalid variable order [%d,%d]", i, vmax)
+		}
+	}
+
+	qdx := false
+	for i := Level(0); int(i) < len(c.q); i++ {
+		if c.q[i] >= 0 {
+			qdx = true
+		} else if qdx {
+			return nil, fmt.Errorf("CAD: invalid variable order [%d,%d]", i, vmax)
+		}
 	}
 
 	c.root = NewCell(c, nil, 0)

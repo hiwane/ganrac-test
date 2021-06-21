@@ -64,6 +64,8 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		o, err := g.evalStack(stack)
 		fmt.Fprintf(os.Stderr, "time: %.3f sec\n", time.Since(tm_start).Seconds())
 		return o, err
+	case vardol:
+		return g.evalStackVarDol(stack, s)
 	case eol:
 		return nil, nil
 	}
@@ -234,6 +236,20 @@ func (g *Ganrac) evalStackAssign(stack *pStack, node pNode) (interface{}, error)
 	}
 	g.varmap[node.str] = v
 	return nil, nil
+}
+
+func (g *Ganrac) evalStackVarDol(stack *pStack, node pNode) (interface{}, error) {
+	bi := ParseInt(node.str, 10)
+	if !bi.IsInt64() {
+		return nil, fmt.Errorf("too large level: %v", bi)
+	}
+	b := bi.Int64()
+	if b > 10000 {
+		return nil, fmt.Errorf("too large level: %v", bi)
+	}
+
+	lv := Level(b)
+	return NewPolyVar(lv), nil
 }
 
 func (g *Ganrac) evalStackName(stack *pStack, node pNode) (interface{}, error) {

@@ -21,7 +21,7 @@ func varstr(lv Level) string {
 	if 0 <= lv && int(lv) < len(varlist) {
 		return varlist[lv].v
 	} else {
-		return fmt.Sprintf("_<%d>", lv)
+		return fmt.Sprintf("$%d", lv)
 	}
 }
 

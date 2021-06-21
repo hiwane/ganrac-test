@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/hiwane/ganrac"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -43,6 +44,7 @@ func main() {
 		cad_verbose = flag.Int("cad_verbose", 0, "cad_verbose")
 		ox_verbose  = flag.Bool("ox_verbose", false, "ox_verbose")
 		color       = flag.Bool("color", false, "colored")
+		quiet       = flag.Bool("q", false, "quiet")
 	)
 
 	flag.Usage = func() {
@@ -53,11 +55,19 @@ func main() {
 	flag.Parse()
 
 	in := bufio.NewReader(os.Stdin)
-	fmt.Printf("GANRAC version %s. see help();\n", gitCommit)
+	if !*quiet {
+		if gitCommit == "" {
+			fmt.Printf("GaNRAC. see help();\n")
+		} else {
+			fmt.Printf("GaNRAC version %s. see help();\n", gitCommit)
+		}
+	}
 	g := ganrac.NewGANRAC()
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	if *ox_verbose {
 		g.SetLogger(logger)
+	} else if *quiet {
+		logger.SetOutput(ioutil.Discard)
 	}
 	if *color {
 		ganrac.SetColordFml(true)

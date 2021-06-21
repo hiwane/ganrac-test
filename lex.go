@@ -205,6 +205,17 @@ func (l *pLexer) Lex(lval *yySymType) int {
 		lval.node = newPNode(string(sbuf), t_str, 0, l.Pos())
 		return t_str
 	}
+	if l.Peek() == '$' {
+		l.Next()
+		var ret []rune
+		for l.isdigit(l.Peek()) {
+			ret = append(ret, l.Next())
+		}
+		if len(ret) > 0 {
+			lval.node = newPNode(string(ret), vardol, 0, l.Pos())
+			return vardol
+		}
+	}
 
 	return int(c)
 }
