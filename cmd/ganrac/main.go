@@ -28,7 +28,7 @@ func get_line(in *bufio.Reader) (string, error) {
 		line = append(line, c)
 		if c == '"' {
 			in_str = !in_str
-		} else if c == ';' && !in_str {
+		} else if (c == ';' || c == ':') && !in_str {
 			break
 		}
 	}

@@ -8,6 +8,7 @@ import (
 
 func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 	s, err := stack.Pop()
+	// fmt.Printf("eval: s=%v\n", s)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +67,14 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return o, err
 	case vardol:
 		return g.evalStackVarDol(stack, s)
+	case eolq:
+		for i := 0; i < s.extra; i++ {
+			_, err := g.evalStack(stack)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
 	case eol:
 		return nil, nil
 	}
@@ -95,6 +104,14 @@ func (g *Ganrac) evalStackAtom(stack *pStack, op OP, node pNode) (Fof, error) {
 }
 
 func (g *Ganrac) evalInitVar(stack *pStack, num int) (interface{}, error) {
+	if num == 0 {
+		v := NewList()
+		for i := 0; i < len(varlist); i++ {
+			v.Append(NewPolyVar(Level(i)))
+		}
+		return v, nil
+	}
+
 	vlist := make([]string, num)
 	for i := num - 1; i >= 0; i-- {
 		p, err := stack.Pop()
@@ -235,7 +252,7 @@ func (g *Ganrac) evalStackAssign(stack *pStack, node pNode) (interface{}, error)
 		return nil, err
 	}
 	g.varmap[node.str] = v
-	return nil, nil
+	return v, nil
 }
 
 func (g *Ganrac) evalStackVarDol(stack *pStack, node pNode) (interface{}, error) {

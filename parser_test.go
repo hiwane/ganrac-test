@@ -25,6 +25,9 @@ func TestParseValid(t *testing.T) {
 		stack []int
 	}{
 		{"a+2;", []int{plus, number, ident}},
+		{";", []int{eolq}},
+		{":", []int{eolq}},
+		{"1:", []int{eolq, number}},
 		{"a^3 + 1 < 0 && x >= 0;", []int{and, geop, number, ident, ltop, number, plus, number, pow, number, ident}},
 		{"1+x;", []int{plus, ident, number}},
 		{"1;", []int{number}},
@@ -46,14 +49,14 @@ func TestParseValid(t *testing.T) {
 	} {
 		stack, err := g.parse(strings.NewReader(s.str))
 		if err != nil {
-			t.Errorf("[%d]invalid input=\"%s\", err=%s", k, s.str, err.Error())
+			t.Errorf("[%d]invalid\ninput=\"%s\", err=%s", k, s.str, err.Error())
 			continue
 		}
 		m := stack.Len()
 		for i := 0; !stack.Empty() && i < len(s.stack); i++ {
 			v, _ := stack.Pop()
 			if v.cmd != s.stack[i] {
-				t.Errorf("[%d,%d]invalid input=\"%s\", expect[%d]=%d, actual=%d", k, m, s.str, i, (s.stack[i]), (v.cmd))
+				t.Errorf("[%d, %d] invalid\ninput=\"%s\", expect[%d]=%d, actual=%d", k, m, s.str, i, (s.stack[i]), (v.cmd))
 				goto _next
 			}
 		}

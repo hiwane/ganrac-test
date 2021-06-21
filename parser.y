@@ -12,10 +12,10 @@ package ganrac
 %token all ex and or not abs
 %token plus minus comma mult div pow
 %token ltop gtop leop geop neop eqop assign
-%token eol lb rb lp rp
+%token eol eolq lb rb lp rp
 
 %type <num> seq_mobj list_mobj seq_ident
-%type <node> f_true f_false eol
+%type <node> f_true f_false eol eolq
 %type <node> mobj lb initvar f_time
 %type <node> vardol number name ident t_str
 %type <node> plus minus mult div pow and or
@@ -31,11 +31,18 @@ package ganrac
 
 %%
 
+
 expr
-	: eol { yylex.(*pLexer).push(newPNode("", eol, 0, $1.pos))}
-	| mobj eol { yylex.(*pLexer).trace("gege") }
-	| name assign mobj eol  { yylex.(*pLexer).trace("assign"); yylex.(*pLexer).push(newPNode($1.str, assign, 0, $1.pos)) }
-	| initvar lp seq_ident rp eol { yylex.(*pLexer).trace("init"); yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)) }
+	: eol                          { yylex.(*pLexer).push(newPNode("", eolq, 0, $1.pos))}
+	| eolq                         { yylex.(*pLexer).push(newPNode("", eolq, 0, $1.pos))}
+	| mobj eol                     { }
+	| name assign mobj eol         { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
+	| initvar lp seq_ident rp eol  { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos))}
+	| initvar lp rp eol            { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos))}
+	| mobj eolq                    {                                                              yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| name assign mobj eolq        { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| initvar lp seq_ident rp eolq { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| initvar lp rp eolq           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
 	;
 
 mobj

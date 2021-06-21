@@ -14,6 +14,8 @@ func TestLexer(t *testing.T) {
 	}{
 		{"1", []int{number, -1}},
 		{"1+;", []int{number, plus, eol, -1}},
+		{"1+:", []int{number, plus, eolq, -1}},
+		{":;", []int{eolq, eol, -1}},
 		{"1+x;", []int{number, plus, ident, eol, -1}},
 		{"1 + > 3 >= 3 ;;;   ", []int{number, plus, gtop, number, geop, number, eol, eol, eol, -1}},
 		{"[<>>>=>====<>=)", []int{lb, ltop, gtop, gtop, geop, geop, eqop, assign, ltop, geop, rp, -1}},

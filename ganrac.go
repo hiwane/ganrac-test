@@ -48,6 +48,7 @@ func NewGANRAC() *Ganrac {
 		{")", rp},
 		{",", comma},
 		{";", eol},
+		{":", eolq},
 		{"==", eqop},
 		{"=", assign},
 		{"!=", neop},
