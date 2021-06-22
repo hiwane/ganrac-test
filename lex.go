@@ -135,7 +135,6 @@ func (l *pLexer) skip_space() {
 		if l.Peek() != '#' {
 			break
 		}
-		l.Next()
 		for l.Peek() != '\n' { // 改行までコメント
 			l.Next()
 		}
@@ -211,9 +210,22 @@ func (l *pLexer) Lex(lval *yySymType) int {
 		for l.isdigit(l.Peek()) {
 			ret = append(ret, l.Next())
 		}
+		cmd := vardol
 		if len(ret) > 0 {
-			lval.node = newPNode(string(ret), vardol, 0, l.Pos())
-			return vardol
+			lval.node = newPNode(string(ret), cmd, 0, l.Pos())
+			return cmd
+		}
+	} else if l.Peek() == '@' {
+		l.Next()
+		cmd := varhist
+		if l.Peek() == '@' {
+			l.Next()
+			lval.node = newPNode("1", cmd, 1, l.Pos())
+			return cmd
+		} else if '1' <= l.Peek() && l.Peek() <= '9' {
+			c = l.Next()
+			lval.node = newPNode(string(c), cmd, int(c - '0'), l.Pos())
+			return cmd
 		}
 	}
 

@@ -74,7 +74,7 @@ func TestModularInvPoly(t *testing.T) {
 				panic("!")
 			}
 
-			fmt.Printf("go invmod: a=%v mod %v\n", a, p)
+			// fmt.Printf("go invmod: a=%v mod %v\n", a, p)
 			b := a.inv_mod(cellp, p)
 			if b == nil {
 				// 共通根をもった... 定義多項式が分解された
@@ -89,7 +89,7 @@ func TestModularInvPoly(t *testing.T) {
 				return
 			}
 
-			fmt.Printf("go invmod: b=%v, a=%v\n", b, a)
+			// fmt.Printf("go invmod: b=%v, a=%v\n", b, a)
 			ab := a.mul_mod(b, p).simpl_mod(cellp, p)
 			if !ab.IsOne() {
 				t.Errorf("a=%v, p=%d, b=%v, ab=%v", a, p, b, ab)

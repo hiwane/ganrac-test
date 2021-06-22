@@ -20,7 +20,7 @@ func TestEvalRobj(t *testing.T) {
 		{"1+2;", NewInt(3)},
 		{"2*3;", NewInt(6)},
 		{"2-5;", NewInt(-3)},
-		{init_var_funcname + "(x,y,z,t);", nil},
+		{init_var_funcname + "(x,y,z,t);", zero},
 		{"x;", NewPolyCoef(0, 0, 1)},
 		{"y;", NewPolyCoef(1, 0, 1)},
 		{"z;", NewPolyCoef(2, 0, 1)},

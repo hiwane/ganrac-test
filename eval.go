@@ -67,16 +67,21 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return o, err
 	case vardol:
 		return g.evalStackVarDol(stack, s)
+	case varhist:
+		return g.evalStackVarHist(stack, s)
 	case eolq:
 		for i := 0; i < s.extra; i++ {
-			_, err := g.evalStack(stack)
+			o, err := g.evalStack(stack)
 			if err != nil {
 				return nil, err
 			}
+			g.addHisto(o)
 		}
 		return nil, nil
 	case eol:
-		return g.evalStack(stack)
+		o, err := g.evalStack(stack)
+		g.addHisto(o)
+		return o, err
 	}
 	return nil, fmt.Errorf("unsupported [str=%s, cmd=%d]", s.str, s.cmd)
 }
@@ -267,6 +272,14 @@ func (g *Ganrac) evalStackVarDol(stack *pStack, node pNode) (interface{}, error)
 
 	lv := Level(b)
 	return NewPolyVar(lv), nil
+}
+
+func (g *Ganrac) evalStackVarHist(stack *pStack, node pNode) (interface{}, error) {
+	if node.extra >= len(g.history) {
+		return nil, nil
+	}
+
+	return g.history[len(g.history) - node.extra], nil
 }
 
 func (g *Ganrac) evalStackName(stack *pStack, node pNode) (interface{}, error) {

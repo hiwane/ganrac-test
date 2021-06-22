@@ -116,7 +116,7 @@ func TestFRealRoot(t *testing.T) {
 				big.NewFloat(5)},
 		},
 	} {
-		fmt.Printf("########## goo! %v, roots=%v\n", s.p, s.root)
+		// fmt.Printf("########## goo! %v, roots=%v\n", s.p, s.root)
 		o := FRealRoot(s.prec, 100000, s.p, 0.1234)
 		if o == nil || len(o) != len(s.root) {
 			t.Errorf("prec=%d\ninput=%v\nexpect=%v\nactual=%v", s.prec, s.p, s.root, o)

@@ -20,16 +20,26 @@ func get_line(in *bufio.Reader) (string, error) {
 	//	line, err := in.ReadBytes(';')
 	line := make([]rune, 0, 100)
 	in_str := false
+	in_com := false
 	for {
 		c, _, err := in.ReadRune()
 		if err != nil {
 			return "", err
 		}
 		line = append(line, c)
+		if in_com {
+			if c == '\n' {
+				in_com = false
+			}
+			continue
+		}
 		if c == '"' {
 			in_str = !in_str
 		} else if (c == ';' || c == ':') && !in_str {
 			break
+		} else if c == '#' && !in_str {
+			// 改行まで skip
+			in_com = true
 		}
 	}
 	return string(line), nil

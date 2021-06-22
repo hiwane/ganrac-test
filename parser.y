@@ -8,7 +8,7 @@ package ganrac
 }
 
 %token call list initvar f_time
-%token name ident vardol number f_true f_false t_str
+%token name ident vardol varhist number f_true f_false t_str
 %token all ex and or not abs
 %token plus minus comma mult div pow
 %token ltop gtop leop geop neop eqop assign
@@ -17,7 +17,7 @@ package ganrac
 %type <num> seq_mobj list_mobj seq_ident
 %type <node> f_true f_false eol eolq
 %type <node> mobj lb initvar f_time
-%type <node> vardol number name ident t_str
+%type <node> vardol varhist number name ident t_str
 %type <node> plus minus mult div pow and or
 %type <node> ltop gtop leop geop neop eqop assign lb lp
 
@@ -48,6 +48,7 @@ mobj
 	| ident		{ yylex.(*pLexer).trace("ident: " + $1.str ); yylex.(*pLexer).push($1) }
 	| name		{ yylex.(*pLexer).trace("name: " + $1.str ); yylex.(*pLexer).push($1) }
 	| vardol		{ yylex.(*pLexer).trace("vardol: " + $1.str ); yylex.(*pLexer).push($1) }
+	| varhist		{ yylex.(*pLexer).trace("varhist: " + $1.str ); yylex.(*pLexer).push($1) }
 	| mobj and mobj { yylex.(*pLexer).trace("and"); yylex.(*pLexer).push($2)}
 	| mobj or mobj  { yylex.(*pLexer).trace("or");  yylex.(*pLexer).push($2)}
 	| lp mobj rp { $$ = $2 }
@@ -70,8 +71,8 @@ mobj
 	| list_mobj {}
 	| mobj lb mobj rb { yylex.(*pLexer).trace("="); yylex.(*pLexer).push(newPNode("[]", lb, 0, $1.pos)) }
 	| name assign mobj { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
-	| initvar lp seq_ident rp { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
-	| initvar lp rp           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); yylex.(*pLexer).push(newPNode("", eolq, 1, $1.pos)) }
+	| initvar lp seq_ident rp { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); }
+	| initvar lp rp           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); }
 	;
 
 list_mobj
