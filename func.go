@@ -11,14 +11,14 @@ func (g *Ganrac) setBuiltinFuncTable() {
 	g.builtin_func_table = []func_table{
 		// sorted by name
 		{"all", 2, 2, funcForAll, false, "([x], FOF):\t\tuniversal quantifier.", ""},
-		{"and", 2, 2, funcAnd, false, "(FOF, ...):\t\tconjunction (&&)", ""},
+		//		{"and", 2, 2, funcAnd, false, "(FOF, ...):\t\tconjunction (&&)", ""},
 		{"cad", 1, 2, funcCAD, true, "(FOF [, proj])*", ""},
 		{"cadinit", 1, 1, funcCADinit, true, "(FOF)*", ""},
 		{"cadlift", 1, 10, funcCADlift, true, "(CAD)*", ""},
 		{"cadproj", 1, 2, funcCADproj, true, "(CAD [, proj])*", ""},
 		{"cadsfc", 1, 1, funcCADsfc, true, "(CAD)*", ""},
-		{"coef", 3, 3, funcCoef, false, "(poly, var, deg):", ""}, // coef(F, x, 2)
-		{"deg", 2, 2, funcDeg, false, "(poly|FOF, var):\t\tdegree of a polynomial with respect to var", `
+		{"coef", 3, 3, funcCoef, false, "(poly, var, deg)", ""}, // coef(F, x, 2)
+		{"deg", 2, 2, funcDeg, false, "(poly|FOF, var)\t\tdegree of a polynomial with respect to var", `
 Args
 ========
   poly: a polynomial
@@ -55,7 +55,7 @@ Examples
   > discrim(a*x^2+b*x+c, y);
   0
 `},
-		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2):\t\tfof1 is equivalent to fof2", ""},
+		{"equiv", 2, 2, funcEquiv, false, "(fof1, fof2)\t\tfof1 is equivalent to fof2", ""},
 		{"ex", 2, 2, funcExists, false, "(vars, FOF):\t\texistential quantifier.", `
 Args
 ========
@@ -66,15 +66,15 @@ Examples
 ========
   > ex([x], a*x^2+b*x+c == 0);
 `},
-		{"example", 0, 1, funcExample, false, "([name]):\t\texample.", ""},
+		{"example", 0, 1, funcExample, false, "([name])\t\texample.", ""},
 		{"fctr", 1, 1, funcOXFctr, true, "(poly)*\t\t\tfactorize polynomial over the rationals.", ""},
 		{"gb", 2, 3, funcOXGB, true, "(poly-list)*\t\tGroebner basis", ""},
-		{"help", 0, 1, nil, false, "():\t\t\tshow help", ""},
-		{"igcd", 2, 2, funcIGCD, false, "(int1, int2):\t\tThe integer greatest common divisor", ""},
-		{"impl", 2, 2, funcImpl, false, "(fof1, fof2):\t\tfof1 impies fof2", ""},
-		{"indets", 1, 1, funcIndets, false, "(mobj):\t\t\tfind indeterminates of an expression", ""},
-		{"intv", 1, 3, funcIntv, false, "(lb, ub [, prec]):\tmake an interval", ""},
-		{"len", 1, 1, funcLen, false, "(mobj):\t\t\tlength of an object", ""},
+		{"help", 0, 1, nil, false, "()\t\t\tshow help", ""},
+		//		{"igcd", 2, 2, funcIGCD, false, "(int1, int2)\t\tThe integer greatest common divisor", ""},
+		{"impl", 2, 2, funcImpl, false, "(fof1, fof2)\t\tfof1 impies fof2", ""},
+		{"indets", 1, 1, funcIndets, false, "(mobj)\t\t\tfind indeterminates of an expression", ""},
+		{"intv", 1, 3, funcIntv, false, "(lb, ub [, prec])\t\tmake an interval", ""},
+		{"len", 1, 1, funcLen, false, "(mobj)\t\t\tlength of an object", ""},
 		{"load", 2, 2, funcLoad, false, "(fname)@\t\t\tload file", ""},
 		{"not", 1, 1, funcNot, false, "(FOF)", `
 Args
@@ -88,7 +88,6 @@ Examples
   > not(ex([x], a*x^2+b*x+c==0));
   all([x], a*x^2+b*x+c != 0)
 `},
-		{"or", 2, 2, funcOr, false, "(FOF1, FOF2):\t\tdisjunction (||)", ""},
 		{"oxfunc", 2, 100, funcOXFunc, true, "(fname, args...)*\tcall ox-function by ox-asir", `
 Args
 ========
@@ -112,7 +111,7 @@ Examples
   > oxstr("fctr(x^2-4);");
   [[1,1],[x-2,1],[x+2,1]]
 `},
-		{"print", 1, 10, funcPrint, false, "(obj [, kind, ...]):\tprint object", `
+		{"print", 1, 10, funcPrint, false, "(obj [, kind, ...])\tprint object", `
 
 Examples*
 ========
@@ -135,9 +134,9 @@ Examples*
   > print(C, "stat");
 `},
 		{"psc", 4, 4, funcOXPsc, true, "(poly, poly, var, int)*\tprincipal subresultant coefficient.", ""},
-		{"qe", 1, 1, funcQE, true, "(FOF [, opt]):\t\treal quantifier elimination", ""},
-		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly):\t\treal root isolation", ""},
-		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x]):\troot bound", `
+		{"qe", 1, 1, funcQE, true, "(FOF [, opt])\t\treal quantifier elimination", ""},
+		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly)\t\treal root isolation", ""},
+		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x])\troot bound", `
 Args
 ========
   poly: univariate polynomial
@@ -148,13 +147,13 @@ Examples
   3
 `},
 		{"save", 2, 3, funcSave, false, "(obj, fname)@\t\tsave object...", ""},
-		{"simpl", 1, 2, funcSimplify, true, "(Fof):\t\t\tsimplify formula FoF", ""},
-		{"sleep", 1, 1, funcSleep, false, "(milisecond):\t\tzzz", ""},
+		{"simpl", 1, 2, funcSimplify, true, "(Fof)\t\t\tsimplify formula FoF", ""},
+		{"sleep", 1, 1, funcSleep, false, "(milisecond)\t\tzzz", ""},
 		// {"sqfr", 1, 1, funcSqfr, false, "(poly)* square-free factorization", ""},
 		{"sres", 4, 4, funcOXSres, true, "(poly, poly, var, int)*\tslope resultant.", ""},
-		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...):", ""},
-		{"time", 1, 1, funcTime, false, "(expr):\t\t\trun command and system resource usage", ""},
-		{init_var_funcname, 0, 0, nil, false, "(var, ...):\t\tinit variable order", `
+		{"subst", 1, 101, funcSubst, false, "(poly|FOF|List,x,vx,y,vy,...)", ""},
+		{"time", 1, 1, funcTime, false, "(expr)\t\t\trun command and system resource usage", ""},
+		{init_var_funcname, 0, 0, nil, false, "(var, ...)\t\tinit variable order", `
 Args
 ========
   var
@@ -169,7 +168,7 @@ Examples*
   a^2+2
   > x;
   error: undefined variable ` + "`x`\n"},
-		{"verbose", 1, 2, funcVerbose, true, "(int [, int]):\t\t\tset verbose level", ""},
+		{"verbose", 1, 2, funcVerbose, false, "(int [, int])\t\tset verbose level", ""},
 		{"vs", 1, 1, funcVS, true, "(FOF)* ", ""},
 	}
 }
@@ -208,30 +207,6 @@ func funcNot(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("not(): unsupported for %v", args[0])
 	}
 	return f.Not(), nil
-}
-
-func funcAnd(g *Ganrac, name string, args []interface{}) (interface{}, error) {
-	f0, ok := args[0].(Fof)
-	if !ok {
-		return nil, fmt.Errorf("and(): unsupported for %v", args[0])
-	}
-	f1, ok := args[1].(Fof)
-	if !ok {
-		return nil, fmt.Errorf("and(): unsupported for %v", args[1])
-	}
-	return NewFmlAnd(f0, f1), nil
-}
-
-func funcOr(g *Ganrac, name string, args []interface{}) (interface{}, error) {
-	f0, ok := args[0].(Fof)
-	if !ok {
-		return nil, fmt.Errorf("or(): unsupported for %v", args[0])
-	}
-	f1, ok := args[1].(Fof)
-	if !ok {
-		return nil, fmt.Errorf("or(): unsupported for %v", args[1])
-	}
-	return NewFmlOr(f0, f1), nil
 }
 
 func funcImpl(g *Ganrac, name string, args []interface{}) (interface{}, error) {

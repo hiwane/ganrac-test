@@ -21,7 +21,7 @@ type func_table struct {
 type Ganrac struct {
 	varmap             map[string]interface{}
 	sones, sfuns       []token
-	history       []interface{}
+	history            []interface{}
 	builtin_func_table []func_table
 	ox                 *OpenXM
 	logger             *log.Logger
@@ -82,7 +82,7 @@ func NewGANRAC() *Ganrac {
 func (g *Ganrac) addHisto(o interface{}) {
 	g.history = append(g.history, o)
 	if len(g.history) > 10 {
-		g.history = g.history[len(g.history) - 10:]
+		g.history = g.history[len(g.history)-10:]
 	}
 }
 

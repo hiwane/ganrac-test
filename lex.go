@@ -224,7 +224,7 @@ func (l *pLexer) Lex(lval *yySymType) int {
 			return cmd
 		} else if '1' <= l.Peek() && l.Peek() <= '9' {
 			c = l.Next()
-			lval.node = newPNode(string(c), cmd, int(c - '0'), l.Pos())
+			lval.node = newPNode(string(c), cmd, int(c-'0'), l.Pos())
 			return cmd
 		}
 	}

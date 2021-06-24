@@ -279,7 +279,7 @@ func (g *Ganrac) evalStackVarHist(stack *pStack, node pNode) (interface{}, error
 		return nil, nil
 	}
 
-	return g.history[len(g.history) - node.extra], nil
+	return g.history[len(g.history)-node.extra], nil
 }
 
 func (g *Ganrac) evalStackName(stack *pStack, node pNode) (interface{}, error) {

@@ -34,10 +34,11 @@ Ubuntu
 > go get github.com/hiwane/ganrac/cmd/ganrac
 ```
 
-
 ## Demo
 
-### Quantifier Elimination
+![ganrac9](https://user-images.githubusercontent.com/7787544/123178824-fc812c80-d4c2-11eb-8c5a-3cb209b83478.gif)
+
+### real Quantifier Elimination
 
 ![ganrac7](https://user-images.githubusercontent.com/7787544/122847029-0891b080-d342-11eb-84ab-f085f5bbaad6.gif)
 
@@ -49,7 +50,7 @@ H = time(qe(G[0]));
 qe(all([x,y,z], equiv(G[1], H)));
 ```
 
-### QE by Cylindrical Algebraic Decomposition
+### real QE by Cylindrical Algebraic Decomposition
 
 ![ganrac8](https://user-images.githubusercontent.com/7787544/122847006-fdd71b80-d341-11eb-8156-8a0e5f49b535.gif)
 
