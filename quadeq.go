@@ -278,7 +278,7 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 		}
 
 		eq := NewAtom(minatom.z, EQ)
-		fml := qeopt.g.simplFof(fff, eq, falseObj)
+		fml := qeopt.g.simplFof(fff, eq, falseObj)	// 等式制約で簡単化
 		fml = NewFmlAnd(fml, eq)
 		o = NewFmlOr(o, fml)
 		if op == NE {
@@ -293,7 +293,7 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 	tbl.sgn_lcp = -1
 	oneg := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, LT))
 
-	fs := make([]Fof, len(fff.Fmls()))
+	fs := make([]Fof, len(fff.Fmls())+1)
 	copy(fs, fff.Fmls())
 	c := minatom.p.Coef(tbl.lv, 0)
 	fs[minatom.idx] = NewAtom(c, EQ)
