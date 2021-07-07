@@ -22,13 +22,16 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"adam2-2", exAdam2_2},
 	{"adam3", exAdam3},
 	{"candj", exCandJ},
+	{"catasph", exCatastropheSurfaceSphere},
 	{"constcd", exConstCoord},
 	{"cycle3", exCyclic3},
 	{"easy7", exEasy7},
+	{"imo13-1", exImo13_1_5},
 	{"makepdf", exMakePdf},
 	{"makepd2", exMakePdf2},
 	{"pl01", exPL01},
 	{"quad", exQuad},
+	{"quart", exQuart},
 	{"sdc2", exSDC2},
 	{"sdc3", exSDC3},
 	{"sdc4", exSDC4},
@@ -40,6 +43,7 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"wo3", exWO3},
 	{"wo4", exWO4},
 	{"xaxis", exXAxisEllipse},
+	{"whitney", exWhitneyUmbrella},
 }
 
 func GetExampleFof(name string) *QeExample {
@@ -174,6 +178,17 @@ func exCandJ() *QeExample {
 	return q
 }
 
+func exCatastropheSurfaceSphere() *QeExample {
+	// ex([x,y,z], z^2+y^2+x^2-1==0 && z^3+x*z+y==0)
+	q := new(QeExample)
+	q.Input = NewQuantifier(false, []Level{0, 1, 2}, newFmlAnds(
+		NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, -1, 0, 1), 0, 1), 0, 1), EQ),
+		NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 0, 1), EQ)))
+	q.Output = trueObj
+	q.Ref = "Scott MaCallum. An Improved Projection Operation for Cylindrical Algebraic Decomposition"
+	return q
+}
+
 func exConstCoord() *QeExample {
 	q := new(QeExample)
 	q.Input = NewQuantifier(true, []Level{3, 4}, newFmlOrs(
@@ -282,6 +297,22 @@ func exQuad() *QeExample {
 		NewAtom(NewPolyCoef(1, 0, 1), NE)),
 		NewAtom(NewPolyCoef(2, 0, 1), EQ))
 
+	return q
+}
+
+func exQuart() *QeExample {
+	// all([x], x^4+p*x^2+q*x+r>=0)
+	q := new(QeExample)
+	q.Input = NewQuantifier(true, []Level{3}, NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1), 0, 1), GE))
+
+	// 256 r^3 - 128 p^2 r^2 + 144 p q^2 r + 16 p^4 r - 27 q^4 - 4 p^3 q^2 >= 0 /\ [ 27 q^2 + 8 p^3 > 0 \/ [ 48 r^2 - 16 p^2 r + 9 p q^2 + p^4 >= 0 /\ 6 r - p^2 >= 0 ] ]
+	q.Output = newFmlAnds(
+		NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, 0, 0, 0, -4), 0, -27), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 16), 0, NewPolyCoef(0, 0, 144)), NewPolyCoef(0, 0, 0, -128), 256), GE),
+		newFmlOrs(
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 8), 0, 27), GT),
+			newFmlAnds(
+				NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 0, 9)), NewPolyCoef(0, 0, 0, -16), 48), GE),
+				NewAtom(NewPolyCoef(2, NewPolyCoef(0, 0, 0, -1), 6), GE))))
 	return q
 }
 
@@ -441,5 +472,34 @@ func exXAxisEllipse() *QeExample {
 			NewAtom(NewPolyCoef(4, NewPolyCoef(3, -1, 0, 1), 0, 1), LE))))
 	q.Output = q.Input
 	q.Ref = "The x-axix ellipse problem: W. Kahan. Problem no. 9: An ellipse problem."
+	return q
+}
+
+func exWhitneyUmbrella() *QeExample {
+	q := new(QeExample)
+	// ex([u,v], u*v-x==0 && v-y==0 && u^2-z==0)
+	q.Input = NewQuantifier(false, []Level{3, 4}, newFmlAnds(
+		NewAtom(NewPolyCoef(4, NewPolyCoef(0, 0, -1), NewPolyCoef(3, 0, 1)), EQ),
+		NewAtom(NewPolyCoef(4, NewPolyCoef(1, 0, -1), 1), EQ),
+		NewAtom(NewPolyCoef(3, NewPolyCoef(2, 0, -1), 0, 1), EQ)))
+	q.Output = newFmlAnds(
+		NewAtom(NewPolyCoef(2, 0, 1), GE),
+		NewAtom(NewPolyCoef(2, NewPolyCoef(0, 0, 0, -1), NewPolyCoef(1, 0, 0, 1)), EQ))
+	return q
+}
+
+func exImo13_1_5() *QeExample {
+	// all([a1,a2,a3,a4,a5], (a1-a2)*(a1-a3)*(a1-a4)*(a1-a5)+(a2-a1)*(a2-a3)*(a2-a4)*(a2-a5)+(a3-a1)*(a3-a2)*(a3-a4)*(a3-a5)+(a4-a1)*(a4-a2)*(a4-a3)*(a4-a5)+(a5-a1)*(a5-a2)*(a5-a3)*(a5-a4) >= 0);
+	q := new(QeExample)
+	q.Input = NewQuantifier(true, []Level{0, 1, 2, 3, 4}, NewAtom(
+		NewPolyCoef(4,
+			NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), NewPolyCoef(0, 0, 0, 0, -1), 0, NewPolyCoef(0, 0, -1), 1), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -1), NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, 1), -1), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 1)), NewPolyCoef(1, NewPolyCoef(0, 0, -1), -1), 1), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -1), NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, 1), -1), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, -3), 1), NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), -1), NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 1)), NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), -1), -1), 1),
+			NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, -1), NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, 1), -1), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, -3), 1), NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), -1), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 1), NewPolyCoef(0, 0, -3), 1), NewPolyCoef(1, NewPolyCoef(0, 0, -3), -3), 1), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), 1), -1),
+			NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 1)), NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1)), NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), 1)),
+			NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), -1), -1), -1),
+			1), GE))
+	q.Output = trueObj
+	q.Ref = "Formula Simplification for Real Quantifier Elimination Using Geometric Invariance"
+	q.DOI = "10.1145/3087604.3087627"
 	return q
 }
