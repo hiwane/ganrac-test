@@ -253,6 +253,8 @@ func (cell *Cell) rlift(cad *CAD, lv Level, proj_num []int) error {
 				c.index = uint(j)
 			}
 		}
+
+		// 分離区間の更新が必要である.... @BUG
 	}
 	ciso = append(ciso, cs)
 

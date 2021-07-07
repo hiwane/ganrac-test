@@ -91,12 +91,14 @@ type CADStat struct {
 }
 
 type CAD struct {
+	qfml     Fof           // quantified formula: input
 	fml      Fof           // qff
 	output   Fof           // qff
 	q        []int8        // quantifier
 	proj     []ProjFactors // [level]
 	u        []*Interval   // [level]
 	pl4const []*ProjLink   // 定数用 0, +, -
+	apppoly  []*Poly       // makepdf 用. 入力以外の多項式
 	stack    *cellStack
 	root     *Cell
 	rootp    *Cellmod
@@ -104,6 +106,7 @@ type CAD struct {
 	stat     CADStat
 	nwo      bool // well-oriented
 	stage    int8
+	palgo    ProjectionAlgo
 }
 
 func qeCAD(fml Fof) Fof {
@@ -210,6 +213,7 @@ func NewCAD(prenex_formula Fof, g *Ganrac) (*CAD, error) {
 	for i := 0; i < len(c.q); i++ {
 		c.q[i] = -1
 	}
+	c.qfml = prenex_formula
 	c.fml = prenex_formula
 	vmax := Level(0)
 	for cnt := 0; ; cnt++ {

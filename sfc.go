@@ -468,7 +468,7 @@ func (cad *CAD) Sfc() (Fof, error) {
 	}
 	for ccc := 0; t >= 1; ccc++ {
 		if t == 1 {
-			sfc.make_pdf()
+			return sfc.make_pdf()
 		} else {
 			panic(fmt.Sprintf("unsupported pdq=%d", t))
 

@@ -60,12 +60,14 @@ func (pfs *ProjFactorsMC) doProj(cad *CAD, i int) {
 	r := make([]*ProjLink, i)
 	pfs.resultant = append(pfs.resultant, r)
 	for j := 0; j < i; j++ {
-		pj := pfs.get(uint(j)).P()
-		if pf.Sign() != 0 || pf.Sign() != 0 {
+		pg := pfs.get(uint(j))
+		if pf.Sign() != 0 || pg.Sign() != 0 {
+			// 交わりません.
 			pfs.resultant[i][j] = cad.pl4const[1]
 			continue
 		}
 
+		pj := pg.P()
 		dd := cad.g.ox.Resultant(pf.p, pj, pf.p.lv)
 		cad.stat.resultant++
 		pfs.resultant[i][j] = cad.addProjRObj(dd)
@@ -190,13 +192,29 @@ func (pf *ProjFactorMC) FprintProjFactor(b io.Writer, cad *CAD) {
 	if pf.input {
 		ss = 'i'
 	}
-	fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", pf.Lv(), pf.Index(), ss, pf.Deg(), pf.P())
+	lv := pf.Lv()
+	idx := pf.Index()
+	fmt.Fprintf(b, "[%d,%2d,%c,%2d] %v\n", lv, idx, ss, pf.Deg(), pf.P())
 	for i := len(pf.coeff) - 1; i >= 0; i-- {
 		if pf.coeff[i] != nil {
 			fmt.Fprintf(b, "coef[%d]=", i)
 			pf.coeff[i].Fprint(b)
 		}
 	}
-	fmt.Fprintf(b, "discrim=")
-	pf.discrim.Fprint(b)
+	if pf.discrim != nil {
+		fmt.Fprintf(b, "discrim=")
+		pf.discrim.Fprint(b)
+	}
+
+	if lv > 0 {
+		pfs := cad.proj[lv].(*ProjFactorsMC)
+		for i := uint(0); i < idx; i++ {
+			fmt.Fprintf(b, "res[%2d]=", i)
+			pfs.resultant[idx][i].Fprint(b)
+		}
+		for i := int(idx) + 1; i < len(pfs.resultant); i++ {
+			fmt.Fprintf(b, "res[%2d]=", i)
+			pfs.resultant[i][idx].Fprint(b)
+		}
+	}
 }

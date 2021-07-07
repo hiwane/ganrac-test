@@ -2,6 +2,11 @@ package ganrac
 
 // solution formula construction for truth invariant CAD's
 // Christopher W. Brown. thesis, 1999
+
+import (
+	"fmt"
+)
+
 func (sfc *CADSfc) add_ds_proj(lv Level, pf ProjFactor) {
 	p := pf.P()
 
@@ -54,7 +59,7 @@ func (sfc *CADSfc) construct_lab(lv Level) []int {
 	return sfc.hitting_set(s)
 }
 
-func (sfc *CADSfc) make_pdf() {
+func (sfc *CADSfc) make_pdf() (Fof, error) {
 	// S4.4.2 Removing all conflicting pairs
 
 	proj_num := make([]int, sfc.freen)
@@ -83,6 +88,18 @@ func (sfc *CADSfc) make_pdf() {
 			sfc.add_ds_proj(lv, pf)
 		}
 
+		// rlift がバグっているので，諦める.
+		if proj_num[lv] != sfc.cad.proj[lv].Len() {
+			cad2, _ := NewCAD(sfc.cad.qfml, sfc.cad.g)
+			for j := proj_num[lv]; j < sfc.cad.proj[lv].Len(); j++ {
+				cad2.apppoly = append(cad2.apppoly, sfc.cad.proj[lv].get(uint(j)).P())
+			}
+
+			cad2.Projection(sfc.cad.palgo)
+			cad2.Lift()
+			return cad2.Sfc()
+		}
+
 		// rebuild CAD
 		if lv > 0 {
 			for j := proj_num[lv]; j < sfc.cad.proj[lv].Len(); j++ {
@@ -104,5 +121,5 @@ func (sfc *CADSfc) make_pdf() {
 		}
 	}
 
-	return
+	return nil, fmt.Errorf("??")
 }

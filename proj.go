@@ -237,12 +237,16 @@ func (cad *CAD) Projection(algo ProjectionAlgo) (*List, error) {
 	if cad.stage >= CAD_STAGE_PROJED {
 		return nil, fmt.Errorf("already projected")
 	}
+	cad.palgo = algo
 	cad.log(1, "go proj algo=%d, lv=%d\n", algo, len(cad.proj))
 	tm_start := time.Now()
 
 	// projection の準備
 	cad.initProj(algo)
 	cad.getU()
+	for _, p := range cad.apppoly {
+		cad.addPoly(p, false)
+	}
 
 	for lv := len(cad.proj) - 1; lv > 0; lv-- {
 
