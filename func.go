@@ -2,6 +2,7 @@ package ganrac
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"time"
 )
@@ -135,6 +136,7 @@ Examples*
 `},
 		{"psc", 4, 4, funcOXPsc, true, "(poly, poly, var, int)*\tprincipal subresultant coefficient.", ""},
 		{"qe", 1, 1, funcQE, true, "(FOF [, opt])\t\treal quantifier elimination", ""},
+		{"quit", 0, 1, funcQuit, false, "([code])\t\tbye.", ""},
 		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly)\t\treal root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x])\troot bound", `
 Args
@@ -574,6 +576,22 @@ func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 	default:
 		return nil, fmt.Errorf("unsupported object is specified")
 	}
+}
+
+func funcQuit(g *Ganrac, name string, args []interface{}) (interface{}, error) {
+	code := 0
+	if len(args) > 0 {
+		c, ok := args[0].(*Int)
+		if !ok {
+			return nil, fmt.Errorf("%s() expected int", name)
+		}
+		if c.Sign() < 0 || !c.IsInt64() || c.Int64() > 125 {
+			return nil, fmt.Errorf("%s() expected integer in the range [0, 125]", name)
+		}
+		code = int(c.Int64())
+	}
+	os.Exit(code)
+	return nil, nil
 }
 
 func funcSleep(g *Ganrac, name string, args []interface{}) (interface{}, error) {
