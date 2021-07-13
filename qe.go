@@ -41,6 +41,12 @@ func (qeopt *QEopt) num_var(f Fof) int {
 	return m
 }
 
+func (qeopt *QEopt) new_var() Level {
+	v := qeopt.varn
+	qeopt.varn += 1
+	return v
+}
+
 func (qeopt *QEopt) fmlcmp(f1, f2 Fof) bool {
 	switch g1 := f1.(type) {
 	case FofQ:
@@ -190,13 +196,23 @@ func (qeopt QEopt) reconstruct(fqs []FofQ, ff Fof, cond qeCond) Fof {
 
 }
 
-func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
-	fof := prenex_formula
+func (qeopt QEopt) qe_simpl(fof FofQ, cond qeCond) Fof {
 
 	// 偶論理式
 	if ff := qeopt.qe_evenq(fof, cond); ff != nil {
 		return ff
 	}
+
+	// 斉次論理式: homogeneous formula
+	if ff := qeopt.qe_homo(fof, cond); ff != nil {
+		return ff
+	}
+
+	return nil
+}
+
+func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
+	fof := prenex_formula
 
 	// quantifier の一番外側を処理する.
 	fof = prenex_formula
@@ -252,6 +268,10 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	////////////////////////////////
 	// CAD ではどうしようもないが, VS 2 次が使えるかも?
 	////////////////////////////////
+
+	if ff := qeopt.qe_simpl(fof, cond); ff != nil {
+		return ff
+	}
 
 	////////////////////////////////
 	// CAD

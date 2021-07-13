@@ -9,6 +9,8 @@ import (
 
 type Level int8
 
+type Levels []Level
+
 // poly in K[x_lv,...,x_n]
 type Poly struct { // recursive expression
 	lv Level
@@ -769,6 +771,10 @@ func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
 	for i := len(z.c) - 2; i >= 0; i-- {
 		p = Add(Mul(p, x), z.c[i].Subst(xs, lvs, idx+1))
 	}
+	if err := p.valid(); err != nil {
+		panic(err.Error())
+	}
+
 	return p
 }
 
@@ -1387,4 +1393,57 @@ func (p *Poly) Less(q *Poly) bool {
 	}
 
 	return true
+}
+
+func (p *Poly) constantTerm() NObj {
+	switch q := p.c[0].(type) {
+	case *Poly:
+		return q.constantTerm()
+	case NObj:
+		return q
+	default:
+		panic("ho")
+	}
+}
+
+func (p *Poly) lm(deg []int) {
+	deg[p.lv] = p.deg()
+	if q, ok := p.lc().(*Poly); ok {
+		q.lm(deg)
+	}
+}
+
+func (lvs Levels) contains(lv Level) bool {
+	// lvs is sorted in ascending order
+	for _, v := range lvs {
+		if v == lv {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Poly) tdeg(lvs Levels) int {
+	// total degree w.r.t lvs
+	// lvs is sorted in ascending order
+	u := 0
+	if lvs.contains(p.lv) {
+		u = 1
+	}
+
+	deg := -1
+	for i, cc := range p.c {
+		var d int
+		if c, ok := cc.(*Poly); ok {
+			d = c.tdeg(lvs)
+		} else {
+			d = 0
+		}
+		d += u * i
+		if deg < d {
+			deg = d
+		}
+	}
+
+	return deg
 }

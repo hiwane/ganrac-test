@@ -99,7 +99,7 @@ type AtomF struct {
 type Atom struct {
 	// p1*p2*...*pn op 0
 	p         []*Poly
-	pmul      *Poly
+	pmul      *Poly // = p1*p2*...*p2: cache
 	op        OP
 	factorizd bool
 }
@@ -1211,12 +1211,15 @@ func substQuantifier(forex bool, fml Fof, qorg []Level, lvs []Level) Fof {
 
 func (p *ForAll) Subst(xs []RObj, lvs []Level) Fof {
 	fml := p.fml.Subst(xs, lvs)
-	return substQuantifier(true, fml, p.q, lvs)
+	return p.gen(p.q, fml)
 }
 
 func (p *Exists) Subst(xs []RObj, lvs []Level) Fof {
 	fml := p.fml.Subst(xs, lvs)
-	return substQuantifier(false, fml, p.q, lvs)
+	if err := fml.valid(); err != nil {
+		panic(err.Error())
+	}
+	return p.gen(p.q, fml)
 }
 
 func (p *AtomT) replaceVar(xs []RObj, lvs []Level) Fof {

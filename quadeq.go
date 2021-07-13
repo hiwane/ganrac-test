@@ -278,7 +278,7 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 		}
 
 		eq := NewAtom(minatom.z, EQ)
-		fml := qeopt.g.simplFof(fff, eq, falseObj)	// 等式制約で簡単化
+		fml := qeopt.g.simplFof(fff, eq, falseObj) // 等式制約で簡単化
 		fml = NewFmlAnd(fml, eq)
 		o = NewFmlOr(o, fml)
 		if op == NE {
