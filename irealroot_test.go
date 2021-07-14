@@ -66,9 +66,9 @@ func TestIRealRoot1(t *testing.T) {
 			sgn float64
 		}{
 			{s.p, 1},
-			{s.p.subst1(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).(*Poly), -1},
+			{s.p.Subst(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).(*Poly), -1},
 			{s.p.Neg().(*Poly), 1},
-			{s.p.subst1(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).Neg().(*Poly), -1},
+			{s.p.Subst(NewPolyCoef(s.p.lv, 0, -1), s.p.lv).Neg().(*Poly), -1},
 		} {
 			p := pp.p.toIntv(s.prec).(*Poly)
 			o, err := p.iRealRoot(s.prec+10, 100000)

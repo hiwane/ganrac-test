@@ -123,7 +123,7 @@ func TestIntvSubst(t *testing.T) {
 	oneone := newInterval(prec)
 	oneone.SetInt64(1)
 
-	q := p.subst1(NewPolyCoef(lv, low, oneone), lv).(*Poly)
+	q := p.Subst(NewPolyCoef(lv, low, oneone), lv).(*Poly)
 	if q.c[0].Sign() <= 0 {
 		t.Errorf("why?")
 		return

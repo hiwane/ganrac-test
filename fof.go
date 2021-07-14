@@ -28,7 +28,7 @@ type Fof interface {
 	normalize() Fof
 	sotd() int
 	vsDeg(lv Level) int // atom の因数分解された多項式の最大次数
-	Subst(xs []RObj, lvs []Level) Fof
+	Subst(xs RObj, lv Level) Fof
 	replaceVar(xs []RObj, lvs []Level) Fof // xs は *Poly 次数1 主係数1 定数項0 な変数
 	valid() error                          // for DEBUG. 実装として適切な形式になっているか
 	Deg(lv Level) int
@@ -1117,20 +1117,20 @@ func (p *Exists) Not() Fof {
 	return q
 }
 
-func (p *AtomT) Subst(xs []RObj, lvs []Level) Fof {
+func (p *AtomT) Subst(xs RObj, lvs Level) Fof {
 	return p
 }
 
-func (p *AtomF) Subst(xs []RObj, lvs []Level) Fof {
+func (p *AtomF) Subst(xs RObj, lvs Level) Fof {
 	return p
 }
 
-func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
+func (p *Atom) Subst(xs RObj, lvs Level) Fof {
 	op := p.op
 	pp := make([]RObj, 0, len(p.p))
 	s := 1
 	for _, q := range p.p {
-		qc := q.Subst(xs, lvs, 0)
+		qc := q.Subst(xs, lvs)
 		if qc.IsNumeric() {
 			s *= qc.Sign()
 			if s == 0 {
@@ -1149,7 +1149,7 @@ func (p *Atom) Subst(xs []RObj, lvs []Level) Fof {
 	return NewAtoms(pp, op)
 }
 
-func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
+func (p *FmlAnd) Subst(xs RObj, lvs Level) Fof {
 	q := new(FmlAnd)
 	q.fml = make([]Fof, 0, len(p.fml))
 	for i := 0; i < len(p.fml); i++ {
@@ -1171,7 +1171,7 @@ func (p *FmlAnd) Subst(xs []RObj, lvs []Level) Fof {
 	return q
 }
 
-func (p *FmlOr) Subst(xs []RObj, lvs []Level) Fof {
+func (p *FmlOr) Subst(xs RObj, lvs Level) Fof {
 	q := new(FmlOr)
 	q.fml = make([]Fof, 0, len(p.fml))
 	for i := 0; i < len(p.fml); i++ {
@@ -1209,12 +1209,12 @@ func substQuantifier(forex bool, fml Fof, qorg []Level, lvs []Level) Fof {
 	return NewQuantifier(forex, qq, fml)
 }
 
-func (p *ForAll) Subst(xs []RObj, lvs []Level) Fof {
+func (p *ForAll) Subst(xs RObj, lvs Level) Fof {
 	fml := p.fml.Subst(xs, lvs)
 	return p.gen(p.q, fml)
 }
 
-func (p *Exists) Subst(xs []RObj, lvs []Level) Fof {
+func (p *Exists) Subst(xs RObj, lvs Level) Fof {
 	fml := p.fml.Subst(xs, lvs)
 	if err := fml.valid(); err != nil {
 		panic(err.Error())
@@ -1231,10 +1231,12 @@ func (p *AtomF) replaceVar(xs []RObj, lvs []Level) Fof {
 }
 
 func (p *Atom) replaceVar(xs []RObj, lvs []Level) Fof {
-	pp := make([]RObj, 0, len(p.p))
-	for _, q := range p.p {
-		qc := q.Subst(xs, lvs, 0)
-		pp = append(pp, qc.(*Poly))
+	pp := make([]RObj, len(p.p))
+	for i, q := range p.p {
+		pp[i] = q
+		for j := 0; j < len(xs); j++ {
+			pp[i] = pp[i].Subst(xs[j], lvs[j])
+		}
 	}
 	return NewAtoms(pp, p.op)
 }

@@ -244,7 +244,7 @@ func (x *Int) IsMinusOne() bool {
 	return x.n.Sign() < 0 && x.n.BitLen() == 1
 }
 
-func (z *Int) Subst(x []RObj, lv []Level, idx int) RObj {
+func (z *Int) Subst(x RObj, lv Level) RObj {
 	return z
 }
 
@@ -388,7 +388,7 @@ func (x *Int) GcdEx(y *Int) (*Int, *Int, *Int) {
 }
 
 func (x *Int) subst_poly(p *Poly, lv Level) RObj {
-	return p.Subst([]RObj{x}, []Level{lv}, 0)
+	return p.Subst(x, lv)
 }
 
 func (x *Int) mul_2exp(m uint) RObj {

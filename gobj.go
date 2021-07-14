@@ -39,7 +39,7 @@ type equaler interface {
 }
 
 type subster interface {
-	Subst(xs []RObj, lvs []Level) GObj
+	Subst(xs RObj, lvs Level) GObj
 }
 
 func gobjToIntv(g GObj, prec uint) GObj {
@@ -53,14 +53,14 @@ func gobjToIntv(g GObj, prec uint) GObj {
 	}
 }
 
-func gobjSubst(g GObj, rr []RObj, lv []Level) GObj {
+func gobjSubst(g GObj, rr RObj, lv Level) GObj {
 	switch f := g.(type) {
 	case subster:
 		return f.Subst(rr, lv)
 	case *List:
 		return f.Subst(rr, lv)
 	case RObj:
-		return f.Subst(rr, lv, 0)
+		return f.Subst(rr, lv)
 	case Fof:
 		return f.Subst(rr, lv)
 	default:

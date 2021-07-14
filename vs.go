@@ -481,7 +481,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 		}
 	}
 	if required_zero {
-		ret = NewFmlOr(ret, fml.Subst([]RObj{zero}, []Level{lv}))
+		ret = NewFmlOr(ret, fml.Subst(zero, lv))
 		if err := ret.valid(); err != nil {
 			panic(err)
 		}

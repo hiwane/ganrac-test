@@ -363,7 +363,7 @@ func (x *Interval) Equals(v interface{}) bool {
 	return false
 }
 
-func (x *Interval) Subst(v []RObj, lv []Level, idx int) RObj {
+func (x *Interval) Subst(v RObj, lv Level) RObj {
 	return x
 }
 

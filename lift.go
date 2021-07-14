@@ -971,7 +971,7 @@ func (cell *Cell) nintv_divide(prec uint) bool {
 		vv := NewIntervalFloat(mid, prec)
 		pp := cell.defpoly.toIntv(prec).(*Poly)
 		p2 := cell.parent.subst_intv(pp, prec).(*Poly)
-		p3 := p2.subst1(vv, cell.lv).(*Interval)
+		p3 := p2.Subst(vv, cell.lv).(*Interval)
 		if !p3.ContainsZero() {
 			iv := newInterval(prec)
 			if p3.Sign()*int(cell.sgn_of_left) > 0 {
@@ -1025,7 +1025,7 @@ func (cell *Cell) _subst_intv(p *Poly, prec uint) RObj {
 		return p
 	}
 	x := cell.getNumIsoIntv(prec)
-	qq := p.subst1(x, p.lv)
+	qq := p.Subst(x, p.lv)
 	return qq
 }
 

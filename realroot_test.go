@@ -27,7 +27,7 @@ func TestDescartes(t *testing.T) {
 			t.Errorf("-p(+x)=%v, expect=%d, actual=%d", s.p, s.np, np)
 		}
 
-		q = p.Subst([]RObj{NewPolyCoef(lv, 0, -1)}, []Level{lv}, 0).(*Poly)
+		q = p.Subst(NewPolyCoef(lv, 0, -1), lv).(*Poly)
 		nn := q.descartesSignRules()
 		if nn != s.nn {
 			t.Errorf("+p(-x)=%v, expect=%d, actual=%d", s.p, s.nn, nn)
@@ -88,10 +88,10 @@ func TestRealRoot(t *testing.T) {
 		for _, p := range []*Poly{
 			pp,
 			pp.Neg().(*Poly),
-			pp.subst1(NewPolyCoef(lv, 0, -1), lv).(*Poly),
+			pp.Subst(NewPolyCoef(lv, 0, -1), lv).(*Poly),
 			qq,
 			qq.Neg().(*Poly),
-			qq.subst1(NewPolyCoef(lv, 0, -1), lv).(*Poly),
+			qq.Subst(NewPolyCoef(lv, 0, -1), lv).(*Poly),
 		} {
 			r, err := p.RealRootIsolation(10)
 			if err != nil {
@@ -119,8 +119,8 @@ func TestRealRoot(t *testing.T) {
 					t.Errorf("[%d] right is not a numeric: right actual=%d", i, intvl.v[1])
 				}
 
-				sgn_l := p.subst1(left, lv).Sign()
-				sgn_u := p.subst1(right, lv).Sign()
+				sgn_l := p.Subst(left, lv).Sign()
+				sgn_u := p.Subst(right, lv).Sign()
 				if sgn_l == 0 && sgn_u == 0 {
 					if !left.Equals(right) {
 						t.Errorf("[%d] p(l)=p(r)=0 but l != r: %v, %v", i, left, right)

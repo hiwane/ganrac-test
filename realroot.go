@@ -120,7 +120,7 @@ func (p *Poly) convertRange(low *BinInt) *Poly {
 		lb.n.Lsh(low.n, uint(low.m))
 		h := newInt()
 		h.n.Lsh(one.n, uint(low.m))
-		q = p.subst1(NewPolyCoef(p.lv, lb, h), p.lv).(*Poly)
+		q = p.Subst(NewPolyCoef(p.lv, lb, h), p.lv).(*Poly)
 	} else {
 		c := new(Int)
 		c.n = low.n
@@ -140,7 +140,7 @@ func (p *Poly) convertRange(low *BinInt) *Poly {
 		fmt.Printf("q=%v\n", q)
 		panic(err)
 	}
-	q = q.subst1(NewPolyCoef(p.lv, one, one), p.lv).(*Poly)
+	q = q.Subst(NewPolyCoef(p.lv, one, one), p.lv).(*Poly)
 	// fmt.Printf("q_=%v\n", q)
 
 	return q
@@ -166,7 +166,7 @@ func realRootImprove(p *Poly, sp *dcsr) {
 		return
 	}
 	m := sp.low.midBinIntv() // 中点
-	v := p.subst1(m, p.lv)
+	v := p.Subst(m, p.lv)
 	sgn := v.Sign()
 	if sgn == sp.m {
 		sp.low = m
@@ -205,7 +205,7 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 	}
 
 	// x < 0 の処理
-	q := p.subst1(NewPolyCoef(p.lv, 0, -1), p.lv).(*Poly)
+	q := p.Subst(NewPolyCoef(p.lv, 0, -1), p.lv).(*Poly)
 	nn := q.descartesSignRules()
 	if nn > 0 {
 		if nn == 1 {
@@ -245,7 +245,7 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 		n := evalRange(stack, sp, p, low)
 		if n == 1 && sp.m == 2 {
 			// 全体で 2 個だった, 左半分で 1個見つかったので右半分 1個確定
-			stack.addret(mid, n, p.subst1(mid, p.lv).Sign() == 0)
+			stack.addret(mid, n, p.Subst(mid, p.lv).Sign() == 0)
 		} else {
 			// 区間の右半分
 			evalRange(stack, sp, p, mid)
@@ -263,9 +263,9 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 			continue
 		}
 
-		sgn := p.subst1(r.low, p.lv).Sign()
+		sgn := p.Subst(r.low, p.lv).Sign()
 		ub := r.low.upperBound()
-		sgnr := p.subst1(ub, p.lv).Sign()
+		sgnr := p.Subst(ub, p.lv).Sign()
 		var lb NObj
 		if sgn != 0 {
 			r.m = sgn // 左端点の符号を設定
@@ -284,7 +284,7 @@ func (p *Poly) realRootIsolation(prec int) []*dcsr {
 		for (sgnr == 0 || r.low.Sign() < 0 && r.low.n.BitLen() == 1) && !r.point {
 			realRootImprove(p, r)
 			ub := r.low.upperBound()
-			sgnr = p.subst1(ub, p.lv).Sign()
+			sgnr = p.Subst(ub, p.lv).Sign()
 		}
 
 		// 精度十分?

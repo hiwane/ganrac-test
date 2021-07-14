@@ -145,19 +145,19 @@ func (u Uint) inv_mod(cell *Cellmod, p Uint) Moder {
 	}
 }
 
-func (p Uint) Add(x RObj) RObj                        { panic("no!") }
-func (p Uint) Sub(x RObj) RObj                        { panic("no!") }
-func (p Uint) Mul(x RObj) RObj                        { panic("no!") }
-func (p Uint) Div(x NObj) RObj                        { panic("no!") }
-func (p Uint) Pow(x *Int) RObj                        { panic("no!") }
-func (p Uint) Subst(x []RObj, lv []Level, n int) RObj { panic("no!") }
-func (p Uint) Neg() RObj                              { panic("no!") }
-func (p Uint) numTag() uint                           { panic("no!") }
-func (p Uint) Float() float64                         { panic("no!") }
-func (p Uint) Cmp(x NObj) int                         { panic("no!") }
-func (p Uint) CmpAbs(x NObj) int                      { panic("no!") }
-func (p Uint) Abs() NObj                              { return p }
-func (p Uint) subst_poly(f *Poly, lv Level) RObj      { panic("no!") }
+func (p Uint) Add(x RObj) RObj                   { panic("no!") }
+func (p Uint) Sub(x RObj) RObj                   { panic("no!") }
+func (p Uint) Mul(x RObj) RObj                   { panic("no!") }
+func (p Uint) Div(x NObj) RObj                   { panic("no!") }
+func (p Uint) Pow(x *Int) RObj                   { panic("no!") }
+func (p Uint) Subst(x RObj, lv Level) RObj       { panic("no!") }
+func (p Uint) Neg() RObj                         { panic("no!") }
+func (p Uint) numTag() uint                      { panic("no!") }
+func (p Uint) Float() float64                    { panic("no!") }
+func (p Uint) Cmp(x NObj) int                    { panic("no!") }
+func (p Uint) CmpAbs(x NObj) int                 { panic("no!") }
+func (p Uint) Abs() NObj                         { return p }
+func (p Uint) subst_poly(f *Poly, lv Level) RObj { panic("no!") }
 
 func (p Uint) Equals(v interface{}) bool {
 	if vv, ok := v.(Uint); ok {

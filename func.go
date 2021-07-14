@@ -3,7 +3,6 @@ package ganrac
 import (
 	"fmt"
 	"os"
-	"sort"
 	"time"
 )
 
@@ -659,17 +658,6 @@ func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 		if !ok || !p.isVar() {
 			return nil, fmt.Errorf("%s() invalid %d'th arg: %v", name, i+1, args[i])
 		}
-		// 重複を除去
-		used := false
-		for k := 0; k < j; k++ {
-			if rlv[k].lv == p.lv {
-				used = true
-				break
-			}
-		}
-		if used {
-			continue
-		}
 
 		rlv[j].lv = p.lv
 
@@ -678,22 +666,16 @@ func funcSubst(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 			return nil, fmt.Errorf("%s() invalid %d'th arg", name, i+2)
 		}
 		rlv[j].r = v
-		j += 1
+		j++
 	}
 	rlv = rlv[:j]
 
-	sort.SliceStable(rlv, func(i, j int) bool {
-		return rlv[i].lv > rlv[j].lv
-	})
-
-	rr := make([]RObj, len(rlv))
-	lv := make([]Level, len(rlv))
-	for i := 0; i < j; i++ {
-		rr[i] = rlv[i].r
-		lv[i] = rlv[i].lv
+	o := args[0].(GObj)
+	for _, r := range rlv {
+		o = gobjSubst(o, r.r, r.lv)
 	}
 
-	return gobjSubst(args[0].(GObj), rr, lv), nil
+	return o, nil
 }
 
 func funcDeg(g *Ganrac, name string, args []interface{}) (interface{}, error) {

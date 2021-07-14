@@ -321,22 +321,25 @@ func (qeopt QEopt) qe_homo_free(fof FofQ, cond qeCond, d []int, lv Level) Fof {
 		vi  *Int
 		op  OP
 	}{
+		// 0, +1, -1 の順序を変更してはならない.
 		{0, zero, EQ},
 		{+1, one, GT},
 		{-1, mone, LT},
 	} {
 		if ss.val > 0 {
 			// TODO 新しい変数との関係を neccon に追加する
-			cond2.neccon = cond.neccon.Subst(xs, lvs)
-			cond2.sufcon = cond.sufcon.Subst(xs, lvs)
+			for i := 0; i < len(xs); i++ {
+				cond2.neccon = cond2.neccon.Subst(xs[i], lvs[i])
+				cond2.sufcon = cond2.sufcon.Subst(xs[i], lvs[i])
+			}
 		}
 
-		fp := fof.Subst([]RObj{ss.vi}, []Level{lv})
+		fp := fof.Subst(ss.vi, lv)
 		if ss.val < 0 {
 			for _, v := range lvs {
 				if v != lv {
 					xx := NewPolyVar(v).Neg()
-					fp = fp.Subst([]RObj{xx}, []Level{v})
+					fp = fp.Subst(xx, v)
 				}
 			}
 		}
@@ -384,7 +387,7 @@ _found:
 	cond.depth++
 	fs := make([]Fof, 3)
 	for i, v := range []RObj{zero, one, mone} {
-		fs[i] = f.Subst([]RObj{v}, []Level{lv})
+		fs[i] = f.Subst(v, lv)
 		fs[i] = qeopt.qe(fs[i], cond)
 	}
 	switch f.(type) {

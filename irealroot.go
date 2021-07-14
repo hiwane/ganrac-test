@@ -101,7 +101,7 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 	cc.inf.SetInt64(1)
 	cc.sup.SetInt64(1)
 
-	q := p.subst1(NewPolyCoef(p.lv, a, b), p.lv).(*Poly)
+	q := p.Subst(NewPolyCoef(p.lv, a, b), p.lv).(*Poly)
 	if len(q.c) != len(p.c) {
 		return false
 	}
@@ -116,7 +116,7 @@ func (p *Poly) has_only_one_root(x *Interval, prec uint) bool {
 	a = newInterval(prec)
 	a.sup.SetInt64(1)
 	a.inf.SetInt64(1)
-	q = q.subst1(NewPolyCoef(p.lv, a, a), p.lv).(*Poly)
+	q = q.Subst(NewPolyCoef(p.lv, a, a), p.lv).(*Poly)
 	if len(q.c) != len(p.c) {
 		return false
 	}

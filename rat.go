@@ -142,7 +142,7 @@ func (x *Rat) Pow(y *Int) RObj {
 	}
 }
 
-func (z *Rat) Subst(x []RObj, lv []Level, idx int) RObj {
+func (z *Rat) Subst(x RObj, lv Level) RObj {
 	return z
 }
 

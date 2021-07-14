@@ -745,41 +745,29 @@ func (z *Poly) subst_intv(x, x2 *Interval, lv Level, prec uint) RObj {
 	return Add(a, b)
 }
 
-func (z *Poly) Subst(xs []RObj, lvs []Level, idx int) RObj {
+func (z *Poly) Subst(xs RObj, lv Level) RObj {
 	// lvs: sorted
 
-	for ; idx < len(xs) && z.lv < lvs[idx]; idx++ {
-	}
-	if idx == len(xs) {
-		return z
-	}
-	if z.lv > lvs[idx] {
-		p := NewPoly(z.lv, len(z.c))
-		for i := 0; i < len(z.c); i++ {
-			p.c[i] = z.c[i].Subst(xs, lvs, idx)
+	var p RObj
+	if z.lv == lv {
+		x := xs
+		p = z.c[len(z.c)-1]
+		for i := len(z.c) - 2; i >= 0; i-- {
+			p = Add(Mul(p, x), z.c[i])
 		}
-		for i := len(z.c) - 1; i > 0; i-- {
-			if !p.c[i].IsZero() {
-				p.c = p.c[:i+1]
-				return p
-			}
+	} else {
+		x := NewPolyVar(z.lv)
+		p = z.c[len(z.c)-1].Subst(xs, lv)
+		for i := len(z.c) - 2; i >= 0; i-- {
+			p = Add(Mul(p, x), z.c[i].Subst(xs, lv))
 		}
-		return p.c[0]
 	}
-	x := xs[idx]
-	p := z.c[len(z.c)-1].Subst(xs, lvs, idx+1)
-	for i := len(z.c) - 2; i >= 0; i-- {
-		p = Add(Mul(p, x), z.c[i].Subst(xs, lvs, idx+1))
-	}
+
 	if err := p.valid(); err != nil {
 		panic(err.Error())
 	}
 
 	return p
-}
-
-func (z *Poly) subst1(x RObj, lv Level) RObj {
-	return z.Subst([]RObj{x}, []Level{lv}, 0)
 }
 
 func (z *Poly) subst_frac(num RObj, dens []RObj, lv Level) RObj {

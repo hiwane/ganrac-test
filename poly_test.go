@@ -276,7 +276,7 @@ func TestPolySubst(t *testing.T) {
 		a := NewPolyInts(lv, s.a...)
 		b := NewInt(s.b)
 		ep := NewInt(s.expect)
-		c := a.Subst([]RObj{b}, []Level{lv}, 0)
+		c := a.Subst(b, lv)
 		if !c.Equals(ep) {
 			t.Errorf("invalid poly.subst a=%v, b=%v, exp=%v, actual=%v", a, b, ep, c)
 		}
@@ -479,7 +479,7 @@ func TestSubstBinint1Var(t *testing.T) {
 		{-1, -1, NewPolyCoef(lv, -1, -3, -2), zero},
 		{-4, -3, NewPolyCoef(lv, -1, -3, -2), zero},
 	} {
-		c := s.p.subst1(newBinIntInt64(s.numer, s.denom), lv)
+		c := s.p.Subst(newBinIntInt64(s.numer, s.denom), lv)
 		if !c.Equals(s.expect) {
 			t.Errorf("subst2: %d*2^(%d)\ninput =%v\nexpect=%v\nactual=%v\n", s.numer, s.denom, s.p, s.expect, c)
 		}

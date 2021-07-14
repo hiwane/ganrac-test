@@ -127,7 +127,7 @@ func (z *List) geti(i int) GObj {
 	return z.v[i]
 }
 
-func (z *List) Subst(xs []RObj, lvs []Level) *List {
+func (z *List) Subst(xs RObj, lvs Level) *List {
 	p := NewList()
 	for i := 0; i < len(z.v); i++ {
 		p.Append(gobjSubst(z.v[i], xs, lvs))
