@@ -500,7 +500,7 @@ func vsLinear(fof Fof, lv Level) Fof {
 
 func (qeopt QEopt) qe_vslin(fof FofQ, cond qeCond) Fof {
 	for _, q := range fof.Qs() {
-		qeopt.g.log(2, "qevs1[%4s] %v\n", varstr(q), fof)
+		qeopt.log(cond, 2, "qevs1", "<%s> %v\n", varstr(q), fof)
 		ff := vsLinear(fof, q)
 		if ff != fof {
 			return ff

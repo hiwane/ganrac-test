@@ -297,7 +297,7 @@ func (qeopt QEopt) homo_solve(amat [][]int, bmat, x []int) bool {
 
 func (qeopt QEopt) qe_homo_free(fof FofQ, cond qeCond, d []int, lv Level) Fof {
 	// lv: free variable.
-	qeopt.g.log(2, "qehom[%4s] %v %v\n", varstr(lv), fof, d)
+	qeopt.log(cond, 2, "qehom", "<%s> %v %v\n", varstr(lv), fof, d)
 
 	// cond を新しい変数に置き換える
 	varn := qeopt.varn

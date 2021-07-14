@@ -18,15 +18,25 @@ const (
 )
 
 type QEopt struct {
-	varn Level
-	Algo int64
-	g    *Ganrac
+	varn  Level
+	Algo  int64
+	g     *Ganrac
+	seqno int
 }
 
 type qeCond struct {
 	neccon, sufcon Fof
 	dnf            bool
 	depth          int
+}
+
+func (qeopt *QEopt) log(cond qeCond, level int, label, fmt string, args ...interface{}) {
+	v := make([]interface{}, len(args)+3)
+	v[0] = label
+	v[1] = qeopt.seqno
+	v[2] = cond.depth
+	copy(v[3:], args)
+	qeopt.g.log(level, "%5s[%3d,%3d] "+fmt, v...)
 }
 
 func (qeopt *QEopt) num_var(f Fof) int {
@@ -121,7 +131,8 @@ func (g *Ganrac) QE(fof Fof, qeopt QEopt) Fof {
 }
 
 func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
-	qeopt.g.log(2, "qe   [%4d] %v\n", cond.depth, fof)
+	qeopt.seqno++
+	qeopt.log(cond, 2, "qe", "%v\n", fof)
 	fof = fof.nonPrenex()
 	switch fq := fof.(type) {
 	case FofQ:
@@ -144,7 +155,7 @@ func (qeopt QEopt) simplify(qff Fof, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
-	qeopt.g.log(2, "qepr [%4d] %v\n", cond.depth, fof)
+	qeopt.log(cond, 2, "qepr", "%v\n", fof)
 	// exists-or, forall-and は分解できる.
 	fofq := fof
 	if err := fofq.valid(); err != nil || !fofq.isPrenex() {
@@ -246,7 +257,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 		if ff := qeopt.qe_quadeq(fof, cond); ff != nil {
 			ff = qeopt.reconstruct(fqs, ff, cond)
 			ff = qeopt.simplify(ff, cond)
-			qeopt.g.log(2, "eqcon[%4d] %v\n", cond.depth, ff)
+			qeopt.log(cond, 2, "qecon", "%v\n", fof)
 			return ff
 		}
 	}
@@ -257,7 +268,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	if ff := qeopt.qe_vslin(fof, cond); ff != nil {
 		ff = qeopt.reconstruct(fqs, ff, cond)
 		ff = qeopt.simplify(ff, cond)
-		qeopt.g.log(2, "vsret[%4d] %v\n", cond.depth, ff)
+		qeopt.log(cond, 2, "vsret", "%v\n", fof)
 		return ff
 	}
 
@@ -330,9 +341,9 @@ func (qeopt QEopt) appendNecSuf(qff Fof, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
-	qeopt.g.log(2, "qecad[%4d] %v\n", cond.depth, fof)
-	qeopt.g.log(3, "qecad[%4d] nec=%v\n", cond.depth, cond.neccon)
-	qeopt.g.log(3, "qecad[%4d] suf=%v\n", cond.depth, cond.sufcon)
+	qeopt.log(cond, 2, "qecad", "%v\n", fof)
+	qeopt.log(cond, 3, "qecad", "nec=%v\n", cond.neccon)
+	qeopt.log(cond, 3, "qecad", "suf=%v\n", cond.sufcon)
 	// 変数順序を入れ替える. :: 自由変数 -> 束縛変数
 	maxvar := qeopt.varn
 
@@ -417,7 +428,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 		}
 	}
 	fof2 = fof2.replaceVar(vas, lvs)
-	qeopt.g.log(2, "  cad[%4d] %v\n", cond.depth, fof2)
+	qeopt.log(cond, 2, "cad", "%v\n", fof2)
 	cad, err := NewCAD(fof2, qeopt.g)
 	if err != nil {
 		panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof2, err))
@@ -428,7 +439,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 		if err != CAD_NO_WO {
 			panic(fmt.Sprintf("cad.lift() input=%v\nerr=%v", fof, err))
 		}
-		qeopt.g.log(1, "  cad[%4d] not well-oriented %v\n", cond.depth, fof2)
+		qeopt.log(cond, 1, "cad", "not well-oriented %v\n", fof2)
 
 		// NOT well-oriented で Hong-proj へ
 		cad, _ = NewCAD(fof2, qeopt.g)
@@ -452,7 +463,7 @@ func (qeopt QEopt) qe_cad(fof FofQ, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
-	qeopt.g.log(2, "qenpr[%4d] %v\n", cond.depth, fofq)
+	qeopt.log(cond, 2, "qenpr", "%v\n", fofq)
 	fs := make([]FofQ, 1)
 	fs[0] = fofq
 	for {
@@ -475,7 +486,7 @@ func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
 
 func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 	// fof: non-prenex-formula
-	qeopt.g.log(2, "qeao [%4d] %v\n", cond.depth, fof)
+	qeopt.log(cond, 2, "qeao", "%v\n", fof)
 	fmls := fof.Fmls()
 	sort.Slice(fmls, func(i, j int) bool {
 		return qeopt.fmlcmp(fmls[i], fmls[j])
@@ -504,11 +515,11 @@ func (qeopt QEopt) qe_andor(fof FofAO, cond qeCond) Fof {
 			}
 		}
 
-		qeopt.g.log(2, "qeao [%4d,%d,i] %v\n", cond.depth, i, f)
+		qeopt.log(cond, 2, "qeao", "<%d,i> %v\n", i, f)
 		f = qeopt.simplify(f, cond2)
 		f = qeopt.qe(f, cond2)
 		fmls[i] = qeopt.simplify(f, cond2)
-		qeopt.g.log(2, "qeao [%4d,%d,o] %v\n", cond.depth, i, fmls[i])
+		qeopt.log(cond, 2, "qeao", "<%d,o> %v\n", i, fmls[i])
 		switch fmls[i].(type) {
 		case *AtomT:
 			if !fof.isAnd() {
