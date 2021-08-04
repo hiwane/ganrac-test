@@ -26,6 +26,7 @@ var qeExampleTable []qeExTable = []qeExTable{
 	{"constcd", exConstCoord},
 	{"cycle3", exCyclic3},
 	{"easy7", exEasy7},
+	{"hong93", exHong93},
 	{"imo13-1", exImo13_1_5},
 	{"makepdf", exMakePdf},
 	{"makepd2", exMakePdf2},
@@ -48,8 +49,8 @@ var qeExampleTable []qeExTable = []qeExTable{
 
 func GetExampleFof(name string) *QeExample {
 	if name == "" {
-		fmt.Printf("label\t# free\t# q \tdeg(f)\tdeg(q)\tatom\n")
-		fmt.Printf("=======\t======\t====\t======\t======\t====\n")
+		fmt.Printf("\nlabel\t\t# free\t# q \tdeg(f)\tdeg(q)\tatom\n")
+		fmt.Printf("============\t======\t======\t=======\t======\t======\n")
 		for _, t := range qeExampleTable {
 			q := t.f()
 			v := q.Input.maxVar()
@@ -72,7 +73,7 @@ func GetExampleFof(name string) *QeExample {
 				}
 			}
 
-			fmt.Printf("%s\t%4d\t%4d\t%4d\t%4d\t%4d\n", t.name, fnum, qnum, fdeg, qdeg, q.Input.numAtom())
+			fmt.Printf("%-10s\t%4d\t%4d\t%4d\t%4d\t%4d\n", t.name, fnum, qnum, fdeg, qdeg, q.Input.numAtom())
 		}
 		return nil
 	}
@@ -488,6 +489,65 @@ func exWhitneyUmbrella() *QeExample {
 	return q
 }
 
+func exHong93() *QeExample {
+	q := new(QeExample)
+	// vars(u,v,w,x);
+	// ex([x], u*x^2+v*x+1==0 && v*x^3+w*x+u==0 && w*x^2+v*x+u <= 0);
+	q.Input = NewQuantifier(false, []Level{3}, newFmlAnds(
+		NewAtom(NewPolyCoef(3, 1, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1)), EQ),
+		NewAtom(NewPolyCoef(3, NewPolyCoef(0, 0, 1), NewPolyCoef(2, 0, 1), 0, NewPolyCoef(1, 0, 1)), EQ),
+		NewAtom(NewPolyCoef(3, NewPolyCoef(0, 0, 1), NewPolyCoef(1, 0, 1), NewPolyCoef(2, 0, 1)), LE)))
+
+	// RB=u^5-w*v*u^3+(3*v^2+w^2)*u^2+(-v^4-2*w*v)*u+w*v^3+v^2;
+	// TB=2*u^4-w*v*u^2+3*v^2*u-v^4;
+	// SB=w*u^2-v*u+v^3;
+	// RC=u^4+(-v^2-2*w)*u^2+(w+1)*v^2*u-w*v^2+w^2;
+	// TC=2*u^3+(-v^2-2*w)*u+w*v^2;
+	// SC=v*u-w*v;
+	q.Output = newFmlOrs(
+		// u=0 && v != 0 && F'
+		newFmlAnds(
+			NewAtom(NewPolyCoef(0, 0, 1), EQ),
+			NewAtom(NewPolyCoef(1, 0, 1), NE),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 1, 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 0, 1)), EQ),
+			NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, 0, NewPolyCoef(0, -1, 1)), 1), LE)),
+		newFmlAnds(
+			// u != 0 && v^2-4*u >= 0
+			NewAtom(NewPolyCoef(0, 0, 1), NE),
+			NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, -4), 0, 1), GE),
+			newFmlOrs(
+				// F1
+				newFmlAnds(
+					NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 1, 0, 3), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -2, 0, -1), 0, 1), NewPolyCoef(0, 0, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, 0, 3, 0, -2), 0, NewPolyCoef(0, 0, -4), 0, 1), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 0, 0, -2), 0, NewPolyCoef(0, 0, 0, 0, -4), 0, NewPolyCoef(0, 0, 0, 2)), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 0, 1))), GE),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 0, 1, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -2), 0, NewPolyCoef(0, -1, 1)), 1), LE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, -2), 0, 1)), LE)),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 0, 1, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -2), 0, NewPolyCoef(0, -1, 1)), 1), GE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 1)), GE)),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, -2), 0, 1)), LE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 1)), GE))),
+				// F2
+				newFmlAnds(
+					NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 1, 0, 3), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, NewPolyCoef(0, 0, -2, 0, -1), 0, 1), NewPolyCoef(0, 0, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, 0, 3, 0, -2), 0, NewPolyCoef(0, 0, -4), 0, 1), NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 0, 0, -2), 0, NewPolyCoef(0, 0, 0, 0, -4), 0, NewPolyCoef(0, 0, 0, 2)), NewPolyCoef(1, 0, NewPolyCoef(0, 0, 0, 0, 0, 1))), LE),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 0, 1, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -2), 0, NewPolyCoef(0, -1, 1)), 1), LE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, -2), 0, 1)), LE)),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 0, 1), 0, NewPolyCoef(0, 0, 1, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, 0, -2), 0, NewPolyCoef(0, -1, 1)), 1), GE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 1)), LE)),
+					newFmlOrs(
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, 0, 0, 2), 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, NewPolyCoef(0, 0, -2), 0, 1)), LE),
+						NewAtom(NewPolyCoef(2, NewPolyCoef(1, 0, NewPolyCoef(0, 0, -1)), NewPolyCoef(1, 0, 1)), LE))))))
+
+	q.Ref = "Hoon Hong. Quantifier elimination for formulas constrained by quadratic equations via slope resultants"
+	q.DOI = "10.1145/164081.164140"
+	return q
+}
+
 func exImo13_1_5() *QeExample {
 	// all([a1,a2,a3,a4,a5], (a1-a2)*(a1-a3)*(a1-a4)*(a1-a5)+(a2-a1)*(a2-a3)*(a2-a4)*(a2-a5)+(a3-a1)*(a3-a2)*(a3-a4)*(a3-a5)+(a4-a1)*(a4-a2)*(a4-a3)*(a4-a5)+(a5-a1)*(a5-a2)*(a5-a3)*(a5-a4) >= 0);
 	q := new(QeExample)
@@ -499,7 +559,7 @@ func exImo13_1_5() *QeExample {
 			NewPolyCoef(3, NewPolyCoef(2, NewPolyCoef(1, NewPolyCoef(0, 0, -1), -1), -1), -1),
 			1), GE))
 	q.Output = trueObj
-	q.Ref = "Formula Simplification for Real Quantifier Elimination Using Geometric Invariance"
+	q.Ref = "H. Iwane, H. Anai. Formula Simplification for Real Quantifier Elimination Using Geometric Invariance"
 	q.DOI = "10.1145/3087604.3087627"
 	return q
 }

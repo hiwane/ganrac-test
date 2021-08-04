@@ -56,6 +56,21 @@ func TestSimplReduce(t *testing.T) {
 				NewAtom(NewPolyCoef(2, 2, 1), EQ),
 				NewQuantifier(false, []Level{0},
 					NewAtom(NewPolyCoef(1, NewPolyCoef(0, 0, 1), 1), EQ))),
+		}, {
+			// x==0 && ex([w], x*w^2+y*w+1==0 && y*w^3+z*w+x==0 && w-1<=0)
+			newFmlAnds(
+				NewAtom(NewPolyCoef(0, 0, 1), EQ),
+				NewQuantifier(false, []Level{3}, newFmlAnds(
+					NewAtom(NewPolyCoef(3, 1, NewPolyCoef(1, 0, 1), NewPolyCoef(0, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(3, NewPolyCoef(0, 0, 1), NewPolyCoef(2, 0, 1), 0, NewPolyCoef(1, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(3, -1, 1), LE)))),
+			// x==0 && ex([w], y*w+1==0 && y*w^3+z*w==0 && w-1<=0)
+			newFmlAnds(
+				NewAtom(NewPolyCoef(0, 0, 1), EQ),
+				NewQuantifier(false, []Level{3}, newFmlAnds(
+					NewAtom(NewPolyCoef(3, 1, NewPolyCoef(1, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(3, 0, NewPolyCoef(2, 0, 1), 0, NewPolyCoef(1, 0, 1)), EQ),
+					NewAtom(NewPolyCoef(3, -1, 1), LE)))),
 		},
 	} {
 		if ss.expect == nil {
@@ -68,6 +83,7 @@ func TestSimplReduce(t *testing.T) {
 			{ss.input, ss.expect},
 			{ss.input.Not(), ss.expect.Not()},
 		} {
+			// fmt.Printf("[%d,%d] s=%v\n", ii, jj, s.input)
 			inf := newReduceInfo()
 			o := s.input.simplReduce(g, inf)
 			if testSameFormAndOr(o, s.expect) {

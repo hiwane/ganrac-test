@@ -125,9 +125,18 @@ func (p *Atom) simplReduce(g *Ganrac, inf *reduce_info) Fof {
 }
 
 func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
-	n := 0
-	b := make([]int, len(p.Fmls()))
+	update := false
+	fmls := make([]Fof, len(p.Fmls()))
 	for i, fml := range p.Fmls() {
+		fmls[i] = fml.simplReduce(g, inf)
+		if fmls[i] != fml {
+			update = true
+		}
+	}
+
+	n := 0
+	b := make([]int, len(fmls))
+	for i, fml := range fmls {
 		switch f := fml.(type) {
 		case *Atom:
 			if f.op != op {
@@ -135,7 +144,6 @@ func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
 			}
 			b[i] = +1
 			n++
-
 		case FofAO:
 			noeq := false
 			for _, g := range f.Fmls() {
@@ -159,7 +167,7 @@ func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
 
 		// 新たに等式制約を追加して GB 計算
 		inf = inf.Clone()
-		for i, fml := range p.Fmls() {
+		for i, fml := range fmls {
 			if b[i] > 0 {
 				inf.eqns.Append(fml.(*Atom).getPoly())
 			} else if b[i] < 0 {
@@ -183,15 +191,11 @@ func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
 			}
 			return NewAtom(v, op)
 		}
-	}
 
-	fmls := make([]Fof, len(p.Fmls()))
-	update := false
-	for i, fml := range p.Fmls() {
-		if b[i] != 0 {
-			fmls[i] = fml
-		} else {
-
+		for i, fml := range fmls {
+			if b[i] != 0 {
+				continue
+			}
 			fmls[i] = fml.simplReduce(g, inf)
 			if fmls[i] != fml {
 				update = true
