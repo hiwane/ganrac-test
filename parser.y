@@ -70,8 +70,8 @@ mobj
 	| mobj neop mobj { yylex.(*pLexer).trace("!="); yylex.(*pLexer).push($2)}
 	| list_mobj {}
 	| dict_mobj { yylex.(*pLexer).trace("dict")}
-	| mobj lb mobj rb { yylex.(*pLexer).trace("="); yylex.(*pLexer).push(newPNode("[]", lb, 0, $1.pos)) }
-	| name assign mobj { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
+	| mobj lb mobj rb { yylex.(*pLexer).trace("[]"); yylex.(*pLexer).push(newPNode("[]", lb, 0, $1.pos)) }
+	| mobj assign mobj { yylex.(*pLexer).trace("=");  yylex.(*pLexer).push(newPNode("=", assign,   0, $1.pos))}
 	| initvar lp seq_ident rp { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); }
 	| initvar lp rp           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); }
 	;

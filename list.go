@@ -53,6 +53,16 @@ func (z *List) Format(s fmt.State, format rune) {
 	fmt.Fprintf(s, "%s", right)
 }
 
+func (z *List) Set(ii *Int, v GObj) error {
+	ilen := NewInt(int64(len(z.v)))
+	if ii.Sign() < 0 || ii.Cmp(ilen) >= 0 {
+		return fmt.Errorf("list index out of range")
+	}
+	m := int(ii.n.Int64())
+	z.v[m] = v
+	return nil
+}
+
 func (z *List) Get(ii *Int) (GObj, error) {
 	ilen := NewInt(int64(len(z.v)))
 	if ii.Sign() < 0 || ii.Cmp(ilen) >= 0 {

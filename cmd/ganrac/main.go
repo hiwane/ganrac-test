@@ -16,6 +16,10 @@ import (
 
 var gitCommit string
 
+/*
+ * 1文を取得.
+ * 入力エラーリカバリが面倒だから１文ずつ処理する
+ */
 func get_line(in *bufio.Reader) (string, error) {
 	//	line, err := in.ReadBytes(';')
 	line := make([]rune, 0, 100)

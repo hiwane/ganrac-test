@@ -45,7 +45,7 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return g.evalStackDict(stack, s)
 	case assign:
 		return g.evalStackAssign(stack, s)
-	case lb:
+	case lb: // []
 		return g.evalStackElem(stack, s)
 	case number:
 		bi := ParseInt(s.str, 10)
@@ -282,12 +282,45 @@ func (g *Ganrac) evalStackString(stack *pStack, node pNode) (interface{}, error)
 }
 
 func (g *Ganrac) evalStackAssign(stack *pStack, node pNode) (interface{}, error) {
-	v, err := g.evalStack(stack)
+	vv, err := g.evalStack(stack)
 	if err != nil {
 		return nil, err
 	}
-	g.varmap[node.str] = v
-	return v, nil
+	v, ok := vv.(GObj)
+	if !ok {
+		return nil, fmt.Errorf("not gobj assignment")
+	}
+
+	s, err := stack.Pop()
+	if s.cmd == name {
+		g.varmap[s.str] = v
+		return v, nil
+	} else if s.cmd != lb {
+		return nil, fmt.Errorf("invalid assignment")
+	}
+
+	idx, err := g.evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+	pp, err := g.evalStack(stack)
+	if err != nil {
+		return nil, err
+	}
+
+	switch idxi := idx.(type) {
+	case *Int:
+		if p, ok := pp.(setier); ok {
+			err := p.Set(idxi, v)
+			return v, err
+		}
+	case *String:
+		if p, ok := pp.(setser); ok {
+			err = p.Set(idxi.s, v)
+			return v, err
+		}
+	}
+	return nil, fmt.Errorf("invalid assignment")
 }
 
 func (g *Ganrac) evalStackVarDol(stack *pStack, node pNode) (interface{}, error) {
@@ -330,22 +363,21 @@ func (g *Ganrac) evalStackElem(stack *pStack, node pNode) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	idxi, ok := idx.(*Int)
-	if !ok {
+
+	switch idxi := idx.(type) {
+	case *Int:
+		switch p := pp.(type) {
+		case getier:
+			return p.Get(idxi)
+		}
+	case *String:
+		switch p := pp.(type) {
+		case getser:
+			return p.Get(idxi.s)
+		}
+	default:
 		return nil, fmt.Errorf("index should be integer")
 	}
 
-	switch p := pp.(type) {
-	case *List:
-		return p.Get(idxi)
-	case *FmlAnd:
-		return p.Get(idxi)
-	case *FmlOr:
-		return p.Get(idxi)
-	case *ForAll:
-		return p.Get(idxi)
-	case *Exists:
-		return p.Get(idxi)
-	}
-	return nil, fmt.Errorf("index is not supported")
+	return nil, fmt.Errorf("index is not supported: p=%v, idx=%v", pp, idx)
 }

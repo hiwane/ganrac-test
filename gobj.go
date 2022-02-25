@@ -42,6 +42,22 @@ type subster interface {
 	Subst(xs RObj, lvs Level) GObj
 }
 
+type getier interface {
+	Get(ii *Int) (GObj, error)
+}
+
+type setier interface {
+	Set(ii *Int, v GObj) error
+}
+
+type getser interface {
+	Get(ii string) (GObj, error)
+}
+
+type setser interface {
+	Set(ii string, v GObj) error
+}
+
 func gobjToIntv(g GObj, prec uint) GObj {
 	switch a := g.(type) {
 	case RObj:
