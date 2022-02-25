@@ -25,6 +25,8 @@ func TestLexer(t *testing.T) {
 		{"x = 0", []int{ident, assign, number}},
 		{"\"3\" 3 x", []int{t_str, number, ident}},
 		{"\"3;\" 3 x", []int{t_str, number, ident}},
+		{"{a:1}", []int{lc, ident, eolq, number, rc}},
+		{"{a: 1, \"b\" = x}", []int{lc, ident, eolq, number, comma, t_str, assign, ident, rc}},
 	} {
 		l := g.genLexer(strings.NewReader(s.str))
 		var lval yySymType

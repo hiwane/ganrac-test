@@ -7,19 +7,19 @@ package ganrac
 	num int
 }
 
-%token call list initvar f_time
+%token call list dict initvar f_time
 %token name ident vardol varhist number f_true f_false t_str
 %token all ex and or not abs
 %token plus minus comma mult div pow
 %token ltop gtop leop geop neop eqop assign
-%token eol eolq lb rb lp rp
+%token eol eolq lb rb lp rp lc rc
 
-%type <num> seq_mobj list_mobj seq_ident
+%type <num> seq_dict_arg seq_mobj list_mobj seq_ident
 %type <node> f_true f_false eol eolq
 %type <node> mobj lb initvar f_time
 %type <node> vardol varhist number name ident t_str
 %type <node> plus minus mult div pow and or
-%type <node> ltop gtop leop geop neop eqop assign lb lp
+%type <node> ltop gtop leop geop neop eqop assign lb lp lc
 
 %right assign
 %left or
@@ -41,7 +41,7 @@ expr
 	;
 
 mobj
-	: number	{ yylex.(*pLexer).trace("poly.num: " + $1.str); yylex.(*pLexer).push($1) }
+	: number	{ yylex.(*pLexer).trace("int:" + $1.str); yylex.(*pLexer).push($1) }
 	| t_str { yylex.(*pLexer).trace("string"); yylex.(*pLexer).push($1) }
 	| f_true  { yylex.(*pLexer).trace("true");  yylex.(*pLexer).push($1)}
 	| f_false { yylex.(*pLexer).trace("false"); yylex.(*pLexer).push($1)}
@@ -69,10 +69,46 @@ mobj
 	| mobj eqop mobj { yylex.(*pLexer).trace("=="); yylex.(*pLexer).push($2)}
 	| mobj neop mobj { yylex.(*pLexer).trace("!="); yylex.(*pLexer).push($2)}
 	| list_mobj {}
+	| dict_mobj { yylex.(*pLexer).trace("dict")}
 	| mobj lb mobj rb { yylex.(*pLexer).trace("="); yylex.(*pLexer).push(newPNode("[]", lb, 0, $1.pos)) }
 	| name assign mobj { yylex.(*pLexer).push(newPNode($1.str, assign,   0, $1.pos))}
 	| initvar lp seq_ident rp { yylex.(*pLexer).push(newPNode($1.str, initvar, $3, $1.pos)); }
 	| initvar lp rp           { yylex.(*pLexer).push(newPNode($1.str, initvar,  0, $1.pos)); }
+	;
+
+// 辞書 {a: 1, b: x^2, c: "gao"}
+dict_mobj
+	: lc rc {
+			yylex.(*pLexer).trace("dict0");
+			yylex.(*pLexer).push(newPNode("_dict", dict, 0, $1.pos))
+		}
+	| lc seq_dict_arg rc {
+			yylex.(*pLexer).trace("dictn" + string($2));
+			yylex.(*pLexer).push(newPNode("_dict", dict, $2, $1.pos))
+		}
+	;
+
+seq_dict_arg
+	: ident eolq mobj {
+			yylex.(*pLexer).trace("seqdi1:" + $1.str);
+			$$ = 1;
+			yylex.(*pLexer).push($1)
+		}
+	| t_str eolq mobj {
+			yylex.(*pLexer).trace("seqds1:" + $1.str);
+			$$ = 1;
+			yylex.(*pLexer).push($1)
+		}
+	| seq_dict_arg comma ident eolq mobj {
+			yylex.(*pLexer).trace("seqdin");
+			$$ = $1 + 1;
+			yylex.(*pLexer).push($3)
+		}
+	| seq_dict_arg comma t_str eolq mobj {
+			yylex.(*pLexer).trace("seqdsn");
+			$$ = $1 + 1;
+			yylex.(*pLexer).push($3)
+		}
 	;
 
 list_mobj

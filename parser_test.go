@@ -1,6 +1,7 @@
 package ganrac
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -24,6 +25,10 @@ func TestParseValid(t *testing.T) {
 		str   string
 		stack []int
 	}{
+		{"{};", []int{eol, dict}},
+		{"{a: 1};", []int{eol, dict, ident, number}},
+		{"{a: 1, b: \"hoge\"};", []int{eol, dict, ident, t_str, ident, number}},
+		{"{\"c\": x^2};", []int{eol, dict, t_str, pow, number, ident}},
 		{"a+2;", []int{eol, plus, number, ident}},
 		{";", []int{eolq}},
 		{":", []int{eolq}},
@@ -61,7 +66,13 @@ func TestParseValid(t *testing.T) {
 			}
 		}
 		if !stack.Empty() {
-			t.Errorf("[%d,%d]invalid input=\"%s\", stack is not empty", k, m, s.str)
+			rr := ""
+			for !stack.Empty() {
+				v, _ := stack.Pop()
+				rr += fmt.Sprintf("\ncmd=%d", v.cmd)
+			}
+
+			t.Errorf("[%d,%d]invalid input=\"%s\", stack is not empty. v=%s", k, m, s.str, rr)
 		}
 	}
 _next:

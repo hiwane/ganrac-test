@@ -45,8 +45,8 @@ func NewGANRAC() *Ganrac {
 		{"^", pow},
 		{"[", lb},
 		{"]", rb},
-		//	{"{", lc},
-		//	{"}", rc},
+		{"{", lc},
+		{"}", rc},
 		{"(", lp},
 		{")", rp},
 		{",", comma},
@@ -88,6 +88,8 @@ func (g *Ganrac) addHisto(o interface{}) {
 
 func (g *Ganrac) genLexer(r io.Reader) *pLexer {
 	lexer := newLexer(false)
+	// yyErrorVerbose = true
+	// yyDebug = 5
 	lexer.Init(r)
 	lexer.sones = g.sones
 	lexer.sfuns = g.sfuns

@@ -41,6 +41,8 @@ func (g *Ganrac) evalStack(stack *pStack) (interface{}, error) {
 		return g.evalStackAtom(stack, NE, s)
 	case call, list:
 		return g.evalStackNvar(stack, s)
+	case dict:
+		return g.evalStackDict(stack, s)
 	case assign:
 		return g.evalStackAssign(stack, s)
 	case lb:
@@ -226,6 +228,34 @@ func (g *Ganrac) evalStackRObj1(stack *pStack, node pNode) (interface{}, error) 
 		return r.Neg(), nil
 	}
 	return nil, fmt.Errorf("%s is not supported", node.str)
+}
+
+func (g *Ganrac) evalStackDict(stack *pStack, node pNode) (interface{}, error) {
+	d := NewDict()
+	for i := node.extra - 1; i >= 0; i-- {
+		key, err := stack.Pop()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "pop key failed %d %d\n", i, stack.Len())
+			return nil, err
+		}
+		if key.cmd != ident && key.cmd != t_str {
+			return nil, fmt.Errorf("invalid key: %s\n", key.str)
+		}
+		val, err := g.evalStack(stack)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "parse val failed %d %d\n", i, stack.Len())
+			return nil, err
+		}
+
+		v, ok := val.(GObj)
+		if !ok {
+			return nil, fmt.Errorf("invalid value key=%s", key.str)
+		}
+
+		d.Set(key.str, v)
+	}
+	return d, nil
+
 }
 
 func (g *Ganrac) evalStackNvar(stack *pStack, node pNode) (interface{}, error) {

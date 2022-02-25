@@ -19,8 +19,9 @@ var gitCommit string
 func get_line(in *bufio.Reader) (string, error) {
 	//	line, err := in.ReadBytes(';')
 	line := make([]rune, 0, 100)
-	in_str := false
-	in_com := false
+	in_str := false  // 文字列内
+	in_com := false  // コメント内
+	depth_curly := 0 // 波括弧の深さ
 	for {
 		c, _, err := in.ReadRune()
 		if err != nil {
@@ -35,9 +36,17 @@ func get_line(in *bufio.Reader) (string, error) {
 		}
 		if c == '"' {
 			in_str = !in_str
-		} else if (c == ';' || c == ':') && !in_str {
+		} else if in_str {
+			//
+		} else if c == '{' {
+			depth_curly++
+		} else if c == '}' && depth_curly > 0 {
+			depth_curly--
+		} else if c == ';' { // eol
 			break
-		} else if c == '#' && !in_str {
+		} else if c == ':' && depth_curly <= 0 { // eolq
+			break
+		} else if c == '#' {
 			// 改行まで skip
 			in_com = true
 		}
