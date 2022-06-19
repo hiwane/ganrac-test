@@ -795,13 +795,14 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line parser.y:73
 		{
-			yylex.(*pLexer).trace("=")
+			yylex.(*pLexer).trace("[]")
 			yylex.(*pLexer).push(newPNode("[]", lb, 0, yyDollar[1].node.pos))
 		}
 	case 35:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:74
 		{
+			yylex.(*pLexer).trace("=")
 			yylex.(*pLexer).push(newPNode("=", assign, 0, yyDollar[1].node.pos))
 		}
 	case 36:

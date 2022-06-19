@@ -9,19 +9,30 @@ import (
 	"sort"
 )
 
+type algo_t int64
+
 const (
 	QEALGO_VSLIN  = 0x0001
 	QEALGO_VSQUAD = 0x0002
 
 	QEALGO_EQLIN  = 0x0010
 	QEALGO_EQQUAD = 0x0020
+
+	// 非等式制約QE
+	QEALGO_INEQ = 0x0100
+
+	QEALGO_SMPL_EVEN = 0x100000000
+	QEALGO_SMPL_HOMO = 0x200000000
+	QEALGO_SMPL_TRAN = 0x400000000
+	QEALGO_SMPL_ROTA = 0x800000000
 )
 
 type QEopt struct {
-	varn  Level
-	Algo  int64
-	g     *Ganrac
-	seqno int
+	varn      Level
+	log_level int
+	Algo      algo_t
+	g         *Ganrac
+	seqno     int
 }
 
 type qeCond struct {
@@ -30,7 +41,47 @@ type qeCond struct {
 	depth          int
 }
 
+func NewQEopt() *QEopt {
+	o := new(QEopt)
+	o.Algo = -1
+	return o
+}
+
+func getQEoptStr(algo int64) string {
+	switch algo {
+	case QEALGO_EQQUAD:
+		return "eqquad"
+	case QEALGO_EQLIN:
+		return "eqlin"
+	case QEALGO_VSQUAD:
+		return "vsquad"
+	case QEALGO_VSLIN:
+		return "vslin"
+	case QEALGO_SMPL_EVEN:
+		return "smpleven"
+	case QEALGO_SMPL_HOMO:
+		return "smplhomo"
+	case QEALGO_SMPL_TRAN:
+		return "smpltran"
+	case QEALGO_SMPL_ROTA:
+		return "smplrot"
+	}
+	return ""
+}
+
+func (qeopt *QEopt) SetAlgo(algo algo_t, v bool) {
+	if v {
+		qeopt.Algo |= algo
+	} else {
+		qeopt.Algo &= ^algo
+	}
+}
+
 func (qeopt *QEopt) log(cond qeCond, level int, label, fmt string, args ...interface{}) {
+	if qeopt.log_level < level {
+		return
+	}
+
 	v := make([]interface{}, len(args)+3)
 	v[0] = label
 	v[1] = qeopt.seqno
@@ -116,7 +167,7 @@ func (qeopt *QEopt) fmlcmp(f1, f2 Fof) bool {
 	}
 }
 
-func (g *Ganrac) QE(fof Fof, qeopt QEopt) Fof {
+func (g *Ganrac) QE(fof Fof, qeopt *QEopt) Fof {
 	qeopt.varn = fof.maxVar() + 1
 	qeopt.g = g
 	if qeopt.Algo == 0 {
@@ -210,13 +261,17 @@ func (qeopt QEopt) reconstruct(fqs []FofQ, ff Fof, cond qeCond) Fof {
 func (qeopt QEopt) qe_simpl(fof FofQ, cond qeCond) Fof {
 
 	// 偶論理式
-	if ff := qeopt.qe_evenq(fof, cond); ff != nil {
-		return ff
+	if (qeopt.Algo & QEALGO_SMPL_EVEN) != 0 {
+		if ff := qeopt.qe_evenq(fof, cond); ff != nil {
+			return ff
+		}
 	}
 
 	// 斉次論理式: homogeneous formula
-	if ff := qeopt.qe_homo(fof, cond); ff != nil {
-		return ff
+	if (qeopt.Algo & QEALGO_SMPL_HOMO) != 0 {
+		if ff := qeopt.qe_homo(fof, cond); ff != nil {
+			return ff
+		}
 	}
 
 	return nil
@@ -265,11 +320,13 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	////////////////////////////////
 	// VS を適用できるか.
 	////////////////////////////////
-	if ff := qeopt.qe_vslin(fof, cond); ff != nil {
-		ff = qeopt.reconstruct(fqs, ff, cond)
-		ff = qeopt.simplify(ff, cond)
-		qeopt.log(cond, 2, "vsret", "%v\n", fof)
-		return ff
+	if qeopt.Algo&(QEALGO_VSLIN) != 0 {
+		if ff := qeopt.qe_vslin(fof, cond); ff != nil {
+			ff = qeopt.reconstruct(fqs, ff, cond)
+			ff = qeopt.simplify(ff, cond)
+			qeopt.log(cond, 2, "vsret", "%v\n", fof)
+			return ff
+		}
 	}
 
 	////////////////////////////////

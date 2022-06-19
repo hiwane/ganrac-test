@@ -134,7 +134,30 @@ Examples*
   > print(C, "stat");
 `},
 		{"psc", 4, 4, funcOXPsc, true, "(poly, poly, var, int)*\tprincipal subresultant coefficient.", ""},
-		{"qe", 1, 1, funcQE, true, "(FOF [, opt])\t\treal quantifier elimination", ""},
+		{"qe", 1, 2, funcQE, true, "(fof [, opt])\t\treal quantifier elimination", fmt.Sprintf(`
+Args
+========
+fof: first-order formula
+opt: dictionary.
+  %9s: linear    virtual substitution
+  %9s: quadratic virtual substitution
+  %9s: linear    equotional constraint (Hong93)
+  %9s: quadratic equotional constraint (Hong93)
+  %9s: simplify  even formula
+  %9s: simplify  homogeneous formula
+
+Example
+=======
+  > vars(x, b, c);
+  > F = ex([x], x^2+b*x+c == 0);
+`,
+			getQEoptStr(QEALGO_VSLIN),
+			getQEoptStr(QEALGO_VSQUAD),
+			getQEoptStr(QEALGO_EQLIN),
+			getQEoptStr(QEALGO_EQQUAD),
+			getQEoptStr(QEALGO_SMPL_EVEN),
+			getQEoptStr(QEALGO_SMPL_HOMO),
+		)},
 		{"quit", 0, 1, funcQuit, false, "([code])\t\tbye.", ""},
 		{"realroot", 2, 2, funcRealRoot, false, "(uni-poly)\t\treal root isolation", ""},
 		{"rootbound", 1, 1, funcRootBound, false, "(uni-poly in Z[x])\troot bound", `
@@ -737,13 +760,57 @@ func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	return rr.Coef(c.lv, uint(d.n.Uint64())), nil
 }
 
+func funcArgBoolVal(val GObj) bool {
+	switch v := val.(type) {
+	case RObj:
+		return v.IsZero()
+	case *String:
+		return v.s == "yes" || v.s == "Y" || v.s == "y"
+	default:
+		return false
+	}
+}
+
 func funcQE(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 	fof, ok := args[0].(Fof)
 	if !ok {
 		return nil, fmt.Errorf("%s(1st arg): expected Fof: %v", name, args[0])
 	}
-
-	var opt QEopt
+	opt := NewQEopt()
+	if len(args) > 1 {
+		dic, ok := args[1].(*Dict)
+		if !ok {
+			return nil, fmt.Errorf("%s(2nd arg): expected Dict: %v", name, args[1])
+		}
+		for k, v := range dic.v {
+			switch k {
+			case getQEoptStr(QEALGO_EQQUAD):
+				opt.SetAlgo(QEALGO_EQQUAD, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_EQLIN):
+				opt.SetAlgo(QEALGO_EQLIN, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_VSQUAD):
+				opt.SetAlgo(QEALGO_VSQUAD, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_VSLIN):
+				opt.SetAlgo(QEALGO_VSLIN, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_SMPL_EVEN):
+				opt.SetAlgo(QEALGO_SMPL_EVEN, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_SMPL_HOMO):
+				opt.SetAlgo(QEALGO_SMPL_HOMO, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_SMPL_TRAN):
+				opt.SetAlgo(QEALGO_SMPL_TRAN, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_SMPL_ROTA):
+				opt.SetAlgo(QEALGO_SMPL_ROTA, funcArgBoolVal(v))
+			case "verbose":
+				if val, ok := v.(*Int); ok && val.IsInt64() {
+					opt.log_level = int(val.Int64())
+				} else {
+					return nil, fmt.Errorf("%s(3rd arg): invalid option value: %s: %v.", name, k, v)
+				}
+			default:
+				return nil, fmt.Errorf("%s(3rd arg): unknown option: %s", name, k)
+			}
+		}
+	}
 
 	return g.QE(fof, opt), nil
 }

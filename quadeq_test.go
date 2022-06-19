@@ -24,8 +24,8 @@ func TestLinEq(t *testing.T) {
 	tbl.p = p1
 	tbl.lv = Level(3)
 
-	var opt QEopt
-	opt.Algo = -1 & ^(QEALGO_EQLIN | QEALGO_EQQUAD)
+	opt := NewQEopt()
+	opt.Algo &= ^(QEALGO_EQLIN | QEALGO_EQQUAD)
 
 	if (opt.Algo & (QEALGO_EQLIN | QEALGO_EQQUAD)) != 0 {
 		t.Errorf("algo=%x", opt.Algo)
@@ -99,8 +99,8 @@ func TestQuadEq1(t *testing.T) {
 	tbl.p = p1
 	tbl.lv = Level(3)
 
-	var opt QEopt
-	opt.Algo = -1 & ^(QEALGO_EQLIN | QEALGO_EQQUAD)
+	opt := NewQEopt()
+	opt.Algo &= ^(QEALGO_EQLIN | QEALGO_EQQUAD)
 
 	if (opt.Algo & (QEALGO_EQLIN | QEALGO_EQQUAD)) != 0 {
 		t.Errorf("algo=%x", opt.Algo)
@@ -207,8 +207,8 @@ func TestQuadEq2(t *testing.T) {
 	d := NewPolyCoef(2, 1, 3)
 	dge := NewAtom(d, GE)
 
-	var opt QEopt
-	opt.Algo = -1 & ^(QEALGO_EQLIN | QEALGO_EQQUAD)
+	opt := NewQEopt()
+	opt.Algo &= ^(QEALGO_EQLIN | QEALGO_EQQUAD)
 
 	if (opt.Algo & (QEALGO_EQLIN | QEALGO_EQQUAD)) != 0 {
 		t.Errorf("algo=%x", opt.Algo)

@@ -16,8 +16,8 @@ func TestSimplReduce(t *testing.T) {
 	defer connc.Close()
 	defer connd.Close()
 
-	var opt QEopt
-	opt.Algo = 0
+	opt := NewQEopt()
+	opt.Algo = 0 // CAD で評価する
 
 	x := NewPolyVar(0)
 	y := NewPolyVar(1)
