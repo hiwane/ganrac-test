@@ -18,8 +18,7 @@ const (
 	QEALGO_EQLIN  = 0x0010
 	QEALGO_EQQUAD = 0x0020
 
-	// 非等式制約QE
-	QEALGO_INEQ = 0x0100
+	QEALGO_NEQ = 0x0100 // 非等式制約QE
 
 	QEALGO_SMPL_EVEN = 0x100000000
 	QEALGO_SMPL_HOMO = 0x200000000
@@ -57,6 +56,8 @@ func getQEoptStr(algo int64) string {
 		return "vsquad"
 	case QEALGO_VSLIN:
 		return "vslin"
+	case QEALGO_NEQ:
+		return "neq"
 	case QEALGO_SMPL_EVEN:
 		return "smpleven"
 	case QEALGO_SMPL_HOMO:
@@ -320,7 +321,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	////////////////////////////////
 	// VS を適用できるか.
 	////////////////////////////////
-	if qeopt.Algo&(QEALGO_VSLIN) != 0 {
+	if (qeopt.Algo&QEALGO_VSLIN) != 0 {
 		if ff := qeopt.qe_vslin(fof, cond); ff != nil {
 			ff = qeopt.reconstruct(fqs, ff, cond)
 			ff = qeopt.simplify(ff, cond)
@@ -332,6 +333,14 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	////////////////////////////////
 	// 非等式 QE
 	////////////////////////////////
+	if (qeopt.Algo & QEALGO_NEQ) != 0 {
+		if ff := qeopt.qe_neq(fof, cond); ff != nil {
+			ff = qeopt.reconstruct(fqs, ff, cond)
+			ff = qeopt.simplify(ff, cond)
+			qeopt.log(cond, 2, "neq", "%v\n", fof)
+			return ff
+		}
+	}
 
 	////////////////////////////////
 	// CAD ではどうしようもないが, VS 2 次が使えるかも?

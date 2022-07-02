@@ -141,8 +141,9 @@ fof: first-order formula
 opt: dictionary.
   %9s: linear    virtual substitution
   %9s: quadratic virtual substitution
-  %9s: linear    equotional constraint (Hong93)
-  %9s: quadratic equotional constraint (Hong93)
+  %9s: linear    equational constraint (Hong93)
+  %9s: quadratic equational constraint (Hong93)
+  %9s: inequational constraints (Iwane15)
   %9s: simplify  even formula
   %9s: simplify  homogeneous formula
 
@@ -155,6 +156,7 @@ Example
 			getQEoptStr(QEALGO_VSQUAD),
 			getQEoptStr(QEALGO_EQLIN),
 			getQEoptStr(QEALGO_EQQUAD),
+			getQEoptStr(QEALGO_NEQ),
 			getQEoptStr(QEALGO_SMPL_EVEN),
 			getQEoptStr(QEALGO_SMPL_HOMO),
 		)},
@@ -792,6 +794,8 @@ func funcQE(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 				opt.SetAlgo(QEALGO_VSQUAD, funcArgBoolVal(v))
 			case getQEoptStr(QEALGO_VSLIN):
 				opt.SetAlgo(QEALGO_VSLIN, funcArgBoolVal(v))
+			case getQEoptStr(QEALGO_NEQ):
+				opt.SetAlgo(QEALGO_NEQ, funcArgBoolVal(v))
 			case getQEoptStr(QEALGO_SMPL_EVEN):
 				opt.SetAlgo(QEALGO_SMPL_EVEN, funcArgBoolVal(v))
 			case getQEoptStr(QEALGO_SMPL_HOMO):
