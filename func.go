@@ -765,7 +765,7 @@ func funcCoef(g *Ganrac, name string, args []interface{}) (interface{}, error) {
 func funcArgBoolVal(val GObj) bool {
 	switch v := val.(type) {
 	case RObj:
-		return v.IsZero()
+		return !v.IsZero()
 	case *String:
 		return v.s == "yes" || v.s == "Y" || v.s == "y"
 	default:
