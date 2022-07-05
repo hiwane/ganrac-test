@@ -16,6 +16,7 @@ func (p *AtomF) simplFctr(g *Ganrac) Fof {
 	return p
 }
 
+// @TODO p.factorized を使っていない
 func (p *Atom) simplFctr(g *Ganrac) Fof {
 	pp := [][]*Poly{make([]*Poly, 0), make([]*Poly, 0)}
 	sgn := 1

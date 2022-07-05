@@ -403,3 +403,7 @@ func (x *Int) toIntv(prec uint) RObj {
 	z.sup.SetInt(x.n)
 	return z
 }
+
+func (x *Int) Bit(i int) uint {
+	return x.Bit(i)
+}

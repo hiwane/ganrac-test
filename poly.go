@@ -1435,3 +1435,11 @@ func (p *Poly) tdeg(lvs Levels) int {
 
 	return deg
 }
+
+func (p *Poly) discrim2(lv Level) RObj {
+	// 次数 2 の場合
+	a := p.Coef(lv, 2)
+	b := p.Coef(lv, 1)
+	c := p.Coef(lv, 0)
+	return b.Mul(b).Sub(NewInt(4).Mul(a).Mul(c))
+}

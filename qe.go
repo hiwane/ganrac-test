@@ -32,6 +32,7 @@ type QEopt struct {
 	Algo      algo_t
 	g         *Ganrac
 	seqno     int
+	assert		bool
 }
 
 type qeCond struct {
@@ -43,6 +44,7 @@ type qeCond struct {
 func NewQEopt() *QEopt {
 	o := new(QEopt)
 	o.Algo = -1
+	o.assert = true
 	return o
 }
 
@@ -168,17 +170,23 @@ func (qeopt *QEopt) fmlcmp(f1, f2 Fof) bool {
 	}
 }
 
-func (g *Ganrac) QE(fof Fof, qeopt *QEopt) Fof {
+func (qeopt *QEopt) qe_init(g *Ganrac, fof Fof) {
 	qeopt.varn = fof.maxVar() + 1
 	qeopt.g = g
 	if qeopt.Algo == 0 {
 		qeopt.Algo = -1
 	}
+}
 
-	var cond qeCond
+func (cond *qeCond) qecond_init() {
 	cond.neccon = trueObj
 	cond.sufcon = falseObj
+}
 
+func (g *Ganrac) QE(fof Fof, qeopt *QEopt) Fof {
+	var cond qeCond
+	qeopt.qe_init(g, fof)
+	cond.qecond_init()
 	return qeopt.qe(fof, cond)
 }
 
