@@ -5,6 +5,10 @@ package ganrac
 
 // ex([x], f(x) != 0 && phi(x))
 
+import (
+	"fmt"
+)
+
 func is_neq_only(fof Fof, lv Level) bool {
 	switch pp := fof.(type) {
 	case FofQ:
@@ -118,6 +122,7 @@ func apply_neqQE(fof Fof, lv Level) Fof {
  :        : nil if fails
 */
 func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) Fof {
+	fmt.Printf("univ: %s AND %s\n", fof, atom)
 	// atom.p は univariate
 	// qffneq := apply_neqQE(fof, lv)
 	p := atom.getPoly()
@@ -128,7 +133,7 @@ func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, c
 	}
 
 	bak_deg := p.Deg(lv)
-	if bak_deg % 2 != 0 {
+	if bak_deg%2 != 0 {
 		return qffneq
 	}
 
@@ -179,11 +184,12 @@ func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, c
  :        : nil if fails
 */
 func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) Fof {
+	fmt.Printf("atom: %s AND %s\n", fof, atom)
 	if atom.op == EQ {
 		return fof
 	}
-	if qeopt.assert && atom.op != GE && atom.op != LT {
-		panic("unexpected op")
+	if qeopt.assert && atom.op != GE && atom.op != LE {
+		panic(fmt.Sprintf("unexpected op %d, expected [%d,%d]", atom.op, GE, LE))
 	}
 
 	var ret Fof = falseObj
@@ -216,11 +222,15 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 			ret = NewFmlOr(ret, NewFmlAnd(NewAtom(lc, op), qffneq))
 			ret = NewFmlOr(ret, NewFmlAnd(NewAtom(discrim, GT), qffneq))
 			ret = NewFmlOr(ret, newFmlAnds(NewAtom(lc, EQ), NewAtom(c1, EQ), NewAtom(c0, atom.op), qffneq))
+			qq := qeopt.qe(NewExists([]Level{lv},
+				NewFmlAnd(fof,
+					NewAtom(Add(Mul(Mul(two, lc), NewPolyVar(lv)), c1), EQ))), cond)
+			fmt.Printf("qq=%v\n", qq)
 			ret = NewFmlOr(ret, newFmlAnds(
-				NewAtom(lc, NE),
+				// ex([x], 2ax+b=0 && b^2-4ac = 0 && a != 0 && NEQ)
+				NewAtom(lc, NE), // atom.op とどちらが良いか.
 				NewAtom(discrim, EQ),
-				qeopt.qe(NewQuantifier(false, []Level{lv}, NewFmlAnd(fof,
-					NewAtom(NewInt(2).Mul(lc).Add(c1), EQ))), cond)))
+				qq))
 			return ret
 
 		} else if poly.isUnivariate() {
@@ -235,7 +245,7 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 		}
 
 		fof = NewFmlAnd(fof, NewAtom(lc, EQ))
-		switch pp := poly.Sub(lc).(type) {
+		switch pp := poly.Sub(lc.Mul(newPolyVarn(lv, deg))).(type) {
 		case *Poly:
 			poly = pp
 		default:
@@ -247,8 +257,8 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 }
 
 func neqQE(fof Fof, lv Level, qeopt QEopt, cond qeCond) Fof {
-
 	fne, fot := divide_neq(fof, lv, qeopt)
+
 	if fot == trueObj {
 		qeopt.log(cond, 3, "neq", "<%s> all %v\n", varstr(lv), fof)
 		return apply_neqQE(fof, lv)
@@ -268,6 +278,7 @@ func neqQE(fof Fof, lv Level, qeopt QEopt, cond qeCond) Fof {
 }
 
 func (qeopt QEopt) qe_neq(fof FofQ, cond qeCond) Fof {
+	qeopt.log(cond, 2, "neq", "go qe_neq %v\n", fof)
 
 	var fml Fof
 	not := false
@@ -284,7 +295,7 @@ func (qeopt QEopt) qe_neq(fof FofQ, cond qeCond) Fof {
 	for _, q := range fof.Qs() {
 		qeopt.log(cond, 2, "neq", "<%s> %v\n", varstr(q), fof)
 		ff := neqQE(fml, q, qeopt, cond)
-		if ff != fof {
+		if ff != fml {
 			if not {
 				return ff.Not()
 			} else {

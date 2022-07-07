@@ -32,7 +32,7 @@ type QEopt struct {
 	Algo      algo_t
 	g         *Ganrac
 	seqno     int
-	assert		bool
+	assert    bool
 }
 
 type qeCond struct {
@@ -193,20 +193,27 @@ func (g *Ganrac) QE(fof Fof, qeopt *QEopt) Fof {
 func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
 	qeopt.seqno++
 	qeopt.log(cond, 2, "qe", "%v\n", fof)
-	fof = fof.nonPrenex()
-	switch fq := fof.(type) {
-	case FofQ:
-		if fof.isPrenex() {
-			return qeopt.qe_prenex(fq, cond)
+	for {
+		fof = fof.nonPrenex()
+		qeopt.log(cond, 2, "qe", "1:%v\n", fof)
+		switch fq := fof.(type) {
+		case FofQ:
+			if fof.isPrenex() {
+				fof = qeopt.qe_prenex(fq, cond)
+			} else {
+				fof = qeopt.qe_nonpreq(fq, cond)
+			}
+		case FofAO:
+			if fof.IsQff() {
+				return qeopt.simplify(fof, cond)
+			}
+			fof = qeopt.qe_andor(fq, cond)
+		default: // atom
+			return fof
 		}
-		return qeopt.qe_nonpreq(fq, cond)
-	case FofAO:
 		if fof.IsQff() {
-			return qeopt.simplify(fof, cond)
+			return fof
 		}
-		return qeopt.qe_andor(fq, cond)
-	default:
-		return fof
 	}
 }
 
@@ -214,6 +221,9 @@ func (qeopt QEopt) simplify(qff Fof, cond qeCond) Fof {
 	return qeopt.g.simplFof(qff, cond.neccon, cond.sufcon)
 }
 
+/*
+ * fof: prenex formula
+ */
 func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
 	qeopt.log(cond, 2, "qepr", "%v\n", fof)
 	// exists-or, forall-and は分解できる.
@@ -233,6 +243,8 @@ func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
 			if ao, ok := fml.(FofAO); ok {
 				if fofq.isForAll() == ao.isAnd() {
 					// 分解できる.
+					//      ex([x], f1 or f2 or f3)
+					// <==> ex([x], f1) or ex([x], f2) or ex([x], f3)
 					var cond2 qeCond = cond
 					cond2.dnf = !ao.isAnd()
 					cond2.depth = cond.depth + 1
@@ -249,8 +261,8 @@ func (qeopt QEopt) qe_prenex(fof FofQ, cond qeCond) Fof {
 					}
 
 					return qeopt.qe(fmlq, cond)
-				}
-			}
+				} // else
+			} // else Atom
 			break
 		}
 	}
@@ -329,7 +341,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 	////////////////////////////////
 	// VS を適用できるか.
 	////////////////////////////////
-	if (qeopt.Algo&QEALGO_VSLIN) != 0 {
+	if (qeopt.Algo & QEALGO_VSLIN) != 0 {
 		if ff := qeopt.qe_vslin(fof, cond); ff != nil {
 			ff = qeopt.reconstruct(fqs, ff, cond)
 			ff = qeopt.simplify(ff, cond)
@@ -551,7 +563,10 @@ func (qeopt QEopt) qe_nonpreq(fofq FofQ, cond qeCond) Fof {
 			for i := len(fs) - 1; i >= 0; i-- {
 				fml = fs[i].gen(fs[i].Qs(), fml)
 			}
-			return qeopt.qe_prenex(fml.(FofQ), cond)
+			fml = qeopt.qe_prenex(fml.(FofQ), cond)
+			if fml.IsQff() {
+				return fml
+			}
 		} else {
 			panic("?")
 		}

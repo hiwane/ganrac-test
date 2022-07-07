@@ -1441,5 +1441,5 @@ func (p *Poly) discrim2(lv Level) RObj {
 	a := p.Coef(lv, 2)
 	b := p.Coef(lv, 1)
 	c := p.Coef(lv, 0)
-	return b.Mul(b).Sub(NewInt(4).Mul(a).Mul(c))
+	return Sub(Mul(b, b), Mul(NewInt(4), Mul(a, c)))
 }

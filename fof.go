@@ -1507,6 +1507,10 @@ func NewFmlOr(pp Fof, qq Fof) Fof {
 	return r
 }
 
+func NewExists(lv []Level, fml Fof) Fof {
+	return NewQuantifier(false, lv, fml)
+}
+
 func NewQuantifier(forex bool, lvv []Level, fml Fof) Fof {
 	// forex: true -> forall, false -> exists
 	lvs := make([]Level, 0)

@@ -91,9 +91,9 @@ func (inf *reduce_info) GB(g *Ganrac, lvmax Level) *List {
 	inf.varb = varb
 	inf.qn = len(quan)
 
-	g.log(1, "GBi=%v\n", inf.eqns)
+	g.log(8, "GBi=%v\n", inf.eqns)
 	gb := g.ox.GB(inf.eqns, vars, inf.qn)
-	g.log(1, "GBo=%v\n", gb)
+	g.log(8, "GBo=%v\n", gb)
 	return gb
 }
 
