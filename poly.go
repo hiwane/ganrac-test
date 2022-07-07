@@ -243,7 +243,7 @@ func (z *Poly) Format(s fmt.State, format rune) {
 		fmt.Fprintf(s, "))")
 	case FORMAT_SRC: // source
 		z.write_src(s)
-	case FORMAT_TEX: // TeX
+	case FORMAT_TEX, FORMAT_QEPCAD:
 		z.write(s, format, false, " ")
 	default:
 		if p, ok := s.Precision(); ok {

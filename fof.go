@@ -762,6 +762,8 @@ func (p *AtomT) Format(s fmt.State, format rune) {
 		fmt.Fprintf(s, "%strue%s", esc_sgr(34), esc_sgr(0))
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "trueObj")
+	case FORMAT_QEPCAD:
+		fmt.Fprintf(s, "TRUE")
 	default:
 		p.Format(s, format)
 	}
@@ -779,6 +781,8 @@ func (p *AtomF) Format(s fmt.State, format rune) {
 		fmt.Fprintf(s, "%sfalse%s", esc_sgr(34), esc_sgr(0))
 	case FORMAT_SRC:
 		fmt.Fprintf(s, "falseObj")
+	case FORMAT_QEPCAD:
+		fmt.Fprintf(s, "FALSE")
 	default:
 		p.Format(s, format)
 	}
@@ -814,6 +818,17 @@ func (p *Atom) Format(b fmt.State, format rune) {
 			}
 		}
 		fmt.Fprintf(b, " %s 0", []string{"@false@", "<", "=", "\\leq", ">", "\\neq", "\\ge", "@true@"}[p.op])
+	case FORMAT_QEPCAD:
+		if len(p.p) == 1 {
+			p.p[0].Format(b, format)
+		} else {
+			for _, f := range p.p {
+				fmt.Fprintf(b, "(")
+				f.Format(b, format)
+				fmt.Fprintf(b, ")")
+			}
+		}
+		fmt.Fprintf(b, " %s 0", []string{"@false@", "<", "=", "<=", ">", "/=", ">=", "@true@"}[p.op])
 	case FORMAT_DUMP: // dump
 		fmt.Fprintf(b, "(atom %d (", len(p.p))
 		for _, pp := range p.p {
@@ -887,6 +902,23 @@ func (p *FmlAnd) Format(b fmt.State, format rune) {
 				f.Format(b, format)
 			}
 		}
+	case FORMAT_QEPCAD:
+		for i, f := range p.fml {
+			if i == 0 {
+				fmt.Fprintf(b, " [ ")
+			} else {
+				fmt.Fprintf(b, " /\\ ")
+			}
+
+			if _, ok := f.(*FmlOr); ok {
+				fmt.Fprintf(b, "[ ")
+				f.Format(b, format)
+				fmt.Fprintf(b, " ]")
+			} else {
+				f.Format(b, format)
+			}
+		}
+		fmt.Fprintf(b, " ]")
 	case FORMAT_DUMP: // dump
 		fmt.Fprintf(b, "(&& %d (", len(p.fml))
 		for _, f := range p.fml {
@@ -937,6 +969,23 @@ func (p *FmlOr) Format(b fmt.State, format rune) {
 
 			f.Format(b, format)
 		}
+	case FORMAT_QEPCAD:
+		for i, f := range p.fml {
+			if i == 0 {
+				fmt.Fprintf(b, " [ ")
+			} else {
+				fmt.Fprintf(b, " \\/ ")
+			}
+
+			if _, ok := f.(*FmlAnd); ok {
+				fmt.Fprintf(b, "[ ")
+				f.Format(b, format)
+				fmt.Fprintf(b, " ]")
+			} else {
+				f.Format(b, format)
+			}
+		}
+		fmt.Fprintf(b, " ]")
 	case FORMAT_DUMP: // dump
 		fmt.Fprintf(b, "(|| %d (", len(p.fml))
 		for _, f := range p.fml {
@@ -982,9 +1031,14 @@ func (p *ForAll) Format(b fmt.State, format rune) {
 		fmt.Fprintf(b, "], ")
 		p.fml.Format(b, format)
 		fmt.Fprintf(b, "%s)%s", esc_sgr(31), esc_sgr(0))
-	case 'P': // Tex
+	case FORMAT_TEX:
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\forall %s ", varstr(lv))
+		}
+		p.fml.Format(b, format)
+	case FORMAT_QEPCAD:
+		for _, lv := range p.q {
+			fmt.Fprintf(b, "(A %s)", varstr(lv))
 		}
 		p.fml.Format(b, format)
 	case FORMAT_DUMP: // dump
@@ -1034,6 +1088,11 @@ func (p *Exists) Format(b fmt.State, format rune) {
 	case FORMAT_TEX: // Tex
 		for _, lv := range p.q {
 			fmt.Fprintf(b, "\\exists %s ", varstr(lv))
+		}
+		p.fml.Format(b, format)
+	case FORMAT_QEPCAD:
+		for _, lv := range p.q {
+			fmt.Fprintf(b, "(E %s)", varstr(lv))
 		}
 		p.fml.Format(b, format)
 	case FORMAT_DUMP: // dump

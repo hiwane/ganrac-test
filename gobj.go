@@ -13,9 +13,10 @@ const (
 	TAG_LIST
 	TAG_CAD
 
-	FORMAT_TEX  = 'P'
-	FORMAT_DUMP = 'V'
-	FORMAT_SRC  = 'S'
+	FORMAT_TEX    = 'P'
+	FORMAT_DUMP   = 'V'
+	FORMAT_SRC    = 'S'
+	FORMAT_QEPCAD = 'Q'
 )
 
 // ganrac object

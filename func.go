@@ -593,6 +593,8 @@ func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 			fmt.Printf("%S\n", cc)
 		case "dump":
 			fmt.Printf("%V\n", cc)
+		case "qepcad":
+			fmt.Printf("%Q\n", cc)
 		default:
 			fmt.Printf(t, cc)
 		}
