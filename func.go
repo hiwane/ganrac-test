@@ -68,7 +68,7 @@ Examples
 `},
 		{"example", 0, 1, funcExample, false, "([name])\t\texample.", ""},
 		{"fctr", 1, 1, funcOXFctr, true, "(poly)*\t\t\tfactorize polynomial over the rationals.", ""},
-		{"gb", 2, 3, funcOXGB, true, "(poly-list)*\t\tGroebner basis", ""},
+		{"gb", 2, 3, funcOXGB, true, "(polys, vars)*\t\tGroebner basis", ""},
 		{"help", 0, 1, nil, false, "()\t\t\tshow help", ""},
 		//		{"igcd", 2, 2, funcIGCD, false, "(int1, int2)\t\tThe integer greatest common divisor", ""},
 		{"impl", 2, 2, funcImpl, false, "(fof1, fof2)\t\tfof1 impies fof2", ""},

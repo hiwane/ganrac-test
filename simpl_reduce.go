@@ -184,7 +184,15 @@ func simplReduceAO(g *Ganrac, inf *reduce_info, p FofAO, op OP) Fof {
 			}
 		}
 
-		inf.eqns = inf.GB(g, p.maxVar())
+		maxvar := p.maxVar()
+		for _, eq := range inf.eqns.Iter() {
+			mv := eq.(*Poly).maxVar()
+			if mv > maxvar {
+				maxvar = mv
+			}
+		}
+
+		inf.eqns = inf.GB(g, maxvar)
 		if v, ok := inf.eqns.geti(0).(NObj); ok {
 			if v.Sign() == 0 {
 				panic("????")
