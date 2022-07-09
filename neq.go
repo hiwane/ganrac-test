@@ -196,10 +196,17 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 		deg := poly.Deg(lv)
 		// fmt.Printf("poly[%d]=%v\n", deg, poly)
 		lc := poly.Coef(lv, uint(deg))
-		if lc.IsNumeric() && (atom.op == LE && lc.Sign() < 0 ||
-			atom.op == GE && lc.Sign() > 0) {
-			return qffneq
 
+		lccond := NewAtom(lc, atom.op)
+		lccond = qeopt.simplify(lccond, cond)
+		if _, ok := lccond.(*AtomT); ok {
+			lccond := NewAtom(lc, atom.op.strict())
+			lccond = qeopt.simplify(lccond, cond)
+			if _, ok := lccond.(*AtomT); ok {
+				ret = NewFmlOr(ret, qffneq)
+				return ret
+			}
+			ret = NewFmlOr(ret, NewFmlAnd(NewAtom(lc, atom.op.strict()), qffneq))
 		} else if deg%2 != 0 {
 			ret = NewFmlOr(ret, NewFmlAnd(NewAtom(lc, NE), qffneq))
 		} else if deg == 0 {

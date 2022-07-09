@@ -67,13 +67,14 @@ type FofTFbase struct {
 type OP uint8
 
 const (
-	LT      OP = 0x1
-	EQ      OP = 0x2
-	GT      OP = 0x4
-	LE      OP = LT | EQ
-	GE      OP = GT | EQ
-	NE      OP = GT | LT
-	OP_TRUE OP = GT | EQ | LT
+	LT       OP = 0x1
+	EQ       OP = 0x2
+	GT       OP = 0x4
+	LE       OP = LT | EQ
+	GE       OP = GT | EQ
+	NE       OP = GT | LT
+	OP_TRUE  OP = GT | EQ | LT
+	OP_FALSE OP = 0x0
 
 	FTAG_TRUE  uint = 0x101
 	FTAG_FALSE uint = 0x102
@@ -120,6 +121,10 @@ type ForAll struct {
 type Exists struct {
 	q   []Level // quantifier
 	fml Fof
+}
+
+func (op OP) strict() OP {
+	return op & NE
 }
 
 func (op OP) neg() OP {

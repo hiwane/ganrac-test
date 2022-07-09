@@ -135,3 +135,35 @@ func TestFmlOr(t *testing.T) {
 		t.Errorf("not false: %v", h)
 	}
 }
+
+func TestOp(t *testing.T) {
+	for ii, ss := range []struct {
+		input  OP
+		not    OP
+		neg    OP
+		strict OP
+	}{
+		{LT, GE, GT, LT},
+		{LE, GT, GE, LT},
+		{EQ, NE, EQ, OP_FALSE},
+		{GT, LE, LT, GT},
+		{GE, LT, LE, GT},
+		{NE, EQ, NE, NE},
+	} {
+		oo := ss.input.not()
+		if oo != ss.not {
+			t.Errorf("[%d] input=%d, actual=%d, expect=%d, %s", ii, ss.input, oo, ss.not, "not")
+		}
+
+		oo = ss.input.neg()
+		if oo != ss.neg {
+			t.Errorf("[%d] input=%d, actual=%d, expect=%d, %s", ii, ss.input, oo, ss.neg, "neg")
+		}
+
+		oo = ss.input.strict()
+		if oo != ss.strict {
+			t.Errorf("[%d] input=%d, actual=%d, expect=%d, %s", ii, ss.input, oo, ss.strict, "strict")
+		}
+
+	}
+}
