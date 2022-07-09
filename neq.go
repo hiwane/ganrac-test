@@ -122,7 +122,7 @@ func apply_neqQE(fof Fof, lv Level) Fof {
  :        : nil if fails
 */
 func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) Fof {
-	fmt.Printf("univ: %s AND %s\n", fof, atom)
+	// fmt.Printf("univ: %s AND %s\n", fof, atom)
 	// atom.p は univariate
 	// qffneq := apply_neqQE(fof, lv)
 	p := atom.getPoly()
@@ -153,16 +153,12 @@ func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, c
 		}
 
 		if r.Bit(0) == 0 { // r % 2 == 0
+			// 有限個のゼロ点以外は符号を変えない
 			evens = append(evens, f)
-			continue // 有限個のゼロ点以外は符号を変えないので無視
 		} else {
 			// 符号が変化する区間があることが確定
 			return qffneq
 		}
-	}
-
-	if len(evens) == 0 {
-		return falseObj
 	}
 
 	// 有限個のゼロ点でのみ条件を満たすことがわかった => 等式制約 QE へ.
@@ -184,7 +180,7 @@ func apply_neqQE_atom_univ(fof, qffneq Fof, atom *Atom, lv Level, qeopt QEopt, c
  :        : nil if fails
 */
 func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) Fof {
-	fmt.Printf("atom: %s AND %s\n", fof, atom)
+	// fmt.Printf("atom: %s AND %s\n", fof, atom)
 	if atom.op == EQ {
 		return fof
 	}
@@ -198,6 +194,7 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 		qffneq := apply_neqQE(fof, lv)
 
 		deg := poly.Deg(lv)
+		// fmt.Printf("poly[%d]=%v\n", deg, poly)
 		lc := poly.Coef(lv, uint(deg))
 		if lc.IsNumeric() && (atom.op == LE && lc.Sign() < 0 ||
 			atom.op == GE && lc.Sign() > 0) {
@@ -225,7 +222,7 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 			qq := qeopt.qe(NewExists([]Level{lv},
 				NewFmlAnd(fof,
 					NewAtom(Add(Mul(Mul(two, lc), NewPolyVar(lv)), c1), EQ))), cond)
-			fmt.Printf("qq=%v\n", qq)
+			// fmt.Printf("qq=%v\n", qq)
 			ret = NewFmlOr(ret, newFmlAnds(
 				// ex([x], 2ax+b=0 && b^2-4ac = 0 && a != 0 && NEQ)
 				NewAtom(lc, NE), // atom.op とどちらが良いか.
@@ -245,7 +242,11 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 		}
 
 		fof = NewFmlAnd(fof, NewAtom(lc, EQ))
-		switch pp := poly.Sub(lc.Mul(newPolyVarn(lv, deg))).(type) {
+		fof = qeopt.simplify(fof, cond)
+		if _, ok := fof.(*AtomF); ok {
+			return ret
+		}
+		switch pp := poly.Sub(Mul(lc, newPolyVarn(lv, deg))).(type) {
 		case *Poly:
 			poly = pp
 		default:

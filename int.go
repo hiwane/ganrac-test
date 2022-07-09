@@ -405,5 +405,5 @@ func (x *Int) toIntv(prec uint) RObj {
 }
 
 func (x *Int) Bit(i int) uint {
-	return x.Bit(i)
+	return x.n.Bit(i)
 }
