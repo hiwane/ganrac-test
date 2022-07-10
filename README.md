@@ -40,6 +40,8 @@ Ubuntu
 
 ### real Quantifier Elimination
 
+See [qe.md](qe.md) for details.
+
 ![ganrac7](https://user-images.githubusercontent.com/7787544/122847029-0891b080-d342-11eb-84ab-f085f5bbaad6.gif)
 
 ```
@@ -51,6 +53,8 @@ qe(all([x,y,z], equiv(G[1], H)));
 ```
 
 ### real QE by Cylindrical Algebraic Decomposition
+
+See [cad.md](cad.md) for details.
 
 ![ganrac8](https://user-images.githubusercontent.com/7787544/122847006-fdd71b80-d341-11eb-8156-8a0e5f49b535.gif)
 

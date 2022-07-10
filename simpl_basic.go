@@ -7,7 +7,7 @@ import (
 /////////////////////////////////////
 // 論理式の簡単化.
 //
-// simplification of quantifier-free formulas over ordered firlds
+// simplification of quantifier-free formulas over ordered fields
 // A. Dolzmann, T. Sturm
 /////////////////////////////////////
 
