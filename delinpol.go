@@ -33,6 +33,7 @@ func (cell *Cell) isSection() bool {
 }
 
 func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
+	// @@1 の前処理. proj. factor にその変数が含まれていたらダメ
 	for c := cell.parent; c.lv >= 0; c = c.parent {
 		if c.isSector() {
 			if pf.P().Deg(c.lv) > 0 {
@@ -45,8 +46,9 @@ func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 	ps := NewList()
 	for i := Level(0); i <= cell.lv; i++ {
 		c := cell.ancestor(i)
-		if c.isSector() {
+		if c.isSector() { // @@1
 			// add xi=xi to set $a
+			// 前処理により，その変数が含まれていないことは確定
 			b = true
 			continue
 		}
@@ -66,6 +68,7 @@ func (cad *CAD) constcoord_test(cell *Cell, pf ProjFactor) bool {
 			continue
 		}
 
+		// 飽きた
 		// step 2:
 		// //		gb := cad.g.ox.GB(ps, uint(i+1))
 		// 		fmt.Printf(" L=%v\n", pfL)
@@ -161,6 +164,7 @@ func (cad *CAD) need_delineating_poly(cell *Cell, pf ProjFactor) bool {
 	return false
 }
 
+// 処理を継続できない場合 false を返す
 func (pf *ProjFactorMC) vanishChk(cad *CAD, cell *Cell) bool {
 
 	if int(pf.P().lv) == len(cad.q)-1 {
@@ -168,9 +172,11 @@ func (pf *ProjFactorMC) vanishChk(cad *CAD, cell *Cell) bool {
 	}
 
 	if cell.dim() > 0 {
-		if cad.constcoord_test(cell, pf) {
-		}
-		panic("constcoord_test=true")
+		// @TODO. constcoord_test() 実装中
+		return false
+		// if cad.constcoord_test(cell, pf) {
+		// }
+		// panic("constcoord_test=true")
 	} else {
 		if cad.need_delineating_poly(cell, pf) {
 			return true
