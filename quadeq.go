@@ -246,15 +246,16 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 		// minatom.deg == 2
 		even := quadeq_isEven(fff, minatom.lv)
 		discrim := NewAtom(qeopt.g.ox.Discrim(minatom.p, minatom.lv), GE)
+		qeopt.log(cond, 2, "eq2", "%v [%v] discrim=%v\n", fof, minatom.p, discrim)
 		var o Fof = falseObj
 		for _, sgns := range []struct {
-			sgn_s int
-			op    OP
+			sgn_s int // 2つの根のうち，大きい方なら正.
+			op    OP  // 主係数の符号
 			skip  bool
 		}{
 			{+1, GT, false},
-			{+1, LT, false},
-			{-1, GT, even},
+			{+1, LT, even},
+			{-1, GT, false},
 			{-1, LT, even},
 		} {
 			if sgns.skip {
@@ -287,6 +288,7 @@ func (qeopt QEopt) qe_quadeq(fof FofQ, cond qeCond) Fof {
 		return o
 	}
 
+	qeopt.log(cond, 2, "eq1", "%v [%v]\n", fff, minatom.p)
 	tbl.sgn_lcp = 1
 	opos := NewFmlAnd(fff.qe_quadeq(qe_lineq, tbl), NewAtom(minatom.z, GT))
 

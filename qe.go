@@ -333,7 +333,7 @@ func (qeopt QEopt) qe_prenex_main(prenex_formula FofQ, cond qeCond) Fof {
 		if ff := qeopt.qe_quadeq(fof, cond); ff != nil {
 			ff = qeopt.reconstruct(fqs, ff, cond)
 			ff = qeopt.simplify(ff, cond)
-			qeopt.log(cond, 2, "qecon", "%v\n", fof)
+			qeopt.log(cond, 2, "eqret", "%v\n", fof)
 			return ff
 		}
 	}

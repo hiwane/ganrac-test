@@ -194,7 +194,7 @@ func apply_neqQE_atom(fof Fof, atom *Atom, lv Level, qeopt QEopt, cond qeCond) F
 		qffneq := apply_neqQE(fof, lv)
 
 		deg := poly.Deg(lv)
-		// fmt.Printf("poly[%d]=%v\n", deg, poly)
+		// fmt.Printf("atom.poly[%d]=%v\n", deg, poly)
 		lc := poly.Coef(lv, uint(deg))
 
 		lccond := NewAtom(lc, atom.op)
