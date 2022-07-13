@@ -19,7 +19,7 @@ type Fof interface {
 	IsQuantifier() bool
 	isPrenex() bool
 	isEven(lv Level) int // is だが bool 復帰ではない
-	redEven(lv Level, v int) Fof
+	redEven(lv Level, v, sgn int) Fof
 	Not() Fof
 	hasFreeVar(lv Level) bool
 	hasVar(lv Level) bool

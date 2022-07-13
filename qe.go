@@ -191,6 +191,7 @@ func (g *Ganrac) QE(fof Fof, qeopt *QEopt) Fof {
 }
 
 func (qeopt QEopt) qe(fof Fof, cond qeCond) Fof {
+	cond.depth++
 	qeopt.seqno++
 	qeopt.log(cond, 2, "qe", "%v\n", fof)
 	for {
