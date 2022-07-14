@@ -470,13 +470,12 @@ func (cad *CAD) Sfc() (Fof, error) {
 		if t == 1 {
 			return sfc.make_pdf()
 		} else {
-			panic(fmt.Sprintf("unsupported pdq=%d", t))
-
+			panic(fmt.Sprintf("unsupported pdq=%d", t)) // @TODO
 		}
-		t = sfc.pdq()
-		if ccc > 5 {
-			panic("ho")
-		}
+		// t = sfc.pdq()
+		// if ccc > 5 {
+		// 	panic("ho")
+		// }
 	}
 
 	la := sfc.gen_atoms()

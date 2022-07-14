@@ -675,7 +675,7 @@ func (cad *CAD) symde_gcd2(forg, gorg *Poly, cell *Cell, pi int) (*Poly, *Poly) 
 			}
 			fmt.Printf("try failed\n")
 			panic("!")
-			tried = true
+			// tried = true
 		} else {
 			tried = false
 		}

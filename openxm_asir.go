@@ -175,7 +175,7 @@ func (ox *OpenXM) GB(p *List, vars *List, n int) *List {
 	}
 	s, err := ox.PopCMO()
 	if err != nil {
-		fmt.Sprintf("gr failed: %v", err.Error())
+		fmt.Printf("gr failed: %v", err.Error())
 		return nil
 	}
 
@@ -202,7 +202,7 @@ func (ox *OpenXM) Reduce(p *Poly, gb *List, vars *List, n int) (RObj, bool) {
 	}
 	s, err := ox.PopCMO()
 	if err != nil {
-		fmt.Sprintf("p_nf failed: %v", err.Error())
+		fmt.Printf("p_nf failed: %v", err.Error())
 		return nil, false
 	}
 
