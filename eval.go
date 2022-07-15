@@ -286,17 +286,17 @@ func (g *Ganrac) evalStackAssign(stack *pStack, node pNode) (interface{}, error)
 	if err != nil {
 		return nil, err
 	}
-	v, ok := vv.(GObj)
-	if !ok {
-		return nil, fmt.Errorf("not gobj assignment")
-	}
 
 	s, err := stack.Pop()
 	if s.cmd == name {
-		g.varmap[s.str] = v
-		return v, nil
+		g.varmap[s.str] = vv
+		return vv, nil
 	} else if s.cmd != lb {
 		return nil, fmt.Errorf("invalid assignment")
+	}
+	v, ok := vv.(GObj)
+	if !ok {
+		return nil, fmt.Errorf("not gobj assignment")
 	}
 
 	idx, err := g.evalStack(stack)
