@@ -17,11 +17,13 @@ const (
 )
 
 type CADSfc struct {
-	cad        *CAD
-	lt, lf, t3 []*Cell
-	evaltbl    [][]bool
-	freen      int
-	cpair      [][][4]*Cell
+	cad     *CAD
+	lt      []*Cell // true leaf cell
+	lf      []*Cell // false leaf cell
+	t3      []*Cell
+	evaltbl [][]bool
+	freen   int          // number of free variables
+	cpair   [][][4]*Cell // conflicting pair
 }
 
 type sfcAtom struct {
@@ -83,6 +85,10 @@ func (sfc *CADSfc) add_conflicting_pair(ctrue, cfalse *Cell) {
 	sfc.cpair[ctrue.lv] = append(sfc.cpair[ctrue.lv], a)
 }
 
+/*
+ * split K into the lists K L and K N , the leaf nodes and non-leaf nodes, respec-
+ tively, in K .
+*/
 func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int) {
 	t := 0
 	ret := make([]*Cell, 0)
@@ -90,6 +96,7 @@ func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int)
 	for i := min; i < max; i++ {
 		c := cells[i]
 		if c.children != nil && int(c.lv) < sfc.freen-1 {
+			// leaf ではない
 			ret = append(ret, c.children...)
 		} else if c.truth == 0 {
 			t |= 0x02
@@ -100,7 +107,7 @@ func (sfc *CADSfc) pdqv22_split_leaf(cells []*Cell, min, max int) ([]*Cell, int)
 		} else {
 			c.Print()
 			c.parent.Print("signatures")
-			panic("s")
+			panic("internal error")
 		}
 	}
 
@@ -186,10 +193,15 @@ func (sfc *CADSfc) pdqv22(lv int, cells []*Cell, min, max int) int {
 	return t
 }
 
+/*
+ * projection definable query
+ *
+ * return:
+ * - SFC_PROJ_DEFINABLE if projection definable
+ * - SFC_PROJ_UNDEFINABLE if projection undefinable
+ * - SFC_PROJ_UNDET     otherwise / undetermined
+ */
 func (sfc *CADSfc) pdq() int {
-	// return 0 if projection definable
-	// return 1 if projection undefinable
-	// return 2 undetermined
 	sfc.lt = make([]*Cell, 0)
 	sfc.lf = make([]*Cell, 0)
 	sfc.t3 = make([]*Cell, 0)
@@ -466,11 +478,22 @@ func (cad *CAD) Sfc() (Fof, error) {
 	if len(sfc.lf) == 0 {
 		return trueObj, nil
 	}
-	for ccc := 0; t >= 1; ccc++ {
-		if t == 1 {
+	for ccc := 0; t != SFC_PROJ_DEFINABLE; ccc++ {
+		if t == SFC_PROJ_UNDEFINABLE && ccc != 0 {
 			return sfc.make_pdf()
 		} else {
-			panic(fmt.Sprintf("unsupported pdq=%d", t)) // @TODO
+			// partial CAD な部分でひかかったので，
+			// fullcad なら projection definable かもしれない
+
+			// 論文上 undef が復帰することになっているけど
+			// 自由変数でみたときの葉でないセルで真偽値が決まる =>
+			// 真偽値は同じになりそうなものだけど...
+			err := sfc.lift_conlicts(cad)
+			if err != nil {
+				return nil, err
+			}
+			sfc = NewCADSfc(cad)
+			t = sfc.pdq()
 		}
 		// t = sfc.pdq()
 		// if ccc > 5 {

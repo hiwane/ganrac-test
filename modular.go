@@ -184,7 +184,7 @@ func (f *Poly) mod_pp(pp, wk *big.Int) Moder {
 			wk.Mod(c.n, pp)
 			g.c[i] = Uint(wk.Int64())
 		default:
-			panic("unsupported")
+			panic("internal error")
 		}
 	}
 	return g.normalize().(Moder)
@@ -210,7 +210,7 @@ func (f Uint) add_mod(gg Moder, p Uint) Moder {
 		z.c[0] = f.add_mod(g.mcoef(0), p)
 		return z
 	default:
-		panic("unsupported")
+		panic("internal error")
 	}
 }
 
@@ -804,7 +804,7 @@ func (f *Poly) i2q(p, b *Int) *Poly {
 		case *Int:
 			q.c[i] = c.i2q(p, b)
 		default:
-			panic("unsupported")
+			panic("internal error")
 		}
 		if q.c[i] == nil {
 			return nil

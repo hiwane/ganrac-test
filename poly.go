@@ -636,7 +636,7 @@ func (x *Poly) Pow(y *Int) RObj {
 	// int版と同じ手法. 通常 x^m 以外では使わないから放置
 	// @TODO 2項定理使ったほうが効率的?
 	if y.Sign() < 0 {
-		return nil // unsupported.
+		return nil // unsupported. pow(-n)
 	}
 	m := y.n.BitLen() - 1
 	if m < 0 {

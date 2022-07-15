@@ -600,7 +600,7 @@ func funcPrint(g *Ganrac, name string, args []interface{}) (interface{}, error) 
 		}
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("unsupported object is specified")
+		return nil, fmt.Errorf("print(): unsupported object is specified")
 	}
 }
 

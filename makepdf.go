@@ -123,3 +123,24 @@ func (sfc *CADSfc) make_pdf() (Fof, error) {
 
 	return nil, fmt.Errorf("??")
 }
+
+// no test...
+func (sfc *CADSfc) lift_conlicts(cad *CAD) error {
+	for i := 0; i < sfc.freen-1; i++ {
+		for _, cpair := range sfc.cpair[i] {
+			fmt.Printf("go cpair!")
+			for j := 2; j < 4; j++ {
+				c := cpair[j]
+				if int(c.lv) < sfc.freen-1 && c.children == nil {
+					// まだ持ち上げてなかったら，持ち上げる
+					c.truth = t_undef
+					err := c.lift(cad)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
