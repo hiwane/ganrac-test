@@ -309,3 +309,157 @@ func TestModularIntToRat(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkModularMulPoly(b *testing.B) {
+	seed := int64(12345)
+	r := rand.NewSource(seed)
+	for bi := 0; bi < b.N; bi++ {
+		p := Uint([]uint32{101, 5, 53, 773}[r.Int63()%4])
+		deg := -1
+		for deg <= 1 {
+			deg = KARATSUBA_DEG_MOD + int(r.Int63()%10)
+		}
+		varn := int(r.Int63()%3 + 1)
+		f := randPoly(r, varn, deg, 1000, 40)
+		g := randPoly(r, varn, deg, 1000, 40)
+		fp, ok := f.mod(p).(*Poly)
+		if !ok {
+			continue
+		}
+
+		gp, ok := g.mod(p).(*Poly)
+		if !ok {
+			continue
+		}
+
+		fp.mul_poly_mod(gp, p)
+	}
+}
+
+func TestModularMulPoly(t *testing.T) {
+	seed := time.Now().UnixNano()
+	r := rand.NewSource(seed)
+
+	p := Uint([]uint32{101, 5, 53, 773}[r.Int63()%4])
+
+	for i := 0; i < 20; i++ {
+		// fmt.Printf("i=%d, seed=%d\n", i, seed)
+		deg := -1
+		for deg <= 1 {
+			deg = KARATSUBA_DEG_MOD + int(r.Int63()%10)
+		}
+		varn := int(r.Int63()%3 + 1)
+		f := randPoly(r, varn, deg, 10, 4)
+		g := randPoly(r, varn, deg, 10, 4)
+		if err := f.valid(); err != nil {
+			t.Errorf("randPoly invalid %d: %v", seed, f)
+		}
+		if err := g.valid(); err != nil {
+			t.Errorf("randPoly invalid %d: %v", seed, g)
+		}
+
+		fp, ok := f.mod(p).(*Poly)
+		if !ok {
+			continue
+		}
+
+		gp, ok := g.mod(p).(*Poly)
+		if !ok {
+			continue
+		}
+
+		fg1, ok1 := fp.mul_poly_mod(gp, p).(*Poly)
+		fg2, ok2 := Mul(f, g).(*Poly).mod(p).(*Poly)
+		if ok1 != ok2 {
+			t.Errorf("i=%d seed=%d 1\nf=%v\ng=%v\np=%v\n1=%v\n2=%v\n", i, seed, f, g, p, fg1, fg2)
+			continue
+		}
+		if !ok1 {
+			continue
+		}
+
+		q := fg1.sub_mod(fg2, p)
+		if q != Uint(0) {
+			t.Errorf("i=%d seed=%d 2\nf=%v\ng=%v\np=%v\n1=%v\n2=%v\n", i, seed, f, g, p, fg1, fg2)
+			continue
+		}
+	}
+}
+
+func TestModularKaratsubaDivide(t *testing.T) {
+	seed := time.Now().UnixNano()
+	seed = 1
+	r := rand.NewSource(seed)
+
+	p := Uint([]uint32{101, 5, 53, 773}[r.Int63()%4])
+
+	for s := 0; s < 20; s++ {
+		deg := int(r.Int63()%10) + 1
+		varn := int(r.Int63()%3 + 1)
+
+		_f := randPoly(r, varn, deg, 10, 4)
+		f, ok := _f.mod(p).(*Poly)
+		if !ok {
+			continue
+		}
+
+		for d := 1; d <= len(f.c)+1; d++ {
+			f1, f0 := f.karatsuba_divide_mod(d)
+			if err := f1.valid(); err != nil {
+				t.Errorf("invalid f1. %v, <%d,%d,%d>\nf =%v\nf1=%v\nf0=%v\n", err, d, seed, p, f, f1, f0)
+				break
+			}
+			if err := f0.valid(); err != nil {
+				t.Errorf("invalid f0. %v, <%d,%d,%d>\nf =%v\nf1=%v\nf0=%v\n", err, d, seed, p, f, f1, f0)
+				break
+			}
+			if u, ok := f0.(*Poly); ok && u.lv == f.lv && u.Deg(f.lv) >= d {
+				t.Errorf("deg f0. <%d,%d,%d>\nf =%v\nf1=%v\nf0=%v\n", d, seed, p, f, f1, f0)
+				break
+			}
+
+			var r *Poly // r = f1 * x^d + f0
+			if u, ok := f1.(*Poly); ok && u.lv == f.lv {
+				r = NewPoly(f.lv, d+u.Deg(u.lv)+1)
+				copy(r.c[d:], u.c)
+			} else { // 定数
+				r = NewPoly(f.lv, d+1)
+				r.c[d] = f1
+			}
+			for j := 0; j < d; j++ {
+				r.c[j] = Uint(0)
+			}
+			if u, ok := f0.(*Poly); ok && u.lv == f.lv {
+				copy(r.c, u.c)
+			} else { // 定数
+				r.c[0] = f0
+			}
+			r2 := r.normalize().(Moder)
+
+			y := r2.sub_mod(f, p)
+			if !y.IsZero() {
+				t.Errorf("zero. <%d,%d,%d>\nf =%v\nf1=%v\nf0=%v\nr =%v\ny =%v\n", d, seed, p, f, f1, f0, r, y)
+				return
+			}
+
+			// 積も様子をみようじゃないか
+			xd := NewPoly(f.lv, d+1)
+			for j := 0; j < d; j++ {
+				xd.c[j] = Uint(0)
+			}
+			xd.c[d] = Uint(1)
+			v := f1.mul_mod(xd, p)
+			fmt.Printf("f1=%v\n", f1)
+			fmt.Printf("xd=%v\n", xd)
+			fmt.Printf("v1=%v\n", v)
+			v = v.add_mod(f0, p)
+			fmt.Printf("v2=%v\n", v)
+			y = v.sub_mod(f, p)
+			if !y.IsZero() {
+				t.Errorf("zero.2 <%d,%d,%d>\nf =%v\nf1=%v\nf0=%v\nv =%v\ny =%v\n", d, seed, p, f, f1, f0, v, y)
+				return
+			}
+		}
+	}
+
+}

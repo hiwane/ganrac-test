@@ -149,3 +149,11 @@ func (g *Ganrac) log(lv int, format string, a ...interface{}) {
 		fmt.Printf(format, a...)
 	}
 }
+
+func maxint(a, b int) int {
+	if a < b {
+		return b
+	} else {
+		return a
+	}
+}

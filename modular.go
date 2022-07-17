@@ -5,6 +5,12 @@ import (
 	"math/big"
 )
 
+// go test -bench  BenchmarkModularMulPoly -run BenchmarkModularMulPoly -o prof/ganrac -count=N
+// 3x20= 34.222
+// 4x20= 30.380
+// 5x20= 31.947
+const KARATSUBA_DEG_MOD = 4
+
 type Cellmod struct {
 	cell    *Cell // 元
 	defpoly *Poly
@@ -21,6 +27,7 @@ type Moder interface {
 	add_mod(g Moder, p Uint) Moder
 	sub_mod(g Moder, p Uint) Moder
 	mul_mod(g Moder, p Uint) Moder
+	mul_uint_mod(g Uint, p Uint) Moder
 	neg_mod(p Uint) Moder
 	inv_mod(cell *Cellmod, p Uint) Moder
 	simpl_mod(cell *Cellmod, p Uint) Moder
@@ -299,7 +306,7 @@ func (f Uint) mul_mod(gg Moder, p Uint) Moder {
 	case *Poly:
 		return g.mul_uint_mod(f, p)
 	default:
-		panic("")
+		panic("internal error")
 	}
 }
 
@@ -311,16 +318,89 @@ func (f *Poly) mul_uint_mod(g Uint, p Uint) Moder {
 	}
 	z := NewPoly(f.lv, len(f.c))
 	for i, cc := range f.c {
-		switch c := cc.(type) {
-		case *Poly:
-			z.c[i] = c.mul_uint_mod(g, p)
-		case Uint:
-			z.c[i] = c.mul_uint_mod(g, p)
-		default:
-			panic("")
-		}
+		z.c[i] = cc.(Moder).mul_uint_mod(g, p)
 	}
 	return z
+}
+
+func (f *Poly) karatsuba_divide_mod(d int) (Moder, Moder) {
+	f1, f0 := f.karatsuba_divide(d)
+	var p1, p0 Moder
+	if x, ok := f1.(Moder); ok {
+		p1 = x
+	} else if f1 == zero {
+		p1 = Uint(0)
+	} else {
+		panic(fmt.Sprintf("internal error %v", f1))
+	}
+	if x, ok := f0.(Moder); ok {
+		p0 = x
+	} else if f0 == zero {
+		p0 = Uint(0)
+	} else {
+		panic(fmt.Sprintf("internal error %v", f0))
+	}
+	return p1, p0
+}
+
+func (f *Poly) karatsuba_mod(g *Poly, p Uint) Moder {
+	// returns f*g mod p
+	// assert f.lv = g.lv
+	// assert len(f.c) > KARATSUBA_DEG_MOD
+	// assert len(g.c) > KARATSUBA_DEG_MOD
+	var d int
+	if len(f.c) > len(g.c) {
+		d = len(f.c) / 2
+	} else {
+		d = len(g.c) / 2
+	}
+	f1, f0 := f.karatsuba_divide_mod(d)
+	g1, g0 := g.karatsuba_divide_mod(d)
+
+	f1g1 := f1.mul_mod(g1, p)
+	f0g0 := f0.mul_mod(g0, p)
+	f10 := f1.sub_mod(f0, p)
+	g10 := g0.sub_mod(g1, p)
+	fg := f10.mul_mod(g10, p)
+	fg = fg.add_mod(f1g1, p)
+	fg = fg.add_mod(f0g0, p)
+
+	d2 := 2 * d
+	var cf1g1 []RObj
+	if ptmp, ok := f1g1.(*Poly); ok && ptmp.lv == f.lv {
+		d2 += len(ptmp.c)
+		cf1g1 = ptmp.c
+	} else {
+		cf1g1 = []RObj{f1g1}
+	}
+	var cf0g0 []RObj
+	if ptmp, ok := f0g0.(*Poly); ok && ptmp.lv == f.lv {
+		cf0g0 = ptmp.c
+	} else {
+		cf0g0 = []RObj{f0g0}
+	}
+	dx := -1
+	if q, ok := fg.(*Poly); ok && q.lv == f.lv {
+		dx = len(q.c)
+	}
+
+	dd := maxint(2*d+len(cf1g1), d+dx)
+	ret := NewPoly(f.lv, dd)
+	for i := 0; i < len(ret.c); i++ {
+		ret.c[i] = Uint(0)
+	}
+	copy(ret.c, cf0g0)
+	copy(ret.c[2*d:], cf1g1)
+
+	if q, ok := fg.(*Poly); ok && q.lv == f.lv {
+		for i := 0; i < len(q.c); i++ {
+			ret.c[i+d] = q.c[i].(Moder).add_mod(ret.c[i+d].(Moder), p)
+		}
+	} else {
+		ret.c[d] = fg.add_mod(ret.c[d].(Moder), p)
+	}
+
+	return ret
 }
 
 func (f *Poly) mul_poly_mod(g *Poly, p Uint) Moder {
@@ -330,12 +410,20 @@ func (f *Poly) mul_poly_mod(g *Poly, p Uint) Moder {
 			z.c[i] = f.mul_mod(g.mcoef(i), p)
 		}
 		if err := z.valid(); err != nil {
-			panic(fmt.Sprintf("invalid 1 %v:%z: <%v,%v>\n", err, z, f, g))
+			panic(fmt.Sprintf("invalid 1 %v\nz=%v\nf=%v\ng=%v\n", err, z, f, g))
 		}
 		return z
 	} else if f.lv > g.lv {
 		return g.mul_poly_mod(f, p)
 	}
+	if len(f.c) > KARATSUBA_DEG_MOD && len(g.c) > KARATSUBA_DEG_MOD {
+		return f.karatsuba_mod(g, p)
+	} else {
+		return f.mul_poly_mod_basic(g, p)
+	}
+}
+
+func (f *Poly) mul_poly_mod_basic(g *Poly, p Uint) Moder {
 	z := NewPoly(f.lv, len(f.c)+len(g.c)-1)
 	for i := range z.c {
 		z.c[i] = Uint(0)
@@ -352,7 +440,7 @@ func (f *Poly) mul_poly_mod(g *Poly, p Uint) Moder {
 	}
 
 	if err := z.valid(); err != nil {
-		panic(fmt.Sprintf("invalid 3 %v:%z: <%v,%v>\n", err, z, f, g))
+		panic(fmt.Sprintf("invalid 3 %v\nz=%v\nf=%v\ng=%v\n", err, z, f, g))
 	}
 	return z
 }

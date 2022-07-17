@@ -36,9 +36,9 @@ func newPolyVarn(lv Level, deg int) *Poly {
 	return p
 }
 
-func NewPoly(lv Level, deg_1 int) *Poly {
+func NewPoly(lv Level, deg_plus_1 int) *Poly {
 	p := new(Poly)
-	p.c = make([]RObj, deg_1)
+	p.c = make([]RObj, deg_plus_1)
 	p.lv = lv
 	return p
 }
@@ -413,7 +413,11 @@ func (z *Poly) normalize() RObj {
 			return z
 		}
 	}
-	return z.c[0]
+	if p, ok := z.c[0].(*Poly); ok {
+		return p.normalize()
+	} else {
+		return z.c[0]
+	}
 }
 
 func (z *Poly) Sub(y RObj) RObj {
@@ -1442,4 +1446,20 @@ func (p *Poly) discrim2(lv Level) RObj {
 	b := p.Coef(lv, 1)
 	c := p.Coef(lv, 0)
 	return Sub(Mul(b, b), Mul(NewInt(4), Mul(a, c)))
+}
+
+func (f *Poly) karatsuba_divide(d int) (RObj, RObj) {
+	// returns f = f1 * x^d + f0 where deg(f0) < d
+	// assert len(f.c) > d
+	// assert d > 1
+	if len(f.c) <= d {
+		return zero, f
+	}
+	f0 := NewPoly(f.lv, d)
+	f1 := NewPoly(f.lv, len(f.c)-d)
+	copy(f0.c, f.c[:d])
+	copy(f1.c, f.c[d:])
+	//	fmt.Printf("KARA.divide %d\nf [%d]=%v\nf1[%d]=%v\nf0[%d]=%v\n", d, len(f.c), f, len(f1.c), f1, len(f0.c), f0)
+	//	fmt.Printf("kara.divide %d\nf=%v\nf1=%v\nf0=%v\n", d, f, f1.normalize(), f0.normalize())
+	return f1.normalize(), f0.normalize()
 }
