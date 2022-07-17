@@ -181,9 +181,6 @@ func (f *Poly) mod(p Uint) Moder {
 func (f *Poly) mod_pp(pp, wk *big.Int) Moder {
 	g := NewPoly(f.lv, len(f.c))
 	for i, cc := range f.c {
-		if cc == nil {
-			panic("why?")
-		}
 		switch c := cc.(type) {
 		case *Poly:
 			g.c[i] = c.mod_pp(pp, wk)
@@ -191,29 +188,30 @@ func (f *Poly) mod_pp(pp, wk *big.Int) Moder {
 			wk.Mod(c.n, pp)
 			g.c[i] = Uint(wk.Int64())
 		default:
-			panic("internal error")
+			panic(fmt.Sprintf("internal error: [%d] %v", i, cc))
 		}
 	}
 	return g.normalize().(Moder)
 }
 
+// d'th coefficient for Moder
 func (f *Poly) mcoef(d int) Moder {
 	return f.c[d].(Moder)
 }
 
 func (f Uint) add_mod(gg Moder, p Uint) Moder {
-	if f == 0 {
-		return gg
-	}
 	switch g := gg.(type) {
 	case Uint:
+		if f.IsZero() {
+			return gg
+		}
 		r := f + g
 		if r >= p {
 			r -= p
 		}
 		return r
 	case *Poly:
-		z := g.copy()
+		z := g.Clone()
 		z.c[0] = f.add_mod(g.mcoef(0), p)
 		return z
 	default:
@@ -224,16 +222,16 @@ func (f Uint) add_mod(gg Moder, p Uint) Moder {
 func (f *Poly) add_mod(gg Moder, p Uint) Moder {
 	switch g := gg.(type) {
 	case Uint:
-		z := f.copy()
+		z := f.Clone()
 		z.c[0] = g.add_mod(z.mcoef(0), p)
 		return z
 	case *Poly:
 		if f.lv < g.lv {
-			z := g.copy()
+			z := g.Clone()
 			z.c[0] = f.add_mod(z.mcoef(0), p)
 			return z
 		} else if f.lv > g.lv {
-			z := f.copy()
+			z := f.Clone()
 			z.c[0] = g.add_mod(z.mcoef(0), p)
 			return z
 		} else {
@@ -246,7 +244,7 @@ func (f *Poly) add_mod(gg Moder, p Uint) Moder {
 				dmin = len(g.c)
 				q = f
 			}
-			z := q.copy()
+			z := q.Clone()
 			for i := 0; i < dmin; i++ {
 				switch fc := f.c[i].(type) {
 				case *Poly:
@@ -265,13 +263,68 @@ func (f *Poly) add_mod(gg Moder, p Uint) Moder {
 }
 
 func (f Uint) sub_mod(gg Moder, p Uint) Moder {
-	g := gg.(Moder).neg_mod(p)
-	return f.add_mod(g, p)
+	switch g := gg.(type) {
+	case *Poly:
+		z := NewPoly(g.lv, len(g.c))
+		z.c[0] = f.sub_mod(g.mcoef(0), p)
+		for i := 1; i < len(g.c); i++ {
+			z.c[i] = g.mcoef(i).neg_mod(p)
+		}
+		return z
+	case Uint:
+		if f < g {
+			return p + f - g
+		} else {
+			return f - g
+		}
+	default:
+		panic("internal error")
+	}
 }
 
 func (f *Poly) sub_mod(gg Moder, p Uint) Moder {
-	g := gg.(Moder).neg_mod(p)
-	return f.add_mod(g, p)
+	switch g := gg.(type) {
+	case *Poly:
+		if f.lv < g.lv {
+			z := NewPoly(g.lv, len(g.c))
+			z.c[0] = f.sub_mod(g.mcoef(0), p)
+			for i := 1; i < len(g.c); i++ {
+				z.c[i] = g.c[i].(Moder).neg_mod(p)
+			}
+			return z
+		} else if f.lv > g.lv {
+			z := f.Clone()
+			z.c[0] = f.mcoef(0).sub_mod(g, p)
+			return z
+		} else {
+			var dmin int
+			var z *Poly
+			if len(f.c) <= len(g.c) {
+				dmin = len(f.c)
+				z = NewPoly(g.lv, len(g.c))
+				for i := dmin; i < len(g.c); i++ {
+					z.c[i] = g.mcoef(i).neg_mod(p)
+				}
+			} else {
+				dmin = len(g.c)
+				z = NewPoly(f.lv, len(f.c))
+				copy(z.c[dmin:], f.c[dmin:])
+			}
+			for i := 0; i < dmin; i++ {
+				z.c[i] = f.mcoef(i).sub_mod(g.mcoef(i), p)
+			}
+			return z.normalize().(Moder)
+		}
+	case Uint:
+		if g.IsZero() {
+			return f
+		}
+		z := f.Clone()
+		z.c[0] = z.mcoef(0).sub_mod(g, p)
+		return z
+	default:
+		panic("internal error")
+	}
 }
 
 func (f Uint) neg_mod(p Uint) Moder {
@@ -282,7 +335,7 @@ func (f Uint) neg_mod(p Uint) Moder {
 }
 
 func (f *Poly) neg_mod(p Uint) Moder {
-	z := f.copy()
+	z := f.Clone()
 	for i, c := range z.c {
 		z.c[i] = c.(Moder).neg_mod(p)
 	}

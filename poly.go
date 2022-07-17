@@ -350,20 +350,8 @@ func (z *Poly) Set(x RObj) RObj {
 	return z
 }
 
-func (z *Poly) Copy() RObj {
-	return z.copy()
-}
-
-func (z *Poly) copy() *Poly {
-	u := NewPoly(z.lv, len(z.c))
-	for i, c := range z.c {
-		u.c[i] = c
-	}
-	return u
-}
-
 func (z *Poly) Neg() RObj {
-	x := z.copy()
+	x := z.Clone()
 	for i := 0; i < len(x.c); i++ {
 		x.c[i] = x.c[i].Neg()
 	}
@@ -372,17 +360,17 @@ func (z *Poly) Neg() RObj {
 
 func (x *Poly) Add(y RObj) RObj {
 	if y.IsNumeric() {
-		z := x.copy()
+		z := x.Clone()
 		z.c[0] = z.c[0].Add(y)
 		return z
 	}
 	p, _ := y.(*Poly)
 	if p.lv < x.lv {
-		z := x.copy()
+		z := x.Clone()
 		z.c[0] = p.Add(z.c[0])
 		return z
 	} else if p.lv > x.lv {
-		z := p.copy()
+		z := p.Clone()
 		z.c[0] = x.Add(z.c[0])
 		return z
 	} else {
@@ -1284,9 +1272,23 @@ func randPoly(r rand.Source, varn, deg, ccoef, num int) *Poly {
 		}
 		ret = Add(ret, vv)
 		if p, ok := ret.(*Poly); i >= num && ok {
+			if err := p.valid(); err != nil {
+				panic(fmt.Sprintf("randPoly invalid: %v", p))
+			}
 			return p
 		}
 	}
+}
+
+func randPolyMod(r rand.Source, varn, deg, ccoef, num int, p Uint) *Poly {
+	for i := 0; i < 1000; i++ {
+		r := randPoly(r, varn, deg, ccoef, num)
+		q, ok := r.mod(p).(*Poly)
+		if ok {
+			return q
+		}
+	}
+	panic(fmt.Sprintf("randPolyMod van=%v, deg=%v, deg=%v, ccoef=%v, p=%v", varn, deg, ccoef, num, p))
 }
 
 func (porg *Poly) pp() (*Poly, RObj) {

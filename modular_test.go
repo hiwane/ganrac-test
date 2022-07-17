@@ -351,12 +351,6 @@ func TestModularMulPoly(t *testing.T) {
 		varn := int(r.Int63()%3 + 1)
 		f := randPoly(r, varn, deg, 10, 4)
 		g := randPoly(r, varn, deg, 10, 4)
-		if err := f.valid(); err != nil {
-			t.Errorf("randPoly invalid %d: %v", seed, f)
-		}
-		if err := g.valid(); err != nil {
-			t.Errorf("randPoly invalid %d: %v", seed, g)
-		}
 
 		fp, ok := f.mod(p).(*Poly)
 		if !ok {
@@ -379,8 +373,43 @@ func TestModularMulPoly(t *testing.T) {
 		}
 
 		q := fg1.sub_mod(fg2, p)
-		if q != Uint(0) {
+		if !q.IsZero() {
 			t.Errorf("i=%d seed=%d 2\nf=%v\ng=%v\np=%v\n1=%v\n2=%v\n", i, seed, f, g, p, fg1, fg2)
+			continue
+		}
+	}
+}
+
+func TestModularSubPoly(t *testing.T) {
+	seed := time.Now().UnixNano()
+	// seed = 1658031713472764784
+	r := rand.NewSource(seed)
+	primes := []uint32{101, 3, 2, 5, 53, 773, 19}
+
+	for i := 0; i < 100; i++ {
+		// fmt.Printf("i=%d, seed=%d\n", i, seed)
+		p := Uint(primes[r.Int63()%int64(len(primes))])
+		deg := -1
+		for deg <= 1 {
+			deg = KARATSUBA_DEG_MOD + int(r.Int63()%10)
+		}
+		varn := int(r.Int63()%3 + 1)
+		fp := randPolyMod(r, varn, deg, 10, 4, p)
+		gp := randPolyMod(r, varn, deg, 10, 4, p)
+
+		fg1, ok1 := fp.sub_mod(gp, p).(*Poly)
+		fg2, ok2 := fp.add_mod(gp.neg_mod(p), p).(*Poly)
+		if ok1 != ok2 {
+			t.Errorf("i=%d seed=%d 1\np=%v\nf=%v\ng=%v\n1=%v\n2=%v\n", i, seed, p, fp, gp, fg1, fg2)
+			continue
+		}
+		if !ok1 {
+			continue
+		}
+
+		q := fg1.sub_mod(fg2, p)
+		if !q.IsZero() {
+			t.Errorf("i=%d seed=%d 2\np=%v\nf=%v\ng=%v\n1=%v\n2=%v\n", i, seed, p, fp, gp, fg1, fg2)
 			continue
 		}
 	}
