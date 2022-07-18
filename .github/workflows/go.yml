@@ -1,0 +1,46 @@
+name: Go
+
+on: [push, pull_request]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [ '1.13', '1.18' ]
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go ${{ matrix.go }}
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ matrix.go }}
+
+    - name: Set up OpenXM
+      run: |
+        sudo apt-get -y install wget
+        sudo wget -O /etc/apt/sources.list.d/fe-deb2.list http://www.math.kobe-u.ac.jp/deb2/fe-deb2.list
+        sudo wget -O /usr/share/keyrings/fe-deb2-archive-keyring.gpg  http://www.math.kobe-u.ac.jp/deb2/fe-deb2-archive-keyring.gpg
+        sudo apt-get -y update
+        touch /tmp/i-agree-with-asir-license
+        sudo apt-get -y install openxm
+        # sudo apt-get install -y build-essential m4 bison
+        # sudo apt-get install -y libx11-dev libxt-dev libxaw7-dev
+        # curl  -O "http://www.math.sci.kobe-u.ac.jp/pub/OpenXM/Head/openxm-head.tar.gz"
+        # tar xf openxm-head.tar.gz
+        # (cd OpenXM/src; make install)
+        # (cd OpenXM/rc; make install)
+        echo "============================== OKK"
+        which asir
+        which ox
+        while :; do ox -ox ox_asir -control 1234 -data 4321; done &
+
+    - name: Test
+      run: go test -v .
+
+    - name: Lint
+      run: go vet -v .
+
+
+
