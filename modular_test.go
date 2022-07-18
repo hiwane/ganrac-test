@@ -81,7 +81,7 @@ func TestModularInvPoly(t *testing.T) {
 				continue
 			}
 			if err := b.valid_mod(cellp, p); err != nil {
-				t.Errorf("a=%v, p=%d, b=%v, err=%w", a, p, b, err)
+				t.Errorf("a=%v, p=%d, b=%v, err=%s", a, p, b, err)
 				return
 			}
 			if b == Uint(0) {

@@ -1,5 +1,9 @@
 %{
 package ganrac
+
+import (
+	"fmt"
+)
 %}
 
 %union{
@@ -83,7 +87,7 @@ dict_mobj
 			yylex.(*pLexer).push(newPNode("_dict", dict, 0, $1.pos))
 		}
 	| lc seq_dict_arg rc {
-			yylex.(*pLexer).trace("dictn" + string($2));
+			yylex.(*pLexer).trace(fmt.Sprintf("dictn%d", $2));
 			yylex.(*pLexer).push(newPNode("_dict", dict, $2, $1.pos))
 		}
 	;
@@ -112,7 +116,7 @@ seq_dict_arg
 	;
 
 list_mobj
-	: lb seq_mobj rb { yylex.(*pLexer).trace("list" + string($2)); yylex.(*pLexer).push(newPNode("_list", list, $2, $1.pos)) }
+	: lb seq_mobj rb { yylex.(*pLexer).trace(fmt.Sprintf("list%d", ($2))); yylex.(*pLexer).push(newPNode("_list", list, $2, $1.pos)) }
 	| lb rb { yylex.(*pLexer).trace("list0"); yylex.(*pLexer).push(newPNode("_list", list, 0, $1.pos)) }
 	;
 
