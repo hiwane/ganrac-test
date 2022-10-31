@@ -5,9 +5,9 @@
 | algorithm | implementation | citation |
 | :-- | :--: | :--: |
 | [Cylindrical algebraic decomposition](../cad.go) | ✔ | [1](cad.md) |
-| [Linear virtual substitution Linear](../vs.go) | ✔ | [1](https://www.sciencedirect.com/science/article/pii/S0747717188800038) |
-| Quadratic virtual substitution Linear | | [1](https://link.springer.com/article/10.1007/s002000050055) |
-| Cubic virtual substitution Linear |  | [1](https://dl.acm.org/doi/10.1145/190347.190425) |
+| [Linear virtual substitution](../vs.go) | ✔ | [1](https://www.sciencedirect.com/science/article/pii/S0747717188800038) |
+| Quadratic virtual substitution | | [1](https://link.springer.com/article/10.1007/s002000050055) |
+| Cubic virtual substitution |  | [1](https://dl.acm.org/doi/10.1145/190347.190425) |
 | [Linear equational constraints](../quadeq.go) `ex([x], a*x+b==0 && phi)` | ✔ | [1](https://dl.acm.org/doi/10.1145/164081.164140) |
 | [Quadratic equational constraints](../quadeq.go) `ex([x], a*x^2+b*x+c==0 && phi)` | ✔ | [1](https://dl.acm.org/doi/10.1145/164081.164140) |
 | Root `all([x], f(x) > 0)` | | [1](https://link.springer.com/chapter/10.1007/978-3-7091-9459-1_19) |
