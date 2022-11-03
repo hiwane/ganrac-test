@@ -59,7 +59,7 @@ See [cad.md](doc/cad.md) for details.
 ![ganrac8](https://user-images.githubusercontent.com/7787544/122847006-fdd71b80-d341-11eb-8156-8a0e5f49b535.gif)
 
 ```
-init(c,b,a,x);
+vars(c,b,a,x);
 F = ex([x], a*x^2+b*x+c <= 0);
 F;
 C = cadinit(F);
